@@ -20,9 +20,12 @@ public static class DependencyInjection
         var databaseUrl = config["DATABASE_URL"]
             ?? "Host=localhost;Database=authly;Username=authly;Password=authly";
         services.AddScoped<TenantConnectionInterceptor>();
-        services.AddDbContext<AppDbContext>((sp, opt) => opt
-            .UseNpgsql(databaseUrl)
-            .AddInterceptors(sp.GetRequiredService<TenantConnectionInterceptor>()));
+        services.AddDbContext<AppDbContext>((sp, opt) =>
+        {
+            opt.UseNpgsql(databaseUrl)
+               .AddInterceptors(sp.GetRequiredService<TenantConnectionInterceptor>());
+            opt.UseOpenIddict(); // register OpenIddict's EF Core entity stores
+        });
 
         // --- Redis (cache, sessions, rate limits) ---
         var redisUrl = config["REDIS_URL"] ?? "localhost:6379";
@@ -35,6 +38,7 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, Argon2idPasswordHasher>();
         services.AddSingleton<IEncryptionService, AesEncryptionService>();
         services.AddSingleton<ITokenHasher, Sha256TokenHasher>();
+        services.AddSingleton<ICredentialGenerator, CredentialGenerator>();
 
         // --- Messaging (Phase 2: stub sender; real BYOK provider added later) ---
         services.AddScoped<IEmailSender, StubEmailSender>();
@@ -51,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<ILoginHistoryRepository, LoginHistoryRepository>();
         services.AddScoped<IVerificationTokenRepository, VerificationTokenRepository>();
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
+        services.AddScoped<IApplicationRepository, ApplicationRepository>();
 
         return services;
     }

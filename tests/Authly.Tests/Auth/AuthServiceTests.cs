@@ -179,6 +179,8 @@ public class AuthServiceTests
             => Task.FromResult(Items.FirstOrDefault(u => u.TenantId == tenantId && u.Email == email));
         public Task<bool> EmailExistsAsync(Guid tenantId, string email, CancellationToken ct = default)
             => Task.FromResult(Items.Any(u => u.TenantId == tenantId && u.Email == email));
+        public Task<bool> AnyTenantAdminAsync(Guid tenantId, CancellationToken ct = default)
+            => Task.FromResult(Items.Any(u => u.TenantId == tenantId && u.IsTenantAdmin));
         public Task AddAsync(User user, CancellationToken ct = default)
         {
             if (user.Id == Guid.Empty) user.Id = Guid.NewGuid();

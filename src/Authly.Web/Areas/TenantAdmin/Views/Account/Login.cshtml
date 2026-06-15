@@ -1,0 +1,32 @@
+@model TenantAdminLoginViewModel
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Admin sign in";
+}
+
+<p class="text-center text-muted mb-4">Sign in to manage your workspace.</p>
+
+<form asp-area="TenantAdmin" asp-controller="Account" asp-action="Login" method="post">
+    <input type="hidden" asp-for="ReturnUrl" />
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label">Email</label>
+        <input asp-for="Email" class="form-control" autocomplete="username" placeholder="admin@example.com" />
+        <span asp-validation-for="Email" class="text-danger small"></span>
+    </div>
+
+    <div class="mb-4">
+        <label asp-for="Password" class="form-label">Password</label>
+        <input asp-for="Password" class="form-control" autocomplete="current-password" placeholder="••••••••" />
+        <span asp-validation-for="Password" class="text-danger small"></span>
+    </div>
+
+    <div class="d-grid">
+        <button type="submit" class="btn btn-primary">Sign in</button>
+    </div>
+</form>
+
+<p class="text-center text-muted small mt-4 mb-0">
+    The first person to sign in to a new workspace becomes its administrator.
+</p>

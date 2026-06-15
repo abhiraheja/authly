@@ -5,12 +5,12 @@ services:
       - "8080:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - DATABASE_URL=Host=postgres;Database=saarvix;Username=saarvix;Password=saarvix
+      - DATABASE_URL=Host=postgres;Database=authly;Username=authly;Password=authly
       - REDIS_URL=redis:6379
       - DEPLOYMENT_MODE=cloud
       # 32-byte base64 key — DEV ONLY. Override in production via env/vault.
       - ENCRYPTION_KEY=3J8mZ1qg9X0vQpYb2sR7tU4wK6nL5cD8eF1aH0iJ2kM=
-      - SUPERADMIN_EMAIL=admin@saarvix.local
+      - SUPERADMIN_EMAIL=admin@authly.local
       - SUPERADMIN_PASSWORD=ChangeMe!123
     depends_on:
       postgres:
@@ -21,15 +21,15 @@ services:
   postgres:
     image: postgres:16
     environment:
-      - POSTGRES_USER=saarvix
-      - POSTGRES_PASSWORD=saarvix
-      - POSTGRES_DB=saarvix
+      - POSTGRES_USER=authly
+      - POSTGRES_PASSWORD=authly
+      - POSTGRES_DB=authly
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U saarvix"]
+      test: ["CMD-SHELL", "pg_isready -U authly"]
       interval: 5s
       timeout: 5s
       retries: 10

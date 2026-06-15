@@ -115,14 +115,14 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 **Goal:** The `/api/v1` REST surface for programmatic tenant management, authenticated by client-credentials token or `X-API-Key`, fully tenant-scoped.
 
-- [ ] API auth: Bearer (client credentials) **and** `X-API-Key` (`api_keys` table §4.5)
-- [ ] Users endpoints (§6: list/create/get/patch/delete, suspend/reactivate, force-reset, roles, sessions)
-- [ ] Roles & Permissions endpoints (§6)
-- [ ] Applications endpoints incl. secret rotate (§6)
-- [ ] Invitations endpoints incl. bulk (`invitations` table §4.10)
-- [ ] Audit-logs (filterable) + Webhooks endpoints (§6)
-- [ ] Conventions: pagination `{data,total,page,limit}`, error `{error:{code,message}}`, additive-only versioning
-- [ ] **Acceptance:** Full CRUD on users/roles/apps via API key and via client-credentials token; every response is tenant-scoped; pagination + error envelope conform.
+- [x] API auth: Bearer (client credentials) **and** `X-API-Key` (`api_keys` table §4.5) — `Api` policy scheme forwards to `ApiKey` handler when X-API-Key present, else OpenIddict validation (Bearer); api_keys stored SHA-256-hashed, looked up globally (not RLS-scoped), tenant bound from the key/token claim
+- [x] Users endpoints (§6: list/create/get/patch/delete, suspend/reactivate, force-reset, roles, sessions) — `UserAdminService` + `/api/v1/users` controller; soft delete; force-reset revokes sessions + queues reset email
+- [x] Roles & Permissions endpoints (§6) — `/api/v1/roles` (+`/permissions` map) and `/api/v1/permissions`, over `IRbacService`
+- [x] Applications endpoints incl. secret rotate (§6) — `/api/v1/applications` over `IApplicationService`; secret returned once on create/rotate
+- [~] Invitations endpoints incl. bulk (`invitations` table §4.10) — **deferred**: the invitations feature/table isn't built yet (no entity); revisit when invitations land
+- [x] Audit-logs (filterable) endpoint (§6) — `/api/v1/audit-logs` paged + `event`/`actorId` filters. [~] Webhooks endpoints — **deferred to Phase 9** (webhooks are fully built there)
+- [x] Conventions: pagination `{data,total,page,limit}` (`PagedResponse`/`Pagination` clamp), error `{error:{code,message}}` (`ApiExceptionFilter` + envelope), additive-only `/api/v1` versioning
+- [~] **Acceptance:** Build + 59/59 unit tests green (ApiKeyService hash-once/revoke + UserAdminService create/dup/suspend/delete/force-reset). **Runtime acceptance pending a Postgres run** (no DB/Docker in dev shell) — exercising CRUD via a real API key and a client-credentials token, asserting tenant-scoping + pagination/error envelopes end-to-end, still to be done.
 
 ---
 

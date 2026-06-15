@@ -1,3 +1,4 @@
+using Authly.Core.Common;
 using Authly.Core.Entities;
 using Authly.Core.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,27 @@ public sealed class UserRepository : IUserRepository
             .Where(u => u.TenantId == tenantId)
             .OrderByDescending(u => u.CreatedAt)
             .ToListAsync(ct);
+
+    public async Task<PagedResult<User>> ListPagedAsync(Guid tenantId, Pagination page, string? emailContains = null, CancellationToken ct = default)
+    {
+        var query = _db.Users.Where(u => u.TenantId == tenantId);
+        if (!string.IsNullOrWhiteSpace(emailContains))
+            query = query.Where(u => u.Email.Contains(emailContains));
+
+        var total = await query.LongCountAsync(ct);
+        var items = await query
+            .OrderByDescending(u => u.CreatedAt)
+            .Skip(page.Skip).Take(page.Limit)
+            .ToListAsync(ct);
+
+        return new PagedResult<User>(items, total);
+    }
+
+    public async Task DeleteAsync(User user, CancellationToken ct = default)
+    {
+        _db.Users.Remove(user);
+        await _db.SaveChangesAsync(ct);
+    }
 
     public Task<bool> AnyTenantAdminAsync(Guid tenantId, CancellationToken ct = default)
         => _db.Users.AnyAsync(u => u.TenantId == tenantId && u.IsTenantAdmin, ct);

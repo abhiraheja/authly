@@ -9,14 +9,19 @@ using Authly.Modules;
 using Authly.Modules.Auth;
 using Authly.Modules.SuperAdmins;
 using Authly.Web.Infrastructure;
+using Authly.Web.Infrastructure.Api;
 using Authly.Web.Infrastructure.Messaging;
 using Authly.Web.Infrastructure.OAuth;
+using OpenIddict.Validation.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // MVC + Razor (all panels, hosted login, end-user portal are server-rendered).
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
+
+// Management API: error-envelope filter is resolved per request via [ServiceFilter].
+builder.Services.AddScoped<ApiExceptionFilter>();
 
 // Infrastructure (EF Core, Redis, Argon2id, AES) + business modules.
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -65,6 +70,16 @@ builder.Services.AddAuthentication(AuthSchemes.SuperAdmin)
         options.AccessDeniedPath = "/tenantadmin/account/login";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
+    })
+    // Management API: X-API-Key handler …
+    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(AuthSchemes.ApiKey, _ => { })
+    // … and a policy scheme that picks X-API-Key when present, else Bearer (OpenIddict validation).
+    .AddPolicyScheme(AuthSchemes.Api, AuthSchemes.Api, options =>
+    {
+        options.ForwardDefaultSelector = ctx =>
+            ctx.Request.Headers.ContainsKey(ApiKeyAuthenticationOptions.HeaderName)
+                ? AuthSchemes.ApiKey
+                : OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme;
     });
 
 builder.Services.AddAuthorizationBuilder()
@@ -76,6 +91,9 @@ builder.Services.AddAuthorizationBuilder()
         .RequireAuthenticatedUser())
     .AddPolicy(AuthPolicies.TenantAdmin, policy => policy
         .AddAuthenticationSchemes(AuthSchemes.TenantAdmin)
+        .RequireAuthenticatedUser())
+    .AddPolicy(AuthPolicies.Api, policy => policy
+        .AddAuthenticationSchemes(AuthSchemes.Api)
         .RequireAuthenticatedUser());
 
 // Hangfire: background jobs stored in PostgreSQL, dashboard at /hangfire.

@@ -11,6 +11,12 @@ public static class AuthSchemes
 
     /// <summary>Cookie scheme for tenant administrators (manage apps, etc.). Separate from both other surfaces.</summary>
     public const string TenantAdmin = "TenantAdmin";
+
+    /// <summary>Policy scheme for the Management API: forwards to <see cref="ApiKey"/> when an X-API-Key header is present, else to Bearer (OpenIddict validation).</summary>
+    public const string Api = "Api";
+
+    /// <summary>X-API-Key authentication scheme for the Management API.</summary>
+    public const string ApiKey = "ApiKey";
 }
 
 /// <summary>Authorization policy names.</summary>
@@ -19,6 +25,7 @@ public static class AuthPolicies
     public const string SuperAdmin = "SuperAdminPolicy";
     public const string User = "UserPolicy";
     public const string TenantAdmin = "TenantAdminPolicy";
+    public const string Api = "ApiPolicy";
 }
 
 /// <summary>Custom claim types for the super-admin principal.</summary>

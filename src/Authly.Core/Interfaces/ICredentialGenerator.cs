@@ -12,4 +12,7 @@ public interface ICredentialGenerator
 
     /// <summary><c>secret_</c> + 48 random URL-safe characters.</summary>
     string GenerateClientSecret();
+
+    /// <summary><c>authly_sk_</c> + 48 random URL-safe characters (Management API key).</summary>
+    string GenerateApiKey();
 }

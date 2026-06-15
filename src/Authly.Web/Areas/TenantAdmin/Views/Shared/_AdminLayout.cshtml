@@ -44,6 +44,14 @@
                     <span class="menu-text">Users</span>
                 </a>
             </li>
+            <li class="side-nav-title">Developers</li>
+            <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("ApiKeys") ? "active" : "")"
+                   asp-area="TenantAdmin" asp-controller="ApiKeys" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="key-round"></i></span>
+                    <span class="menu-text">API keys</span>
+                </a>
+            </li>
         </ul>
     </div>
 

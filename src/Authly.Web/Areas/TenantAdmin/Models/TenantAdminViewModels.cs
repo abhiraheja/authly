@@ -42,6 +42,16 @@ public sealed class CreateRoleViewModel
     public string? Description { get; set; }
 }
 
+/// <summary>Create-API-key form.</summary>
+public sealed class CreateApiKeyViewModel
+{
+    [Required, Display(Name = "Key name")]
+    public string Name { get; set; } = string.Empty;
+
+    [Display(Name = "Scopes (space-separated, blank = full access)")]
+    public string? Scopes { get; set; }
+}
+
 /// <summary>Manage a single user's role assignments.</summary>
 public sealed class UserRolesViewModel
 {

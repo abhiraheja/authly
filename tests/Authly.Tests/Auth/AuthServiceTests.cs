@@ -1,3 +1,4 @@
+using Authly.Core.Common;
 using Authly.Core.Entities;
 using Authly.Core.Enums;
 using Authly.Core.Interfaces;
@@ -181,6 +182,18 @@ public class AuthServiceTests
             => Task.FromResult(Items.Any(u => u.TenantId == tenantId && u.Email == email));
         public Task<IReadOnlyList<User>> ListByTenantAsync(Guid tenantId, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<User>>(Items.Where(u => u.TenantId == tenantId).ToList());
+        public Task<PagedResult<User>> ListPagedAsync(Guid tenantId, Pagination page, string? emailContains = null, CancellationToken ct = default)
+        {
+            var q = Items.Where(u => u.TenantId == tenantId);
+            if (!string.IsNullOrWhiteSpace(emailContains)) q = q.Where(u => u.Email.Contains(emailContains));
+            var list = q.ToList();
+            return Task.FromResult(new PagedResult<User>(list.Skip(page.Skip).Take(page.Limit).ToList(), list.Count));
+        }
+        public Task DeleteAsync(User user, CancellationToken ct = default)
+        {
+            Items.Remove(user);
+            return Task.CompletedTask;
+        }
         public Task<bool> AnyTenantAdminAsync(Guid tenantId, CancellationToken ct = default)
             => Task.FromResult(Items.Any(u => u.TenantId == tenantId && u.IsTenantAdmin));
         public Task AddAsync(User user, CancellationToken ct = default)
@@ -209,6 +222,16 @@ public class AuthServiceTests
             return Task.CompletedTask;
         }
         public Task UpdateAsync(Session session, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> RevokeAllForUserAsync(Guid tenantId, Guid userId, CancellationToken ct = default)
+        {
+            var n = 0;
+            foreach (var s in Items.Where(s => s.TenantId == tenantId && s.UserId == userId && !s.Revoked))
+            {
+                s.Revoked = true;
+                n++;
+            }
+            return Task.FromResult(n);
+        }
     }
 
     private sealed class FakeLoginHistoryRepository : ILoginHistoryRepository

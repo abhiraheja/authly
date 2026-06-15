@@ -1,0 +1,32 @@
+@model CreateApiKeyViewModel
+
+<div class="page-title-head d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0">New API key</h4>
+    <a class="btn btn-soft-secondary btn-sm" asp-area="TenantAdmin" asp-controller="ApiKeys" asp-action="Index">Back</a>
+</div>
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-body">
+                <form asp-area="TenantAdmin" asp-controller="ApiKeys" asp-action="Create" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger small mb-2"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="Name" class="form-label"></label>
+                        <input asp-for="Name" class="form-control" placeholder="e.g. CI deploy key" autofocus />
+                        <span asp-validation-for="Name" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Scopes" class="form-label"></label>
+                        <input asp-for="Scopes" class="form-control" placeholder="user.read user.write role.read" />
+                        <div class="form-text">Permission patterns (<code>resource.action</code> or <code>*</code>). Leave blank for full tenant access.</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Create API key</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

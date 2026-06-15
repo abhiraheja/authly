@@ -27,6 +27,7 @@ public class AppDbContext : DbContext
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -328,6 +329,30 @@ public class AppDbContext : DbContext
             e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Role).WithMany().HasForeignKey(x => x.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ApiKey>(e =>
+        {
+            e.ToTable("api_keys");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.KeyHash).HasColumnName("key_hash").IsRequired();
+            e.Property(x => x.Name).HasColumnName("name").IsRequired();
+            e.Property(x => x.Scopes).HasColumnName("scopes").HasColumnType("text[]").HasDefaultValueSql("'{}'");
+            e.Property(x => x.ExpiresAt).HasColumnName("expires_at");
+            e.Property(x => x.Revoked).HasColumnName("revoked").HasDefaultValue(false);
+            e.Property(x => x.LastUsedAt).HasColumnName("last_used_at");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => x.KeyHash).IsUnique().HasDatabaseName("idx_api_keys_hash");
+            e.HasIndex(x => x.TenantId).HasDatabaseName("idx_api_keys_tenant");
+
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

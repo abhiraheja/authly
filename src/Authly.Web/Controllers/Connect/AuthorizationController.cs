@@ -1,8 +1,10 @@
 using System.Collections.Immutable;
 using System.Security.Claims;
 using Microsoft.AspNetCore; // OpenIddictServerAspNetCoreHelpers.GetOpenIddictServerRequest
+using Authly.Core.Enums;
 using Authly.Core.Interfaces;
 using Authly.Modules.Authorization;
+using Authly.Modules.Claims;
 using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
@@ -24,12 +26,15 @@ public sealed class AuthorizationController : Controller
     private readonly IApplicationRepository _applications;
     private readonly IUserRepository _users;
     private readonly IRbacService _rbac;
+    private readonly ITokenClaimAssembler _claims;
 
-    public AuthorizationController(IApplicationRepository applications, IUserRepository users, IRbacService rbac)
+    public AuthorizationController(IApplicationRepository applications, IUserRepository users, IRbacService rbac,
+        ITokenClaimAssembler claims)
     {
         _applications = applications;
         _users = users;
         _rbac = rbac;
+        _claims = claims;
     }
 
     // --- Authorization endpoint (Authorization Code + PKCE) ---
@@ -92,9 +97,24 @@ public sealed class AuthorizationController : Controller
         identity.SetClaims(Claims.Role, authorization.Roles.ToImmutableArray());
         identity.SetClaims(PermissionsClaim, authorization.Permissions.ToImmutableArray());
 
+        // §5.6 steps 2–4: tenant custom claims (static + metadata) and pre-token webhook claims.
+        var payload = new
+        {
+            sub = user.Id.ToString(),
+            email = user.Email,
+            tenant_id = application.TenantId.ToString(),
+            client_id = application.ClientId,
+            scopes = request.GetScopes().ToArray()
+        };
+        var (blocked, reason, idClaimNames) = await ApplyCustomClaimsAsync(
+            identity, application.TenantId, application.Id, user.UserMetadata, user.AppMetadata, payload, ct);
+        if (blocked)
+            return Forbid(properties: ErrorProps(Errors.AccessDenied, reason ?? "Token issuance was blocked by a pipeline hook."),
+                authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+
         var principal = new ClaimsPrincipal(identity);
         principal.SetScopes(request.GetScopes());
-        identity.SetDestinations(GetDestinations);
+        identity.SetDestinations(claim => DestinationsFor(claim, idClaimNames));
 
         return SignIn(principal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
@@ -133,9 +153,24 @@ public sealed class AuthorizationController : Controller
             .SetClaim(Claims.Name, application.Name)
             .SetClaim(TenantClaim, application.TenantId.ToString());
 
+        // Machine-to-machine tokens also get tenant custom claims + pre-token hook claims (no user
+        // metadata to map, but static claims and webhook claims still apply).
+        var payload = new
+        {
+            sub = application.ClientId,
+            client_id = application.ClientId,
+            tenant_id = application.TenantId.ToString(),
+            scopes = request.GetScopes().ToArray()
+        };
+        var (blocked, reason, idClaimNames) = await ApplyCustomClaimsAsync(
+            identity, application.TenantId, application.Id, userMetadataJson: null, appMetadataJson: null, payload, ct);
+        if (blocked)
+            return Forbid(properties: ErrorProps(Errors.AccessDenied, reason ?? "Token issuance was blocked by a pipeline hook."),
+                authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+
         var principal = new ClaimsPrincipal(identity);
         principal.SetScopes(request.GetScopes());
-        identity.SetDestinations(GetDestinations);
+        identity.SetDestinations(claim => DestinationsFor(claim, idClaimNames));
 
         return SignIn(principal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
@@ -227,6 +262,53 @@ public sealed class AuthorizationController : Controller
     {
         var name = $"{first} {last}".Trim();
         return string.IsNullOrEmpty(name) ? fallbackEmail : name;
+    }
+
+    // Standard/reserved claims are owned by §5.6 step 1 and must not be clobbered by custom claims.
+    private static readonly HashSet<string> ReservedClaimNames = new(StringComparer.Ordinal)
+    {
+        Claims.Subject, Claims.Issuer, Claims.Audience, Claims.ExpiresAt, Claims.IssuedAt, Claims.NotBefore,
+        Claims.Email, Claims.EmailVerified, Claims.Name, Claims.Role, TenantClaim, PermissionsClaim
+    };
+
+    /// <summary>
+    /// Assembles tenant custom claims (§5.6 steps 2–4) and writes them onto the identity. Pre-token
+    /// hooks run once (for the access pass); the id pass only adds static/metadata claims. Returns
+    /// whether issuance was blocked and the set of claim names destined for the identity token.
+    /// </summary>
+    private async Task<(bool Blocked, string? Reason, HashSet<string> IdClaimNames)> ApplyCustomClaimsAsync(
+        ClaimsIdentity identity, Guid tenantId, Guid applicationId,
+        string? userMetadataJson, string? appMetadataJson, object payload, CancellationToken ct)
+    {
+        var idClaimNames = new HashSet<string>(StringComparer.Ordinal);
+
+        var access = await _claims.AssembleAsync(new ClaimAssemblyRequest(
+            tenantId, applicationId, ClaimTokenType.Access, userMetadataJson, appMetadataJson, payload), ct);
+        if (access.Blocked)
+            return (true, access.BlockReason, idClaimNames);
+
+        var id = await _claims.AssembleAsync(new ClaimAssemblyRequest(
+            tenantId, applicationId, ClaimTokenType.Id, userMetadataJson, appMetadataJson, payload, RunPreTokenHooks: false), ct);
+
+        foreach (var (name, value) in access.Claims)
+            if (!ReservedClaimNames.Contains(name)) identity.SetClaim(name, value);
+
+        foreach (var (name, value) in id.Claims)
+            if (!ReservedClaimNames.Contains(name)) { identity.SetClaim(name, value); idClaimNames.Add(name); }
+
+        return (false, null, idClaimNames);
+    }
+
+    private static IEnumerable<string> DestinationsFor(Claim claim, HashSet<string> idClaimNames)
+    {
+        if (idClaimNames.Contains(claim.Type))
+        {
+            yield return Destinations.AccessToken;
+            yield return Destinations.IdentityToken;
+            yield break;
+        }
+        foreach (var destination in GetDestinations(claim))
+            yield return destination;
     }
 
     /// <summary>Routes each claim to the access token and/or identity token per the granted scopes.</summary>

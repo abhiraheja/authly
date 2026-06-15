@@ -1,0 +1,65 @@
+@model WebhookEndpointInput
+@{
+    var catalog = ViewData["Catalog"] as IReadOnlyList<string> ?? EventCatalog.All;
+    var selected = new HashSet<string>(Model.Events ?? Array.Empty<string>(), StringComparer.Ordinal);
+    var isNew = Model.Id is null;
+}
+
+<div class="page-title-head mb-3">
+    <h4 class="mb-0">@(isNew ? "Add" : "Edit") webhook endpoint</h4>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form asp-area="TenantAdmin" asp-controller="Webhooks" asp-action="Save" method="post" class="row g-3">
+            <input type="hidden" asp-for="Id" />
+            <div asp-validation-summary="All" class="text-danger small"></div>
+
+            <div class="col-12">
+                <label class="form-label" asp-for="Url">Endpoint URL</label>
+                <input class="form-control" asp-for="Url" placeholder="https://example.com/hooks/authly" />
+            </div>
+
+            <div class="col-12">
+                <label class="form-label" asp-for="Secret">Signing secret</label>
+                <input class="form-control" asp-for="Secret" type="password" autocomplete="new-password"
+                       placeholder="@(isNew ? "Leave blank to auto-generate" : "Leave blank to keep current")" />
+                <div class="form-text">Used to HMAC-SHA256 sign each delivery (header <code>X-Authly-Signature</code>). Write-only.</div>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Subscribed events</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="Events" value="*" id="ev-wild"
+                           @(selected.Contains("*") ? "checked" : "") />
+                    <label class="form-check-label fw-medium" for="ev-wild">All events (<code>*</code>)</label>
+                </div>
+                <hr class="my-2" />
+                <div class="row">
+                    @foreach (var ev in catalog)
+                    {
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="Events" value="@ev" id="ev-@ev"
+                                       @(selected.Contains(ev) ? "checked" : "") />
+                                <label class="form-check-label small" for="ev-@ev">@ev</label>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" asp-for="IsActive" />
+                    <label class="form-check-label" asp-for="IsActive">Active</label>
+                </div>
+            </div>
+
+            <div class="col-12 d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Save endpoint</button>
+                <a class="btn btn-soft-secondary" asp-area="TenantAdmin" asp-controller="Webhooks" asp-action="Index">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>

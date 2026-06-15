@@ -1,0 +1,48 @@
+@model IReadOnlyList<PipelineHook>
+
+<div class="page-title-head d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0">Pipeline hooks</h4>
+    <a class="btn btn-sm btn-primary" asp-area="TenantAdmin" asp-controller="PipelineHooks" asp-action="Edit">
+        <i data-lucide="plus"></i> Add hook
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <p class="text-muted small">
+            Pipeline hooks fire synchronously at a stage of the auth flow. Each is signed
+            (<code>X-Authly-Signature</code>) and bounded by a timeout; on failure the flow either
+            continues (fail-open) or blocks (fail-closed). A <code>pre_token</code> hook may return a
+            JSON object of claims to inject into the issued token.
+        </p>
+        @if (Model.Count == 0)
+        {
+            <p class="text-muted mb-0">No pipeline hooks configured.</p>
+        }
+        else
+        {
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Stage</th><th>URL</th><th>Timeout</th><th>On failure</th><th>Status</th><th class="text-end"></th></tr></thead>
+                <tbody>
+                @foreach (var h in Model)
+                {
+                    <tr>
+                        <td class="fw-medium">@h.Stage</td>
+                        <td class="text-break small">@h.Url</td>
+                        <td>@h.TimeoutMs ms</td>
+                        <td>@h.OnFailure.ToString().ToLowerInvariant()</td>
+                        <td>@(h.IsActive ? "active" : "inactive")</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-soft-primary" asp-area="TenantAdmin" asp-controller="PipelineHooks" asp-action="Edit" asp-route-id="@h.Id">Edit</a>
+                            <form class="d-inline" asp-area="TenantAdmin" asp-controller="PipelineHooks" asp-action="Delete" asp-route-id="@h.Id" method="post"
+                                  onsubmit="return confirm('Remove this hook?');">
+                                <button type="submit" class="btn btn-sm btn-soft-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>

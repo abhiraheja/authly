@@ -73,6 +73,27 @@
                     <span class="menu-text">Messaging</span>
                 </a>
             </li>
+            <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("Webhooks") ? "active" : "")"
+                   asp-area="TenantAdmin" asp-controller="Webhooks" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="webhook"></i></span>
+                    <span class="menu-text">Webhooks</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("PipelineHooks") ? "active" : "")"
+                   asp-area="TenantAdmin" asp-controller="PipelineHooks" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="git-branch"></i></span>
+                    <span class="menu-text">Pipeline hooks</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("ClaimConfigs") ? "active" : "")"
+                   asp-area="TenantAdmin" asp-controller="ClaimConfigs" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="id-card"></i></span>
+                    <span class="menu-text">Custom claims</span>
+                </a>
+            </li>
         </ul>
     </div>
 

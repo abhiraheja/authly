@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Authly.Core.Events;
 using Authly.Core.Interfaces;
 using Authly.Core.OAuth;
 using Authly.Infrastructure.Data;
 using Authly.Infrastructure.Data.Repositories;
+using Authly.Infrastructure.Events;
 using Authly.Infrastructure.Messaging;
 using Authly.Infrastructure.OAuth;
 using Authly.Infrastructure.Security;
@@ -54,6 +56,10 @@ public static class DependencyInjection
         // --- Social / OAuth2 login gateway (HTTP) ---
         services.AddScoped<ISocialAuthGateway, SocialAuthGateway>();
 
+        // --- Webhooks & pipeline hooks (HTTP transports) ---
+        services.AddScoped<IWebhookSender, HttpWebhookSender>();
+        services.AddScoped<IPipelineHookClient, HttpPipelineHookClient>();
+
         // --- Tenancy ---
         services.AddScoped<ITenantContext, TenantContext>();
 
@@ -78,6 +84,10 @@ public static class DependencyInjection
         services.AddScoped<IMessageLogRepository, MessageLogRepository>();
         services.AddScoped<ISocialIdentityRepository, SocialIdentityRepository>();
         services.AddScoped<ISocialProviderRepository, SocialProviderRepository>();
+        services.AddScoped<IWebhookEndpointRepository, WebhookEndpointRepository>();
+        services.AddScoped<IWebhookDeliveryRepository, WebhookDeliveryRepository>();
+        services.AddScoped<IPipelineHookRepository, PipelineHookRepository>();
+        services.AddScoped<IClaimConfigRepository, ClaimConfigRepository>();
 
         return services;
     }

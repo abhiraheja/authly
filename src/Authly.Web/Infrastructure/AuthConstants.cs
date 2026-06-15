@@ -40,6 +40,12 @@ public static class UserClaims
     public const string TenantId = "authly:tenant_id";
     public const string SessionId = "authly:session_id";
     public const string EmailVerified = "authly:email_verified";
+
+    /// <summary>Present only on an impersonation session — the admin user id acting as this user.</summary>
+    public const string ImpersonatorId = "authly:impersonator_id";
+
+    /// <summary>The impersonating admin's email, shown in the portal impersonation banner.</summary>
+    public const string ImpersonatorEmail = "authly:impersonator_email";
 }
 
 /// <summary>Custom claim types for the tenant-admin principal.</summary>

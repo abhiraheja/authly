@@ -1,0 +1,53 @@
+@model IReadOnlyList<Authly.Core.Entities.UserDevice>
+
+<div class="page-title-head mb-3">
+    <h4 class="mb-1">Devices</h4>
+    <p class="text-muted mb-0">Devices you've signed in from. Trusting a device skips the extra verification step when your organization requires it for new devices.</p>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        @if (Model.Count == 0)
+        {
+            <p class="text-muted mb-0">No devices recorded yet.</p>
+        }
+        else
+        {
+            <div class="list-group list-group-flush">
+                @foreach (var d in Model)
+                {
+                    <div class="list-group-item px-0">
+                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                            <div>
+                                <div class="fw-medium">
+                                    <i data-lucide="laptop" class="me-1"></i> @d.Label
+                                    @if (d.Trusted) { <span class="badge bg-success ms-1">Trusted</span> }
+                                </div>
+                                <div class="text-muted small">
+                                    Last seen @d.LastSeenAt.ToString("yyyy-MM-dd HH:mm")@(string.IsNullOrEmpty(d.LastIp) ? "" : $" · {d.LastIp}")
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <form asp-area="Portal" asp-controller="Devices" asp-action="Trust" asp-route-id="@d.Id" method="post" class="m-0">
+                                    <input type="hidden" name="trusted" value="@((!d.Trusted).ToString().ToLowerInvariant())" />
+                                    <button type="submit" class="btn btn-sm @(d.Trusted ? "btn-soft-secondary" : "btn-soft-primary")">
+                                        @(d.Trusted ? "Untrust" : "Trust")
+                                    </button>
+                                </form>
+                                <form asp-area="Portal" asp-controller="Devices" asp-action="Forget" asp-route-id="@d.Id" method="post" class="m-0"
+                                      onsubmit="return confirm('Forget this device?');">
+                                    <button type="submit" class="btn btn-sm btn-soft-danger">Forget</button>
+                                </form>
+                            </div>
+                        </div>
+                        <form asp-area="Portal" asp-controller="Devices" asp-action="Rename" asp-route-id="@d.Id" method="post"
+                              class="input-group input-group-sm mt-2" style="max-width:24rem;">
+                            <input name="label" class="form-control" value="@d.Label" maxlength="80" aria-label="Device name" />
+                            <button type="submit" class="btn btn-soft-secondary">Rename</button>
+                        </form>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>

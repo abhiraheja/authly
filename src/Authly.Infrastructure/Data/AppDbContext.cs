@@ -45,6 +45,7 @@ public class AppDbContext : DbContext
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
     public DbSet<SelfHostedInstance> SelfHostedInstances => Set<SelfHostedInstance>();
     public DbSet<Announcement> Announcements => Set<Announcement>();
+    public DbSet<UserDevice> UserDevices => Set<UserDevice>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -485,6 +486,28 @@ public class AppDbContext : DbContext
             e.HasIndex(x => x.SyncKeyHash).IsUnique().HasDatabaseName("idx_self_hosted_instances_sync_key");
 
             e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.OwnerTenantId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Tenant-scoped known devices (RLS like users).
+        b.Entity<UserDevice>(e =>
+        {
+            e.ToTable("user_devices");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
+            e.Property(x => x.Fingerprint).HasColumnName("fingerprint").IsRequired();
+            e.Property(x => x.Label).HasColumnName("label").IsRequired();
+            e.Property(x => x.UserAgent).HasColumnName("user_agent");
+            e.Property(x => x.LastIp).HasColumnName("last_ip");
+            e.Property(x => x.Trusted).HasColumnName("trusted").HasDefaultValue(false);
+            e.Property(x => x.FirstSeenAt).HasColumnName("first_seen_at").HasDefaultValueSql("NOW()");
+            e.Property(x => x.LastSeenAt).HasColumnName("last_seen_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.UserId, x.Fingerprint }).IsUnique().HasDatabaseName("idx_user_devices_fingerprint");
+
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // Platform-level super-admin announcements. NOT tenant-scoped — no RLS, like super_admins.

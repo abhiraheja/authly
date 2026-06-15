@@ -115,6 +115,7 @@ public static class DependencyInjection
         services.AddScoped<IConsentRecordRepository, ConsentRecordRepository>();
         services.AddScoped<ISelfHostedInstanceRepository, SelfHostedInstanceRepository>();
         services.AddScoped<IAnnouncementRepository, AnnouncementRepository>();
+        services.AddScoped<IUserDeviceRepository, UserDeviceRepository>();
 
         return services;
     }

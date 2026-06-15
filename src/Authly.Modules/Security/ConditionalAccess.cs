@@ -1,6 +1,7 @@
 using Authly.Core.Entities;
 using Authly.Core.Interfaces;
 using Authly.Modules.Common;
+using Authly.Modules.Devices;
 
 namespace Authly.Modules.Security;
 
@@ -36,11 +37,14 @@ public sealed class ConditionalAccessService : IConditionalAccessService
 {
     private readonly ISecuritySettingsService _settings;
     private readonly ILoginHistoryRepository _history;
+    private readonly IUserDeviceRepository _devices;
 
-    public ConditionalAccessService(ISecuritySettingsService settings, ILoginHistoryRepository history)
+    public ConditionalAccessService(ISecuritySettingsService settings, ILoginHistoryRepository history,
+        IUserDeviceRepository devices)
     {
         _settings = settings;
         _history = history;
+        _devices = devices;
     }
 
     public async Task<ConditionalAccessDecision> EvaluateAsync(Guid tenantId, User user, RequestInfo info, CancellationToken ct = default)
@@ -62,7 +66,13 @@ public sealed class ConditionalAccessService : IConditionalAccessService
             var recent = await _history.ListForUserAsync(tenantId, user.Id, 50, ct);
             var successes = recent.Where(h => h.Result == "success").ToList();
             if (SuspiciousLoginDetector.IsNewContext(info.IpAddress, info.UserAgent, successes))
-                Consider(s.NewDeviceAction, "new_device");
+            {
+                // A device the user has explicitly trusted is exempt from the new-device step-up.
+                var fingerprint = DeviceFingerprint.From(info.UserAgent);
+                var trusted = await _devices.GetByFingerprintAsync(tenantId, user.Id, fingerprint, ct) is { Trusted: true };
+                if (!trusted)
+                    Consider(s.NewDeviceAction, "new_device");
+            }
         }
 
         // Unverified email at sign-in.

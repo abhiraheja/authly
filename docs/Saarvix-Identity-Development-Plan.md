@@ -260,7 +260,7 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 ## Future Work (post-Foundation — master-plan Phases 2–4)
 
-- **Phase 2 (Advanced):** ~~risk-based/conditional access~~ ✅, ABAC, anonymous/guest auth, impersonation, device management, anomaly detection, log streaming, migration tools (Auth0/Firebase importers), more SDKs, CLI.
+- **Phase 2 (Advanced):** ~~risk-based/conditional access~~ ✅, ABAC, anonymous/guest auth, ~~impersonation~~ ✅, ~~device management~~ ✅, anomaly detection, log streaming, migration tools (Auth0/Firebase importers), more SDKs, CLI.
 
 ### Phase 2 — Conditional / risk-based access  *(done 2026-06-16, build + 6 tests, runtime-pending)*
 - [x] Per-tenant conditional-access policy (`TenantSecuritySettings.ConditionalAccessEnabled` + `NewDeviceAction`/`UnverifiedEmailAction` as `ConditionalAction` Allow|RequireMfa|Block), edited on the Tenant Admin → Security page.

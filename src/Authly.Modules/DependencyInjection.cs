@@ -36,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IRbacService, RbacService>();
         services.AddScoped<IApiKeyService, ApiKeyService>();
         services.AddScoped<IUserAdminService, UserAdminService>();
+        services.AddScoped<IImpersonationService, ImpersonationService>();
         services.AddScoped<IMfaService, MfaService>();
         services.AddScoped<IMessagingService, MessagingService>();
         services.AddScoped<ISocialLoginService, SocialLoginService>();
@@ -64,6 +65,7 @@ public static class DependencyInjection
         services.AddScoped<ISecurityScreeningService, SecurityScreeningService>();
         services.AddScoped<ISuspiciousLoginService, SuspiciousLoginService>();
         services.AddScoped<IConditionalAccessService, ConditionalAccessService>();
+        services.AddScoped<Devices.IDeviceService, Devices.DeviceService>();
 
         // Phase 13 — self-host telemetry + GDPR/DPDP compliance.
         services.AddScoped<Compliance.IConsentService, Compliance.ConsentService>();

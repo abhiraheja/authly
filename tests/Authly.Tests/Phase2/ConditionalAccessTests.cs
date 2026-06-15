@@ -85,10 +85,22 @@ public class ConditionalAccessTests
     // --- helpers ---
 
     private static ConditionalAccessService Build(TenantSecuritySettings settings, out FakeSettings fake,
-        List<LoginHistory> history)
+        List<LoginHistory> history, UserDevice? trustedDevice = null)
     {
         fake = new FakeSettings(settings);
-        return new ConditionalAccessService(fake, new FakeHistory(history));
+        return new ConditionalAccessService(fake, new FakeHistory(history), new FakeDevices(trustedDevice));
+    }
+
+    [Fact]
+    public async Task Trusted_device_suppresses_new_device_step_up()
+    {
+        // Same context the new-device test flags, but this fingerprint is a trusted device.
+        var fingerprint = Authly.Modules.Devices.DeviceFingerprint.From("brand-new-agent");
+        var trusted = new UserDevice { Fingerprint = fingerprint, Trusted = true };
+        var svc = Build(new TenantSecuritySettings { ConditionalAccessEnabled = true, NewDeviceAction = ConditionalAction.RequireMfa },
+            out _, history: NewContext(), trustedDevice: trusted);
+        var d = await svc.EvaluateAsync(Tenant, Verified(), Ctx("9.9.9.9", "brand-new-agent"));
+        Assert.Equal(ConditionalAction.Allow, d.Action);
     }
 
     private static List<LoginHistory> NewContext() => new()
@@ -122,4 +134,19 @@ internal sealed class FakeHistory : ILoginHistoryRepository
     public Task AddAsync(LoginHistory entry, CancellationToken ct = default) { _items.Add(entry); return Task.CompletedTask; }
     public Task<IReadOnlyList<LoginHistory>> ListForUserAsync(Guid tenantId, Guid userId, int limit = 50, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<LoginHistory>>(_items.Take(limit).ToList());
+}
+
+internal sealed class FakeDevices : IUserDeviceRepository
+{
+    private readonly UserDevice? _device;
+    public FakeDevices(UserDevice? device) => _device = device;
+    public Task<UserDevice?> GetByFingerprintAsync(Guid tenantId, Guid userId, string fingerprint, CancellationToken ct = default)
+        => Task.FromResult(_device is not null && _device.Fingerprint == fingerprint ? _device : null);
+
+    // Unused by conditional-access tests.
+    public Task<IReadOnlyList<UserDevice>> ListForUserAsync(Guid tenantId, Guid userId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<UserDevice>>(Array.Empty<UserDevice>());
+    public Task<UserDevice?> GetByIdAsync(Guid tenantId, Guid id, CancellationToken ct = default) => Task.FromResult<UserDevice?>(null);
+    public Task AddAsync(UserDevice device, CancellationToken ct = default) => Task.CompletedTask;
+    public Task UpdateAsync(UserDevice device, CancellationToken ct = default) => Task.CompletedTask;
+    public Task DeleteAsync(UserDevice device, CancellationToken ct = default) => Task.CompletedTask;
 }

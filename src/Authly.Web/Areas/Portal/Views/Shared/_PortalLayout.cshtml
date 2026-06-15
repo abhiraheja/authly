@@ -6,6 +6,8 @@
     var brandName = await Branding.GetDisplayNameAsync();
     var theme = brand.DarkMode ? "dark" : "light";
     var email = User?.Identity?.Name ?? "Account";
+    var impersonatorEmail = User?.FindFirst(Authly.Web.Infrastructure.UserClaims.ImpersonatorEmail)?.Value;
+    var isImpersonating = !string.IsNullOrEmpty(User?.FindFirst(Authly.Web.Infrastructure.UserClaims.ImpersonatorId)?.Value);
 }
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="@theme">
@@ -84,6 +86,13 @@
                 </a>
             </li>
             <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("Devices") ? "active" : "")"
+                   asp-area="Portal" asp-controller="Devices" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="laptop"></i></span>
+                    <span class="menu-text">Devices</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
                 <a class="side-nav-link @(IsActive("Activity") ? "active" : "")"
                    asp-area="Portal" asp-controller="Activity" asp-action="Index">
                     <span class="menu-icon"><i data-lucide="history"></i></span>
@@ -124,6 +133,19 @@
                 </div>
             </div>
         </header>
+
+        @if (isImpersonating)
+        {
+            <div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 mb-0 rounded-0" role="alert">
+                <span>
+                    <i data-lucide="eye" class="me-1"></i>
+                    You're viewing this account as <strong>@email</strong>@(string.IsNullOrEmpty(impersonatorEmail) ? "" : $" (impersonated by {impersonatorEmail})").
+                </span>
+                <form asp-area="" asp-controller="Account" asp-action="StopImpersonation" method="post" class="m-0">
+                    <button type="submit" class="btn btn-sm btn-warning">Stop impersonating</button>
+                </form>
+            </div>
+        }
 
         <div class="page-content">
             <div class="container-fluid">

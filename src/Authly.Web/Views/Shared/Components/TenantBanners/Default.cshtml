@@ -1,0 +1,18 @@
+@model Authly.Web.Components.TenantBannersModel
+
+@if (Model.ShowOnboarding)
+{
+    <div class="alert alert-primary d-flex align-items-center justify-content-between flex-wrap gap-2" role="alert">
+        <span><i data-lucide="rocket" class="me-1"></i> Finish setting up your workspace — create your first app and reach a test login.</span>
+        <a asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="Index" class="btn btn-sm btn-primary">Get started</a>
+    </div>
+}
+
+@foreach (var a in Model.Announcements)
+{
+    <div class="alert alert-@a.Severity alert-dismissible fade show" role="alert">
+        <strong>@a.Title</strong>
+        <div class="small mb-0">@a.Body</div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}

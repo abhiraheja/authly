@@ -68,6 +68,9 @@ public static class DependencyInjection
         services.AddScoped<Compliance.IConsentService, Compliance.ConsentService>();
         services.AddScoped<Compliance.IDataRightsService, Compliance.DataRightsService>();
         services.AddScoped<Compliance.ISelfHostSyncService, Compliance.SelfHostSyncService>();
+
+        // Phase 14 — platform ops announcements.
+        services.AddScoped<Announcements.IAnnouncementService, Announcements.AnnouncementService>();
         return services;
     }
 }

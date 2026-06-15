@@ -23,10 +23,24 @@
         <ul class="side-nav">
             <li class="side-nav-title">Workspace</li>
             <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("Onboarding") ? "active" : "")"
+                   asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="rocket"></i></span>
+                    <span class="menu-text">Get started</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
                 <a class="side-nav-link @(IsActive("Applications") ? "active" : "")"
                    asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index">
                     <span class="menu-icon"><i data-lucide="app-window"></i></span>
                     <span class="menu-text">Applications</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("Sandbox") ? "active" : "")"
+                   asp-area="TenantAdmin" asp-controller="Sandbox" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="flask-conical"></i></span>
+                    <span class="menu-text">Sandbox</span>
                 </a>
             </li>
             <li class="side-nav-title">Access control</li>
@@ -153,6 +167,7 @@
                         @err<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 }
+                @await Component.InvokeAsync("TenantBanners", new { showOnboarding = !IsActive("Onboarding") })
                 @RenderBody()
             </div>
         </div>

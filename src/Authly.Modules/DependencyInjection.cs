@@ -1,4 +1,5 @@
 using Authly.Modules.Audit;
+using Authly.Modules.Auth;
 using Authly.Modules.SuperAdmins;
 using Authly.Modules.Tenants;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +14,7 @@ public static class DependencyInjection
         services.AddScoped<IAuditLogger, AuditLogger>();
         services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<ISuperAdminService, SuperAdminService>();
+        services.AddScoped<IAuthService, AuthService>();
         return services;
     }
 }

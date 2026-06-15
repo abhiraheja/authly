@@ -69,15 +69,15 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 **Goal:** Server-rendered registration, email/password login, email verification, and password reset — with sessions, login history, and audit logging. Email goes through a stubbed provider for now.
 
-- [ ] User registration (Razor pages, Vona) → creates `users` row (Argon2id hash)
-- [ ] Email/password login + logout; cookie session
-- [ ] `sessions` table (§4.7) + session lifecycle
-- [ ] `verification_tokens` + email verification flow (§4.9)
-- [ ] `password_reset_tokens` + reset flow (§4.9)
-- [ ] Queue all emails via Hangfire with a **stub email provider** (logs payload)
-- [ ] `login_history` recording (success/failed/blocked, IP, UA, device) (§4.8)
-- [ ] `audit_logs` append-only writes on all state changes (§4.8)
-- [ ] **Acceptance:** A user registers, verifies email, logs in, resets password; `login_history` and `audit_logs` rows appear; reset/verify tokens are single-use and expire.
+- [x] User registration (Razor pages, Vona) → creates `users` row (Argon2id hash)
+- [x] Email/password login + logout; isolated end-user cookie scheme (`authly.user`)
+- [x] `sessions` table (§4.7) + session lifecycle (create on login, revoke on logout / password reset)
+- [x] `verification_tokens` + email verification flow (§4.9) — SHA-256 token hash, single-use, 24h expiry
+- [x] `password_reset_tokens` + reset flow (§4.9) — single-use, 1h expiry, anti-enumeration request
+- [x] Queue all emails via Hangfire (`HangfireEmailQueue` → `EmailDispatchJob`) with a **stub email provider** (`StubEmailSender`, logs payload; link only at Debug)
+- [x] `login_history` recording (success/failed/blocked, IP, UA, device) (§4.8)
+- [x] `audit_logs` append-only writes on all state changes (user.registered/login/email_verified/password_reset_requested/password_reset)
+- [~] **Acceptance:** A user registers, verifies email, logs in, resets password; `login_history` and `audit_logs` rows appear; reset/verify tokens are single-use and expire. *(Build + 29/29 unit tests green, incl. single-use/expiry/anti-enumeration coverage; full runtime acceptance pending Postgres run — no Docker/DB in dev shell.)*
 
 ---
 

@@ -1,0 +1,58 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace Authly.Web.Models;
+
+/// <summary>Self-service registration form for a tenant end-user.</summary>
+public sealed class RegisterViewModel
+{
+    [Required, EmailAddress, Display(Name = "Email")]
+    public string Email { get; set; } = string.Empty;
+
+    [Display(Name = "First name")]
+    public string? FirstName { get; set; }
+
+    [Display(Name = "Last name")]
+    public string? LastName { get; set; }
+
+    [Required, DataType(DataType.Password)]
+    [StringLength(128, MinimumLength = 8, ErrorMessage = "Use at least 8 characters.")]
+    public string Password { get; set; } = string.Empty;
+
+    [Required, DataType(DataType.Password), Display(Name = "Confirm password")]
+    [Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
+
+/// <summary>End-user email/password sign-in form.</summary>
+public sealed class UserLoginViewModel
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required, DataType(DataType.Password)]
+    public string Password { get; set; } = string.Empty;
+
+    public string? ReturnUrl { get; set; }
+}
+
+/// <summary>Request a password-reset link.</summary>
+public sealed class ForgotPasswordViewModel
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+}
+
+/// <summary>Choose a new password using a reset token.</summary>
+public sealed class ResetPasswordViewModel
+{
+    [Required]
+    public string Token { get; set; } = string.Empty;
+
+    [Required, DataType(DataType.Password), Display(Name = "New password")]
+    [StringLength(128, MinimumLength = 8, ErrorMessage = "Use at least 8 characters.")]
+    public string NewPassword { get; set; } = string.Empty;
+
+    [Required, DataType(DataType.Password), Display(Name = "Confirm password")]
+    [Compare(nameof(NewPassword), ErrorMessage = "Passwords do not match.")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}

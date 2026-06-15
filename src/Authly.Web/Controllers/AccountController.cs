@@ -127,7 +127,7 @@ public sealed class AccountController : Controller
         await UserSignIn.SignInAsync(HttpContext, result.User.Id, result.User.Email, result.User.TenantId,
             result.Session.Id, result.User.EmailVerified);
 
-        return returnUrl is not null ? Redirect(returnUrl) : RedirectToAction(nameof(Index));
+        return returnUrl is not null ? Redirect(returnUrl) : Portal();
     }
 
     [HttpPost("logout")]
@@ -147,11 +147,10 @@ public sealed class AccountController : Controller
 
     [HttpGet("")]
     [Authorize(Policy = AuthPolicies.User)]
-    public IActionResult Index()
-    {
-        ViewData["Title"] = "Your account";
-        return View();
-    }
+    public IActionResult Index() => Portal();
+
+    /// <summary>The signed-in landing is the end-user portal (Phase 10).</summary>
+    private IActionResult Portal() => RedirectToAction("Index", "Profile", new { area = "Portal" });
 
     // --- Email verification ---
 

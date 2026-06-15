@@ -1,0 +1,75 @@
+@model PortalProfileViewModel
+
+<div class="page-title-head">
+    <h4>Profile</h4>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header">Your details</div>
+            <div class="card-body">
+                <form asp-area="Portal" asp-controller="Profile" asp-action="Index" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input class="form-control" value="@Model.Email" disabled />
+                        <div class="form-text">
+                            @if (Model.EmailVerified)
+                            {
+                                <span class="text-success">Verified</span>
+                            }
+                            else
+                            {
+                                <span class="text-warning">Not verified</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-sm-6 mb-3">
+                            <label asp-for="FirstName" class="form-label"></label>
+                            <input asp-for="FirstName" class="form-control" />
+                            <span asp-validation-for="FirstName" class="text-danger small"></span>
+                        </div>
+                        <div class="col-sm-6 mb-3">
+                            <label asp-for="LastName" class="form-label"></label>
+                            <input asp-for="LastName" class="form-control" />
+                            <span asp-validation-for="LastName" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-sm-6 mb-3">
+                            <label asp-for="Timezone" class="form-label"></label>
+                            <input asp-for="Timezone" class="form-control" placeholder="UTC" />
+                            <span asp-validation-for="Timezone" class="text-danger small"></span>
+                        </div>
+                        <div class="col-sm-6 mb-3">
+                            <label asp-for="Locale" class="form-label"></label>
+                            <input asp-for="Locale" class="form-control" placeholder="en" />
+                            <span asp-validation-for="Locale" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Save changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header">Password</div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">Change your password. Other signed-in devices will be signed out.</p>
+                <a class="btn btn-outline-secondary" asp-area="Portal" asp-controller="Profile" asp-action="ChangePassword">
+                    Change password
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

@@ -185,11 +185,11 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 **Goal:** Per-tenant visual branding applied to the hosted login page, custom domain support, and the end-user self-service portal.
 
-- [ ] Branding config (logo, colors, fonts, layout, dark mode) stored in `tenants.branding`
-- [ ] Apply branding to hosted login/register/MFA pages (Vona-based, themed per tenant)
-- [ ] Custom domain support (`auth.theircompany.com`)
-- [ ] **End-User Portal** (`Areas/Portal`): profile, password change, MFA management, active sessions + revoke, login history
-- [ ] **Acceptance:** Two tenants show distinct branding on the same login route; a custom domain resolves to a tenant; an end user manages profile/MFA/sessions in the portal.
+- [x] Branding config (logo, colors, fonts, layout, dark mode) stored in `tenants.branding` — `TenantBranding` (Core) + pure `TenantBrandingJson` parse/serialize (snake_case, degrades to default on malformed); `BrandingService` validates hex colors, http(s) logo URL, sanitizes the font, persists + audits (`tenant.branding_updated`)
+- [x] Apply branding to hosted login/register/MFA pages (Vona-based, themed per tenant) — request-scoped `CurrentBranding` accessor; `_AuthLayout` emits per-tenant `--bs-primary`/`--bs-primary-rgb`/button-text/font overrides + `data-bs-theme` + logo/name; centered **and** split layouts
+- [x] Custom domain support (`auth.theircompany.com`) — already resolved host→tenant in `TenantResolutionMiddleware`; `BrandingService.SetCustomDomainAsync` validates host shape + rejects a domain owned by another tenant; **unique index** `idx_tenants_custom_domain` (migration `AddTenantCustomDomainUniqueIndex`)
+- [x] **End-User Portal** (`Areas/Portal`): profile + password change, MFA management (moved from `/account/security`), active sessions + revoke (+ revoke-others), login history — `IAccountSelfService` (ownership-scoped); password change evicts other sessions; per-request `SessionCookieValidator` (cookie `OnValidatePrincipal`) makes revoke actually sign a device out; branded `_PortalLayout`
+- [~] **Acceptance:** verified by build + 22 new unit tests (branding JSON round-trip/default/malformed + RGB conversion; save validation: bad color/logo/font-sanitize; custom-domain normalize/clear/invalid/cross-tenant-collision/own-domain; password change wrong-current/success-revokes-others/social-set-first; session revoke ownership guard + audit; profile normalize). **Runtime-pending:** two tenants showing distinct branding on the same login route, a live custom domain resolving, and an end-user managing profile/MFA/sessions need a running app + Postgres + DNS.
 
 ---
 

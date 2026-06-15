@@ -1,0 +1,102 @@
+@model SecurityOverviewViewModel
+
+<div class="page-title-head">
+    <h4>Security</h4>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        @if (Model.Policy.Policy == MfaPolicy.Required)
+        {
+            <div class="alert alert-info py-2 small">Your organization requires two-step verification.</div>
+        }
+        else if (Model.Policy.Policy == MfaPolicy.AdminsOnly)
+        {
+            <div class="alert alert-info py-2 small">Administrators in your organization must use two-step verification.</div>
+        }
+
+        @if (Model.NewBackupCodes is { Count: > 0 })
+        {
+            <div class="alert alert-warning">
+                <h6 class="alert-heading"><i data-lucide="shield-alert" class="me-1"></i> Save your backup codes now</h6>
+                <p class="small mb-2">Each code works once. Store them somewhere safe — they won't be shown again.</p>
+                <div class="font-monospace small">
+                    @foreach (var code in Model.NewBackupCodes)
+                    {
+                        <div>@code</div>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="card">
+            <div class="card-header">Two-step verification</div>
+            <div class="list-group list-group-flush">
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="fw-medium">Authenticator app (TOTP)</div>
+                        <div class="small text-muted">@(Model.HasTotp ? "Enabled" : "Not set up")</div>
+                    </div>
+                    @if (Model.HasTotp)
+                    {
+                        <span class="badge bg-soft-success">active</span>
+                    }
+                    else if (Model.Policy.AllowTotp)
+                    {
+                        <a class="btn btn-sm btn-primary" asp-area="Portal" asp-controller="Security" asp-action="Totp">Add</a>
+                    }
+                </div>
+
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="fw-medium">Email one-time codes</div>
+                        <div class="small text-muted">@(Model.HasEmailOtp ? "Enabled" : "Not enabled")</div>
+                    </div>
+                    @if (Model.HasEmailOtp)
+                    {
+                        <span class="badge bg-soft-success">active</span>
+                    }
+                    else if (Model.Policy.AllowEmailOtp)
+                    {
+                        <form asp-area="Portal" asp-controller="Security" asp-action="EnableEmailOtp" method="post">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Enable</button>
+                        </form>
+                    }
+                </div>
+
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="fw-medium">Backup codes</div>
+                        <div class="small text-muted">@Model.UnusedBackupCodes unused</div>
+                    </div>
+                    <form asp-area="Portal" asp-controller="Security" asp-action="BackupCodes" method="post"
+                          onsubmit="return confirm('Generate new backup codes? Any existing codes will stop working.');">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">@(Model.UnusedBackupCodes > 0 ? "Regenerate" : "Generate")</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.Factors.Any(f => f.Status == MfaFactorStatus.Active))
+        {
+            <h6 class="small text-muted text-uppercase mt-4">Active factors</h6>
+            <div class="card">
+                <div class="list-group list-group-flush">
+                    @foreach (var f in Model.Factors.Where(f => f.Status == MfaFactorStatus.Active))
+                    {
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-medium">@(f.FriendlyName ?? f.Type.ToString())</div>
+                                <div class="small text-muted">Added @f.CreatedAt.ToString("yyyy-MM-dd")</div>
+                            </div>
+                            <form asp-area="Portal" asp-controller="Security" asp-action="DisableFactor" asp-route-id="@f.Id" method="post"
+                                  onsubmit="return confirm('Remove this factor?');">
+                                <button type="submit" class="btn btn-sm btn-soft-danger">Remove</button>
+                            </form>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>

@@ -1,36 +1,28 @@
 using System.Security.Claims;
+using Authly.Core.Enums;
 using Authly.Core.Interfaces;
-using Authly.Modules.Common;
 using Authly.Modules.Mfa;
-using Authly.Web.Infrastructure;
 using Authly.Web.Infrastructure.Mfa;
 using Authly.Web.Models;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Authly.Web.Controllers;
+namespace Authly.Web.Areas.Portal.Controllers;
 
 /// <summary>
-/// End-user self-service security: enrol/disable MFA factors, enable email OTP, and (re)generate
-/// backup codes. Authenticated by the user cookie and scoped to the signed-in user only.
+/// Portal: end-user self-service MFA — enrol/disable authenticator (TOTP), enable email OTP, and
+/// (re)generate backup codes (Phase 10; moved here from /account/security).
 /// </summary>
-[Route("account/security")]
-[Authorize(Policy = AuthPolicies.User)]
-public sealed class SecurityController : Controller
+[Route("portal/security")]
+public sealed class SecurityController : PortalControllerBase
 {
     private readonly IMfaService _mfa;
     private readonly IUserRepository _users;
-    private readonly ITenantContext _tenant;
 
-    public SecurityController(IMfaService mfa, IUserRepository users, ITenantContext tenant)
+    public SecurityController(IMfaService mfa, IUserRepository users)
     {
         _mfa = mfa;
         _users = users;
-        _tenant = tenant;
     }
-
-    private Guid TenantId => Guid.Parse(User.FindFirstValue(UserClaims.TenantId)!);
-    private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct)
@@ -45,8 +37,7 @@ public sealed class SecurityController : Controller
     public async Task<IActionResult> Totp(CancellationToken ct)
     {
         ViewData["Title"] = "Add authenticator app";
-        var email = User.FindFirstValue(ClaimTypes.Name) ?? "user";
-        var enrollment = await _mfa.BeginTotpEnrollmentAsync(TenantId, UserId, email, null, ct);
+        var enrollment = await _mfa.BeginTotpEnrollmentAsync(TenantId, UserId, UserEmail, null, ct);
         return View(new SecurityTotpSetupViewModel
         {
             FactorId = enrollment.FactorId,
@@ -61,14 +52,13 @@ public sealed class SecurityController : Controller
     {
         ViewData["Title"] = "Add authenticator app";
 
-        if (await _mfa.ConfirmTotpEnrollmentAsync(TenantId, UserId, model.FactorId, model.Code, Audit(), ct))
+        if (await _mfa.ConfirmTotpEnrollmentAsync(TenantId, UserId, model.FactorId, model.Code, CurrentAudit(), ct))
         {
             TempData["Success"] = "Authenticator app added. Generate backup codes if you haven't already.";
             return RedirectToAction(nameof(Index));
         }
 
-        var email = User.FindFirstValue(ClaimTypes.Name) ?? "user";
-        var enrollment = await _mfa.BeginTotpEnrollmentAsync(TenantId, UserId, email, model.FriendlyName, ct);
+        var enrollment = await _mfa.BeginTotpEnrollmentAsync(TenantId, UserId, UserEmail, model.FriendlyName, ct);
         model.FactorId = enrollment.FactorId;
         model.Secret = enrollment.Secret;
         model.QrSvg = QrCodeRenderer.SvgFromText(enrollment.ProvisioningUri);
@@ -87,7 +77,7 @@ public sealed class SecurityController : Controller
         {
             try
             {
-                await _mfa.EnableEmailOtpAsync(TenantId, user, Audit(), ct);
+                await _mfa.EnableEmailOtpAsync(TenantId, user, CurrentAudit(), ct);
                 TempData["Success"] = "Email one-time codes are now enabled.";
             }
             catch (MfaMethodNotAllowedException)
@@ -104,7 +94,7 @@ public sealed class SecurityController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> BackupCodes(CancellationToken ct)
     {
-        var result = await _mfa.GenerateBackupCodesAsync(TenantId, UserId, Audit(), ct);
+        var result = await _mfa.GenerateBackupCodesAsync(TenantId, UserId, CurrentAudit(), ct);
         var overview = await BuildOverviewAsync(ct);
         overview.NewBackupCodes = result.Codes;
         ViewData["Title"] = "Security";
@@ -119,7 +109,7 @@ public sealed class SecurityController : Controller
     {
         try
         {
-            await _mfa.DisableFactorAsync(TenantId, UserId, id, Audit(), ct);
+            await _mfa.DisableFactorAsync(TenantId, UserId, id, CurrentAudit(), ct);
             TempData["Success"] = "Factor removed.";
         }
         catch (MfaFactorNotFoundException)
@@ -140,13 +130,8 @@ public sealed class SecurityController : Controller
             Factors = factors,
             UnusedBackupCodes = await _mfa.CountUnusedBackupCodesAsync(UserId, ct),
             Policy = policy,
-            HasTotp = factors.Any(f => f.Type == Core.Enums.MfaFactorType.Totp && f.Status == Core.Enums.MfaFactorStatus.Active),
-            HasEmailOtp = factors.Any(f => f.Type == Core.Enums.MfaFactorType.EmailOtp && f.Status == Core.Enums.MfaFactorStatus.Active)
+            HasTotp = factors.Any(f => f.Type == MfaFactorType.Totp && f.Status == MfaFactorStatus.Active),
+            HasEmailOtp = factors.Any(f => f.Type == MfaFactorType.EmailOtp && f.Status == MfaFactorStatus.Active)
         };
     }
-
-    private AuditContext Audit() => new(
-        UserId, "user",
-        HttpContext.Connection.RemoteIpAddress?.ToString(),
-        Request.Headers.UserAgent.ToString() is { Length: > 0 } ua ? ua : null);
 }

@@ -1,0 +1,132 @@
+using System.Text.RegularExpressions;
+using Authly.Core.Branding;
+using Authly.Core.Interfaces;
+using Authly.Modules.Audit;
+using Authly.Modules.Common;
+
+namespace Authly.Modules.Branding;
+
+/// <inheritdoc />
+public sealed partial class BrandingService : IBrandingService
+{
+    private readonly ITenantRepository _tenants;
+    private readonly IAuditLogger _audit;
+
+    public BrandingService(ITenantRepository tenants, IAuditLogger audit)
+    {
+        _tenants = tenants;
+        _audit = audit;
+    }
+
+    public async Task<TenantBranding> GetAsync(Guid tenantId, CancellationToken ct = default)
+    {
+        var tenant = await _tenants.GetByIdAsync(tenantId, ct);
+        return tenant is null ? TenantBranding.Default : TenantBrandingJson.Parse(tenant.Branding);
+    }
+
+    public async Task<string?> GetCustomDomainAsync(Guid tenantId, CancellationToken ct = default)
+        => (await _tenants.GetByIdAsync(tenantId, ct))?.CustomDomain;
+
+    public async Task SaveAsync(Guid tenantId, BrandingInput input, AuditContext actor, CancellationToken ct = default)
+    {
+        var tenant = await _tenants.GetByIdAsync(tenantId, ct)
+            ?? throw new KeyNotFoundException($"Tenant {tenantId} not found.");
+
+        var branding = new TenantBranding
+        {
+            LogoUrl = NormalizeOptional(input.LogoUrl),
+            PrimaryColor = ValidateColor(input.PrimaryColor, "primary color"),
+            ButtonTextColor = ValidateColor(input.ButtonTextColor, "button text color"),
+            FontFamily = string.IsNullOrWhiteSpace(input.FontFamily)
+                ? TenantBranding.Default.FontFamily
+                : SanitizeFont(input.FontFamily),
+            Layout = input.Layout,
+            DarkMode = input.DarkMode,
+            Tagline = NormalizeOptional(input.Tagline)
+        };
+
+        if (branding.LogoUrl is not null && !IsHttpUrl(branding.LogoUrl))
+            throw new BrandingConfigInvalidException("The logo URL must be an absolute http(s) URL.");
+
+        tenant.Branding = TenantBrandingJson.Serialize(branding);
+        tenant.UpdatedAt = DateTimeOffset.UtcNow;
+        await _tenants.UpdateAsync(tenant, ct);
+
+        await _audit.LogAsync("tenant.branding_updated", actor, tenantId: tenant.Id,
+            resourceType: "tenant", resourceId: tenant.Id,
+            metadata: new { branding.Layout, branding.DarkMode, hasLogo = branding.LogoUrl is not null }, ct: ct);
+    }
+
+    public async Task SetCustomDomainAsync(Guid tenantId, string? domain, AuditContext actor, CancellationToken ct = default)
+    {
+        var tenant = await _tenants.GetByIdAsync(tenantId, ct)
+            ?? throw new KeyNotFoundException($"Tenant {tenantId} not found.");
+
+        var normalized = NormalizeDomain(domain);
+        if (normalized is not null)
+        {
+            if (!IsValidHost(normalized))
+                throw new BrandingConfigInvalidException("Enter a valid hostname, e.g. auth.yourcompany.com.");
+
+            // A domain resolves to exactly one tenant — reject if another tenant already owns it.
+            var owner = await _tenants.GetByCustomDomainOrNullAsync(normalized, ct);
+            if (owner is not null && owner.Id != tenantId)
+                throw new BrandingConfigInvalidException("That domain is already in use by another organization.");
+        }
+
+        tenant.CustomDomain = normalized;
+        tenant.UpdatedAt = DateTimeOffset.UtcNow;
+        await _tenants.UpdateAsync(tenant, ct);
+
+        await _audit.LogAsync("tenant.custom_domain_updated", actor, tenantId: tenant.Id,
+            resourceType: "tenant", resourceId: tenant.Id,
+            metadata: new { domain = normalized }, ct: ct);
+    }
+
+    // --- validation helpers -------------------------------------------------
+
+    /// <summary>Accepts #rgb / #rrggbb (case-insensitive). Returns the lower-cased hex.</summary>
+    private static string ValidateColor(string? value, string field)
+    {
+        var v = value?.Trim() ?? "";
+        if (!HexColor().IsMatch(v))
+            throw new BrandingConfigInvalidException($"The {field} must be a hex color like #5b6df5.");
+        return v.ToLowerInvariant();
+    }
+
+    /// <summary>Strips characters that could break out of a CSS font-family declaration.</summary>
+    private static string SanitizeFont(string value)
+    {
+        var cleaned = FontDisallowed().Replace(value.Trim(), "");
+        return string.IsNullOrWhiteSpace(cleaned) ? TenantBranding.Default.FontFamily : cleaned;
+    }
+
+    private static string? NormalizeOptional(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string? NormalizeDomain(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var v = value.Trim().ToLowerInvariant();
+        // Tolerate a pasted URL — keep only the host.
+        if (v.Contains("://") && Uri.TryCreate(v, UriKind.Absolute, out var uri)) v = uri.Host;
+        return v.TrimEnd('/');
+    }
+
+    private static bool IsHttpUrl(string url)
+        => Uri.TryCreate(url, UriKind.Absolute, out var uri)
+           && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    private static bool IsValidHost(string host) => Host().IsMatch(host);
+
+    [GeneratedRegex("^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")]
+    private static partial Regex HexColor();
+
+    // CSS font lists are letters/digits/spaces/commas/hyphens and quotes only.
+    [GeneratedRegex("[^a-zA-Z0-9 ,\\-'\"]")]
+    private static partial Regex FontDisallowed();
+
+    // A conservative DNS hostname (labels of letters/digits/hyphens, at least one dot).
+    [GeneratedRegex("^(?=.{1,253}$)(?!-)[a-z0-9-]{1,63}(?<!-)(\\.(?!-)[a-z0-9-]{1,63}(?<!-))+$")]
+    private static partial Regex Host();
+}

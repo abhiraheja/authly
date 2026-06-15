@@ -20,6 +20,18 @@ public sealed class AuthUrlBuilder : IAuthUrlBuilder
     public string BuildPasswordResetUrl(Guid tenantId, string rawToken)
         => Absolute("/account/reset-password", rawToken);
 
+    public string BuildMagicLinkUrl(Guid tenantId, string rawToken)
+        => Absolute("/account/magic", rawToken);
+
+    public string BuildContactChangeVerifyUrl(Guid tenantId, string rawToken)
+        => Absolute("/account/change/verify", rawToken);
+
+    public string BuildContactChangeCancelUrl(Guid tenantId, string rawToken)
+        => Absolute("/account/change/cancel", rawToken);
+
+    public string BuildRecoveryUrl(Guid tenantId, string rawToken)
+        => Absolute("/account/recover", rawToken);
+
     private string Absolute(string path, string rawToken)
     {
         var request = _http.HttpContext?.Request;

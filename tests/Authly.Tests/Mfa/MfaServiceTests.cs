@@ -288,6 +288,8 @@ public class MfaServiceTests
             => Task.FromResult<IReadOnlyList<MfaFactor>>(Items.Where(f => f.TenantId == t && f.UserId == u && f.Status == MfaFactorStatus.Active).ToList());
         public Task<MfaFactor?> GetActiveByTypeAsync(Guid t, Guid u, MfaFactorType type, CancellationToken ct = default)
             => Task.FromResult(Items.FirstOrDefault(f => f.TenantId == t && f.UserId == u && f.Type == type && f.Status == MfaFactorStatus.Active));
+        public Task<IReadOnlyList<MfaFactor>> ListActiveByTypeAsync(Guid t, Guid u, MfaFactorType type, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<MfaFactor>>(Items.Where(f => f.TenantId == t && f.UserId == u && f.Type == type && f.Status == MfaFactorStatus.Active).ToList());
         public Task<bool> AnyActiveAsync(Guid t, Guid u, CancellationToken ct = default)
             => Task.FromResult(Items.Any(f => f.TenantId == t && f.UserId == u && f.Status == MfaFactorStatus.Active));
         public Task AddAsync(MfaFactor f, CancellationToken ct = default)

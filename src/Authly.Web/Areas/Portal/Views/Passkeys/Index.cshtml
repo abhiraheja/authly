@@ -1,0 +1,65 @@
+@model IReadOnlyList<PasskeySummary>
+
+<div class="page-title-head">
+    <h4>Passkeys</h4>
+    <button type="button" id="addPasskey" class="btn btn-primary btn-sm">
+        <i data-lucide="plus" class="me-1"></i> Add a passkey
+    </button>
+</div>
+
+<p class="text-muted small">
+    Passkeys let you sign in with your device's fingerprint, face, or PIN — no password to remember or phish.
+</p>
+
+@Html.AntiForgeryToken()
+<div id="passkeyError" class="alert alert-danger py-2 small d-none"></div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr><th>Name</th><th>Added</th><th>Last used</th><th class="text-end">Action</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Model)
+                        {
+                            <tr>
+                                <td class="fw-medium">@(p.FriendlyName ?? "Passkey")</td>
+                                <td class="text-muted">@p.CreatedAt.ToString("yyyy-MM-dd")</td>
+                                <td class="text-muted">@(p.LastUsedAt?.ToString("yyyy-MM-dd") ?? "—")</td>
+                                <td class="text-end">
+                                    <form asp-area="Portal" asp-controller="Passkeys" asp-action="Remove" asp-route-id="@p.Id" method="post"
+                                          onsubmit="return confirm('Remove this passkey?');">
+                                        <button type="submit" class="btn btn-sm btn-soft-danger">Remove</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                        @if (Model.Count == 0)
+                        {
+                            <tr><td colspan="4" class="text-center text-muted py-4">No passkeys yet.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="~/js/authly-webauthn.js" asp-append-version="true"></script>
+<script>
+    document.getElementById('addPasskey')?.addEventListener('click', function () {
+        const err = document.getElementById('passkeyError');
+        err.classList.add('d-none');
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        const name = prompt('Name this passkey (e.g. "MacBook Touch ID"):', 'My device');
+        if (name === null) return;
+        authlyPasskeyRegister('/portal/passkeys/begin', '/portal/passkeys/complete', name, token,
+            function (msg) { err.textContent = msg; err.classList.remove('d-none'); },
+            function () { window.location.reload(); });
+    });
+</script>
+}

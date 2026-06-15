@@ -42,6 +42,13 @@ public sealed class ForgotPasswordViewModel
     public string Email { get; set; } = string.Empty;
 }
 
+/// <summary>Request a passwordless magic sign-in link, or initiate account recovery.</summary>
+public sealed class EmailOnlyViewModel
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+}
+
 /// <summary>Choose a new password using a reset token.</summary>
 public sealed class ResetPasswordViewModel
 {

@@ -312,6 +312,10 @@ public class AuthServiceTests
             LastResetToken = rawToken;
             return $"https://test/reset?token={rawToken}";
         }
+        public string BuildMagicLinkUrl(Guid tenantId, string rawToken) => $"https://test/magic?token={rawToken}";
+        public string BuildContactChangeVerifyUrl(Guid tenantId, string rawToken) => $"https://test/change/verify?token={rawToken}";
+        public string BuildContactChangeCancelUrl(Guid tenantId, string rawToken) => $"https://test/change/cancel?token={rawToken}";
+        public string BuildRecoveryUrl(Guid tenantId, string rawToken) => $"https://test/recover?token={rawToken}";
     }
 
     private sealed class CapturingMessageQueue : IMessageQueue

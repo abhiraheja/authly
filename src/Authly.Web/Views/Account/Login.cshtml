@@ -55,6 +55,36 @@
     </div>
 </form>
 
+<div class="text-center text-muted small my-3">or</div>
+
+@Html.AntiForgeryToken()
+<div class="d-grid gap-2">
+    <button type="button" id="passkeyBtn" class="btn btn-outline-secondary">
+        <i data-lucide="key-round" class="me-1"></i> Sign in with a passkey
+    </button>
+    <a class="btn btn-outline-secondary" asp-controller="Account" asp-action="MagicLink">
+        <i data-lucide="mail" class="me-1"></i> Email me a sign-in link
+    </a>
+</div>
+<div id="passkeyError" class="text-danger small text-center mt-2 d-none"></div>
+
 <p class="text-center text-muted small mt-4 mb-0">
     Don't have an account? <a asp-controller="Account" asp-action="Register">Create one</a>
 </p>
+<p class="text-center text-muted small mb-0">
+    <a asp-controller="Account" asp-action="RecoverRequest">Can't access your account?</a>
+</p>
+
+@section Scripts {
+<script src="~/js/authly-webauthn.js" asp-append-version="true"></script>
+<script>
+    document.getElementById('passkeyBtn')?.addEventListener('click', function () {
+        const email = document.querySelector('[name="Email"]').value.trim();
+        const err = document.getElementById('passkeyError');
+        err.classList.add('d-none');
+        if (!email) { err.textContent = 'Enter your email first, then use your passkey.'; err.classList.remove('d-none'); return; }
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        authlyPasskeyLogin(email, token, function (msg) { err.textContent = msg; err.classList.remove('d-none'); });
+    });
+</script>
+}

@@ -1,0 +1,27 @@
+@{
+    Layout = "_AuthLayout";
+    var isCancel = ViewData["IsCancel"] is true;
+    var ok = isCancel ? ViewData["Cancelled"] is true : ViewData["Verified"] is true;
+}
+
+<div class="text-center">
+    @if (ok && isCancel)
+    {
+        <span class="logo-mark mb-3"><i data-lucide="shield-x"></i></span>
+        <h5 class="mb-2">Change cancelled</h5>
+        <p class="text-muted small mb-4">The pending change to your contact details has been cancelled. Your account is unchanged.</p>
+    }
+    else if (ok)
+    {
+        <span class="logo-mark mb-3"><i data-lucide="check-circle"></i></span>
+        <h5 class="mb-2">Contact confirmed</h5>
+        <p class="text-muted small mb-4">Your new contact details have been applied to your account.</p>
+    }
+    else
+    {
+        <span class="logo-mark mb-3"><i data-lucide="alert-triangle"></i></span>
+        <h5 class="mb-2">Link no longer valid</h5>
+        <p class="text-muted small mb-4">This link is invalid, has expired, or was already used.</p>
+    }
+    <a asp-controller="Account" asp-action="Login" class="btn btn-outline-secondary btn-sm">Go to sign in</a>
+</div>

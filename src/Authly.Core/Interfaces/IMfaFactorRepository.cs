@@ -15,6 +15,9 @@ public interface IMfaFactorRepository
     /// <summary>The single active factor of a given type, if any.</summary>
     Task<MfaFactor?> GetActiveByTypeAsync(Guid tenantId, Guid userId, MfaFactorType type, CancellationToken ct = default);
 
+    /// <summary>All active factors of a given type (a user may enrol several passkeys).</summary>
+    Task<IReadOnlyList<MfaFactor>> ListActiveByTypeAsync(Guid tenantId, Guid userId, MfaFactorType type, CancellationToken ct = default);
+
     /// <summary>True if the user has at least one active factor.</summary>
     Task<bool> AnyActiveAsync(Guid tenantId, Guid userId, CancellationToken ct = default);
 

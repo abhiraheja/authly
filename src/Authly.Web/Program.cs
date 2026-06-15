@@ -32,6 +32,10 @@ builder.Services.AddSingleton<Authly.Web.Infrastructure.Social.SocialStateProtec
 // Per-tenant branding for the hosted login / portal layouts (request-scoped, resolved once).
 builder.Services.AddScoped<Authly.Web.Infrastructure.Branding.CurrentBranding>();
 
+// Passkeys / WebAuthn: relying-party (rpId/origin from request host) + the ceremony challenge cookie.
+builder.Services.AddScoped<Authly.Core.WebAuthn.IWebAuthnRelyingParty, Authly.Web.Infrastructure.WebAuthn.WebAuthnRelyingParty>();
+builder.Services.AddSingleton<Authly.Web.Infrastructure.WebAuthn.WebAuthnChallengeStore>();
+
 // Infrastructure (EF Core, Redis, Argon2id, AES) + business modules.
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddModules();

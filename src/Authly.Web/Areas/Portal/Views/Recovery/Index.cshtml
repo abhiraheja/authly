@@ -1,0 +1,75 @@
+@model IReadOnlyList<RecoveryContactSummary>
+@using Authly.Core.Enums
+
+<div class="page-title-head">
+    <h4>Account recovery</h4>
+</div>
+
+<p class="text-muted small">
+    Add a backup email or phone. If you ever lose access, we'll send a recovery link to every contact here.
+    Recovery also accepts your MFA backup codes.
+</p>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header">Recovery contacts</div>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead><tr><th>Type</th><th>Contact</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+                    <tbody>
+                        @foreach (var c in Model)
+                        {
+                            <tr>
+                                <td class="text-capitalize">@c.Type.ToString().ToLowerInvariant()</td>
+                                <td>@c.Value</td>
+                                <td>
+                                    @if (c.Verified)
+                                    {
+                                        <span class="badge bg-soft-success">verified</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-lighten-secondary">unverified</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <form asp-area="Portal" asp-controller="Recovery" asp-action="Remove" asp-route-id="@c.Id" method="post"
+                                          onsubmit="return confirm('Remove this recovery contact?');">
+                                        <button type="submit" class="btn btn-sm btn-soft-danger">Remove</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                        @if (Model.Count == 0)
+                        {
+                            <tr><td colspan="4" class="text-center text-muted py-4">No recovery contacts yet.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header">Add a contact</div>
+            <div class="card-body">
+                <form asp-area="Portal" asp-controller="Recovery" asp-action="Add" method="post">
+                    <div class="mb-3">
+                        <label class="form-label">Type</label>
+                        <select name="type" class="form-select">
+                            <option value="@ContactType.Email">Email</option>
+                            <option value="@ContactType.Phone">Phone</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contact</label>
+                        <input name="value" class="form-control" placeholder="backup@example.com or +1..." />
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add contact</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,5 +1,6 @@
 using Authly.Core.Events;
 using Authly.Modules.Account;
+using Authly.Modules.AdvancedAuth;
 using Authly.Modules.ApiKeys;
 using Authly.Modules.Applications;
 using Authly.Modules.Audit;
@@ -48,6 +49,12 @@ public static class DependencyInjection
         // Phase 10 — per-tenant branding + custom domain; end-user portal self-service.
         services.AddScoped<IBrandingService, BrandingService>();
         services.AddScoped<IAccountSelfService, AccountSelfService>();
+
+        // Phase 11 — advanced auth: magic link, secure contact change, recovery, passkeys.
+        services.AddScoped<IMagicLinkService, MagicLinkService>();
+        services.AddScoped<IContactChangeService, ContactChangeService>();
+        services.AddScoped<IRecoveryService, RecoveryService>();
+        services.AddScoped<IPasskeyService, PasskeyService>();
         return services;
     }
 }

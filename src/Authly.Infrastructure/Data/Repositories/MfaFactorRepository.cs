@@ -30,6 +30,12 @@ public sealed class MfaFactorRepository : IMfaFactorRepository
         => _db.MfaFactors.FirstOrDefaultAsync(
             f => f.TenantId == tenantId && f.UserId == userId && f.Type == type && f.Status == MfaFactorStatus.Active, ct);
 
+    public async Task<IReadOnlyList<MfaFactor>> ListActiveByTypeAsync(Guid tenantId, Guid userId, MfaFactorType type, CancellationToken ct = default)
+        => await _db.MfaFactors
+            .Where(f => f.TenantId == tenantId && f.UserId == userId && f.Type == type && f.Status == MfaFactorStatus.Active)
+            .OrderBy(f => f.CreatedAt)
+            .ToListAsync(ct);
+
     public Task<bool> AnyActiveAsync(Guid tenantId, Guid userId, CancellationToken ct = default)
         => _db.MfaFactors.AnyAsync(
             f => f.TenantId == tenantId && f.UserId == userId && f.Status == MfaFactorStatus.Active, ct);

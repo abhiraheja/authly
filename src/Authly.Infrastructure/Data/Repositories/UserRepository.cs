@@ -19,6 +19,12 @@ public sealed class UserRepository : IUserRepository
     public Task<bool> EmailExistsAsync(Guid tenantId, string email, CancellationToken ct = default)
         => _db.Users.AnyAsync(u => u.TenantId == tenantId && u.Email == email, ct);
 
+    public async Task<IReadOnlyList<User>> ListByTenantAsync(Guid tenantId, CancellationToken ct = default)
+        => await _db.Users
+            .Where(u => u.TenantId == tenantId)
+            .OrderByDescending(u => u.CreatedAt)
+            .ToListAsync(ct);
+
     public Task<bool> AnyTenantAdminAsync(Guid tenantId, CancellationToken ct = default)
         => _db.Users.AnyAsync(u => u.TenantId == tenantId && u.IsTenantAdmin, ct);
 

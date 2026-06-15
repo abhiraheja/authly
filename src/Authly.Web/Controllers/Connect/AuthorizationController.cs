@@ -1,6 +1,8 @@
+using System.Collections.Immutable;
 using System.Security.Claims;
 using Microsoft.AspNetCore; // OpenIddictServerAspNetCoreHelpers.GetOpenIddictServerRequest
 using Authly.Core.Interfaces;
+using Authly.Modules.Authorization;
 using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
@@ -21,11 +23,13 @@ public sealed class AuthorizationController : Controller
 {
     private readonly IApplicationRepository _applications;
     private readonly IUserRepository _users;
+    private readonly IRbacService _rbac;
 
-    public AuthorizationController(IApplicationRepository applications, IUserRepository users)
+    public AuthorizationController(IApplicationRepository applications, IUserRepository users, IRbacService rbac)
     {
         _applications = applications;
         _users = users;
+        _rbac = rbac;
     }
 
     // --- Authorization endpoint (Authorization Code + PKCE) ---
@@ -82,6 +86,11 @@ public sealed class AuthorizationController : Controller
             .SetClaim(Claims.EmailVerified, user.EmailVerified.ToString().ToLowerInvariant())
             .SetClaim(Claims.Name, DisplayName(user.FirstName, user.LastName, user.Email))
             .SetClaim(TenantClaim, application.TenantId.ToString());
+
+        // RBAC: inject the user's effective roles + flattened permissions (§5.6).
+        var authorization = await _rbac.GetUserAuthorizationAsync(application.TenantId, user.Id, ct);
+        identity.SetClaims(Claims.Role, authorization.Roles.ToImmutableArray());
+        identity.SetClaims(PermissionsClaim, authorization.Permissions.ToImmutableArray());
 
         var principal = new ClaimsPrincipal(identity);
         principal.SetScopes(request.GetScopes());
@@ -205,6 +214,7 @@ public sealed class AuthorizationController : Controller
     // --- helpers ---
 
     private const string TenantClaim = "tenant_id";
+    private const string PermissionsClaim = "permissions";
     private const string TokenValidationParametersScheme = OpenIddictServerAspNetCoreDefaults.AuthenticationScheme;
 
     private static AuthenticationProperties ErrorProps(string error, string description) => new(new Dictionary<string, string?>
@@ -240,6 +250,15 @@ public sealed class AuthorizationController : Controller
             case TenantClaim:
                 yield return Destinations.AccessToken;
                 yield return Destinations.IdentityToken;
+                yield break;
+
+            // Roles + permissions are authorization data: always in the access token; also in the
+            // identity token when the "roles" scope was granted.
+            case Claims.Role:
+            case PermissionsClaim:
+                yield return Destinations.AccessToken;
+                if (claim.Subject!.HasScope(Scopes.Roles))
+                    yield return Destinations.IdentityToken;
                 yield break;
 
             // Never leak the security stamp / internal claims.

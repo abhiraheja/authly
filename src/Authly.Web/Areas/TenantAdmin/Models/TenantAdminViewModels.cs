@@ -30,3 +30,23 @@ public sealed class CreateApplicationViewModel
     [Display(Name = "Scopes (space-separated)")]
     public string Scopes { get; set; } = "openid profile email";
 }
+
+/// <summary>Create-role form.</summary>
+public sealed class CreateRoleViewModel
+{
+    [Required, Display(Name = "Role name")]
+    [RegularExpression("^[a-z0-9_]+$", ErrorMessage = "Use lower-case letters, digits and underscores.")]
+    public string Name { get; set; } = string.Empty;
+
+    [Display(Name = "Description")]
+    public string? Description { get; set; }
+}
+
+/// <summary>Manage a single user's role assignments.</summary>
+public sealed class UserRolesViewModel
+{
+    public Guid UserId { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public IReadOnlyList<Authly.Core.Entities.Role> AssignedRoles { get; set; } = Array.Empty<Authly.Core.Entities.Role>();
+    public IReadOnlyList<Authly.Core.Entities.Role> AvailableRoles { get; set; } = Array.Empty<Authly.Core.Entities.Role>();
+}

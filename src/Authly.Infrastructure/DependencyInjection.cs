@@ -56,6 +56,8 @@ public static class DependencyInjection
         services.AddScoped<IVerificationTokenRepository, VerificationTokenRepository>();
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
         services.AddScoped<IApplicationRepository, ApplicationRepository>();
+        services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<IUserRoleRepository, UserRoleRepository>();
 
         return services;
     }

@@ -1,0 +1,44 @@
+@model IReadOnlyList<Role>
+
+<div class="page-title-head d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0">Roles &amp; permissions</h4>
+    <a class="btn btn-primary btn-sm" asp-area="TenantAdmin" asp-controller="Roles" asp-action="Create">
+        <i data-lucide="plus" class="me-1"></i> New role
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Kind</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var role in Model)
+                {
+                    <tr>
+                        <td class="fw-medium"><code>@role.Name</code></td>
+                        <td class="text-muted">@(role.Description ?? "—")</td>
+                        <td>
+                            @if (role.IsSystem) { <span class="badge bg-soft-secondary">system</span> }
+                            else { <span class="badge bg-soft-primary">custom</span> }
+                        </td>
+                        <td class="text-end">
+                            <a class="btn btn-soft-secondary btn-sm"
+                               asp-area="TenantAdmin" asp-controller="Roles" asp-action="Details" asp-route-id="@role.Id">
+                                Manage
+                            </a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

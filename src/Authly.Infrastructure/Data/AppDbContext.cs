@@ -23,6 +23,10 @@ public class AppDbContext : DbContext
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<Application> Applications => Set<Application>();
     public DbSet<ApplicationSecret> ApplicationSecrets => Set<ApplicationSecret>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -259,6 +263,71 @@ public class AppDbContext : DbContext
             e.HasIndex(x => x.ApplicationId).HasDatabaseName("idx_app_secrets_app");
 
             e.HasOne(x => x.Application).WithMany(a => a.Secrets).HasForeignKey(x => x.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<Role>(e =>
+        {
+            e.ToTable("roles");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Name).HasColumnName("name").IsRequired();
+            e.Property(x => x.Description).HasColumnName("description");
+            e.Property(x => x.IsSystem).HasColumnName("is_system").HasDefaultValue(false);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.Name }).IsUnique().HasDatabaseName("idx_roles_tenant_name");
+
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<Permission>(e =>
+        {
+            e.ToTable("permissions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Resource).HasColumnName("resource").IsRequired();
+            e.Property(x => x.Action).HasColumnName("action").IsRequired();
+            e.Property(x => x.Description).HasColumnName("description");
+            e.Ignore(x => x.Name);
+
+            e.HasIndex(x => new { x.TenantId, x.Resource, x.Action }).IsUnique().HasDatabaseName("idx_permissions_tenant_resource_action");
+
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<RolePermission>(e =>
+        {
+            e.ToTable("role_permissions");
+            e.HasKey(x => new { x.RoleId, x.PermissionId });
+            e.Property(x => x.RoleId).HasColumnName("role_id");
+            e.Property(x => x.PermissionId).HasColumnName("permission_id");
+
+            e.HasOne(x => x.Role).WithMany(r => r.RolePermissions).HasForeignKey(x => x.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Permission).WithMany().HasForeignKey(x => x.PermissionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<UserRole>(e =>
+        {
+            e.ToTable("user_roles");
+            e.HasKey(x => new { x.UserId, x.RoleId });
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.RoleId).HasColumnName("role_id");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.GrantedBy).HasColumnName("granted_by");
+            e.Property(x => x.GrantedAt).HasColumnName("granted_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.UserId }).HasDatabaseName("idx_user_roles_tenant_user");
+
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Role).WithMany().HasForeignKey(x => x.RoleId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

@@ -102,12 +102,12 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 **Goal:** Roles and fine-grained permissions per tenant, mapped and injected into tokens; permission checks enforce access.
 
-- [ ] `roles`, `permissions`, `role_permissions`, `user_roles` tables (§4.6)
-- [ ] Seed system roles: `super_admin`, `tenant_admin`, `tenant_member`, `tenant_viewer`, `service_account`
-- [ ] Tenant admin UI: create roles, define `resource.action` permissions, map roles→permissions, assign roles→users
-- [ ] Inject `roles` + `permissions` claims into access tokens (claim assembly §5.6)
-- [ ] Permission-check middleware/attribute used by Management API
-- [ ] **Acceptance:** A user with `user.read` but not `user.delete` is allowed/denied accordingly; roles+permissions appear in the issued access token.
+- [x] `roles`, `permissions`, `role_permissions`, `user_roles` tables (§4.6) — migration `AddRbacTables` + RLS (ENABLE/FORCE/tenant_isolation) on `roles`/`permissions`/`user_roles`; `role_permissions` protected transitively
+- [x] Seed system roles: `super_admin`, `tenant_admin`, `tenant_member`, `tenant_viewer`, `service_account` — `SystemRbac` catalogue; idempotent + non-destructive `EnsureSystemRolesAsync`, seeded in tenant context on tenant-admin sign-in (RLS-safe); bootstrap admin auto-granted `tenant_admin`
+- [x] Tenant admin UI: create roles, define `resource.action` permissions, map roles→permissions, assign roles→users — `Areas/TenantAdmin` Roles + Users controllers/views (Vona); system roles edit-only
+- [x] Inject `roles` + `permissions` claims into access tokens (claim assembly §5.6) — `AuthorizationController` adds `role` + `permissions` claims, routed to access token (+ identity when `roles` scope granted)
+- [x] Permission-check middleware/attribute used by Management API — `RequirePermissionAttribute` (401/403) over pure `PermissionEvaluator` (exact + wildcard); Management API endpoints land in Phase 5
+- [~] **Acceptance:** Build + 50/50 unit tests green (RBAC seed/idempotency/cross-tenant guard/assign-remove + `PermissionEvaluator` allow/deny `user.read` vs `user.delete`). **Runtime acceptance pending a Postgres run** (no DB/Docker in dev shell) — issuing a real token and asserting roles/permissions claims + endpoint allow/deny still to be exercised end-to-end.
 
 ---
 

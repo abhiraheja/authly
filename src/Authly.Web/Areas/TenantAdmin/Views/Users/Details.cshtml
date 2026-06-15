@@ -2,7 +2,13 @@
 
 <div class="page-title-head d-flex align-items-center justify-content-between mb-3">
     <h4 class="mb-0">@Model.Email</h4>
-    <a class="btn btn-soft-secondary btn-sm" asp-area="TenantAdmin" asp-controller="Users" asp-action="Index">Back</a>
+    <div class="d-flex gap-2">
+        <form asp-area="TenantAdmin" asp-controller="Users" asp-action="Impersonate" asp-route-id="@Model.UserId" method="post"
+              onsubmit="return confirm('Sign in as this user? You can return with the Stop button.');" class="m-0">
+            <button type="submit" class="btn btn-soft-primary btn-sm"><i data-lucide="eye" class="me-1"></i> Impersonate</button>
+        </form>
+        <a class="btn btn-soft-secondary btn-sm" asp-area="TenantAdmin" asp-controller="Users" asp-action="Index">Back</a>
+    </div>
 </div>
 
 <div class="row g-3">

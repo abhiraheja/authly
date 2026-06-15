@@ -1,6 +1,9 @@
 using Authly.Core.Interfaces;
 using Authly.Modules.Authorization;
+using Authly.Modules.Common;
+using Authly.Modules.Users;
 using Authly.Web.Areas.TenantAdmin.Models;
+using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Authly.Web.Areas.TenantAdmin.Controllers;
@@ -11,11 +14,14 @@ public sealed class UsersController : TenantAdminControllerBase
 {
     private readonly IUserRepository _users;
     private readonly IRbacService _rbac;
+    private readonly IImpersonationService _impersonation;
 
-    public UsersController(IUserRepository users, IRbacService rbac, ITenantContext tenant) : base(tenant)
+    public UsersController(IUserRepository users, IRbacService rbac, IImpersonationService impersonation,
+        ITenantContext tenant) : base(tenant)
     {
         _users = users;
         _rbac = rbac;
+        _impersonation = impersonation;
     }
 
     [HttpGet("")]
@@ -77,5 +83,32 @@ public sealed class UsersController : TenantAdminControllerBase
         }
 
         return RedirectToAction(nameof(Details), new { id });
+    }
+
+    /// <summary>
+    /// Start impersonating a user: mint a session for them and issue the end-user cookie carrying
+    /// the impersonator's identity (so the portal shows a banner and the act is reversible). The
+    /// admin's own TenantAdmin cookie is untouched, so "stop" returns them straight here.
+    /// </summary>
+    [HttpPost("{id:guid}/impersonate")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Impersonate(Guid id, CancellationToken ct)
+    {
+        var info = new RequestInfo(
+            HttpContext.Connection.RemoteIpAddress?.ToString(),
+            Request.Headers.UserAgent.ToString() is { Length: > 0 } ua ? ua : null);
+        try
+        {
+            var result = await _impersonation.StartAsync(TenantId, CurrentUserId, id, info, CurrentAudit(), ct);
+            await UserSignIn.SignInAsync(HttpContext, result.User.Id, result.User.Email, result.User.TenantId,
+                result.Session.Id, result.User.EmailVerified,
+                impersonatorId: CurrentUserId, impersonatorEmail: User.Identity?.Name);
+            return Redirect("/portal/profile");
+        }
+        catch (ImpersonationNotAllowedException ex)
+        {
+            TempData["Error"] = ex.Message;
+            return RedirectToAction(nameof(Details), new { id });
+        }
     }
 }

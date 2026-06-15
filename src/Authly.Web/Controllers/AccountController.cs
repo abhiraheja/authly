@@ -36,6 +36,8 @@ public sealed class AccountController : Controller
     private readonly Authly.Modules.Security.IConditionalAccessService _conditional;
     private readonly Authly.Web.Infrastructure.Security.SecurityViewState _securityView;
     private readonly Authly.Modules.Compliance.IConsentService _consent;
+    private readonly Authly.Modules.Users.IImpersonationService _impersonation;
+    private readonly Authly.Modules.Devices.IDeviceService _devices;
     private readonly IAuditLogger _audit;
     private readonly Hangfire.IBackgroundJobClient _jobs;
 
@@ -50,6 +52,8 @@ public sealed class AccountController : Controller
         Authly.Modules.Security.IConditionalAccessService conditional,
         Authly.Web.Infrastructure.Security.SecurityViewState securityView,
         Authly.Modules.Compliance.IConsentService consent,
+        Authly.Modules.Users.IImpersonationService impersonation,
+        Authly.Modules.Devices.IDeviceService devices,
         IAuditLogger audit,
         Hangfire.IBackgroundJobClient jobs)
     {
@@ -67,6 +71,8 @@ public sealed class AccountController : Controller
         _conditional = conditional;
         _securityView = securityView;
         _consent = consent;
+        _impersonation = impersonation;
+        _devices = devices;
         _audit = audit;
         _jobs = jobs;
     }
@@ -189,8 +195,9 @@ public sealed class AccountController : Controller
             return View(model);
         }
 
-        // Successful credential check — clear lockout and analyse the login for anomalies.
+        // Successful credential check — clear lockout, record the device, analyse for anomalies.
         await _lockout.ResetAsync(tenantId, model.Email, ct);
+        await _devices.RecordLoginAsync(tenantId, result.User.Id, CurrentRequest(), ct);
         QueueSuspiciousLoginCheck(result.User.Id);
 
         var returnUrl = !string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl)
@@ -245,6 +252,27 @@ public sealed class AccountController : Controller
 
         await HttpContext.SignOutAsync(AuthSchemes.User);
         return RedirectToAction(nameof(Login));
+    }
+
+    /// <summary>Ends an impersonation session: revoke it, drop the end-user cookie, return to the admin panel.</summary>
+    [HttpPost("stop-impersonation")]
+    [Authorize(Policy = AuthPolicies.User)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> StopImpersonation(CancellationToken ct)
+    {
+        var impersonator = User.FindFirstValue(UserClaims.ImpersonatorId);
+        var sessionId = User.FindFirstValue(UserClaims.SessionId);
+        if (impersonator is not null && Guid.TryParse(sessionId, out var sid)
+            && Guid.TryParse(User.FindFirstValue(UserClaims.TenantId), out var tid))
+        {
+            var actor = new AuditContext(Guid.Parse(impersonator), "user",
+                HttpContext.Connection.RemoteIpAddress?.ToString(), CurrentRequest().UserAgent);
+            await _impersonation.StopAsync(tid, sid, actor, ct);
+        }
+
+        await HttpContext.SignOutAsync(AuthSchemes.User);
+        // The admin's own TenantAdmin cookie is still valid.
+        return Redirect("/tenantadmin/users");
     }
 
     // --- Authenticated landing ---

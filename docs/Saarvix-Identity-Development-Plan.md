@@ -34,18 +34,18 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 **Goal:** A running ASP.NET Core MVC app in Docker Compose with PostgreSQL, Redis, Hangfire, base entities migrated, and the security primitives (Argon2id, AES) in place.
 
-- [ ] Create `SaarvixIdentity.sln` and projects: `Saarvix.Identity.Web`, `.Core`, `.Modules`, `.Infrastructure`, `tests/Saarvix.Identity.Tests`
-- [ ] Enforce dependency direction: Web → Modules → Core ← Infrastructure → Core
-- [ ] Add `docker-compose.yml` (app + postgres:16 + redis:7) and `Dockerfile`
-- [ ] Wire EF Core (Npgsql) + `DbContext` reading `DATABASE_URL`
-- [ ] Wire Redis connection (`REDIS_URL`)
-- [ ] Wire Hangfire (Postgres storage) + dashboard at `/hangfire` (locked down later)
-- [ ] Core entities + first EF migration: `tenants`, `users` (per schema §4.1, §4.2)
-- [ ] Implement custom **Argon2id** `IPasswordHasher` in Infrastructure
-- [ ] Implement **AES-256-GCM** encryption service (key from `ENCRYPTION_KEY` env)
-- [ ] `appsettings` + env-var config binding; secrets never committed
-- [ ] Pull Vona theme assets into `wwwroot`; base `_Layout` shell renders
-- [ ] **Acceptance:** `docker compose up` → app responds, migration applied, `/hangfire` loads, a unit test proves Argon2id hash/verify and AES round-trip.
+- [x] Create solution (`Authly.slnx`) and projects: `Saarvix.Identity.Web`, `.Core`, `.Modules`, `.Infrastructure`, `tests/Saarvix.Identity.Tests`
+- [x] Enforce dependency direction: Web → Modules → Core ← Infrastructure → Core
+- [x] Add `docker-compose.yml` (app + postgres:16 + redis:7) and `Dockerfile`
+- [x] Wire EF Core (Npgsql) + `AppDbContext` reading `DATABASE_URL`
+- [x] Wire Redis connection (`REDIS_URL`) — `IConnectionMultiplexer` + distributed cache
+- [x] Wire Hangfire (Postgres storage) + dashboard at `/hangfire` (dev-open, locked down later)
+- [x] Core entities + first EF migration (`InitialCreate`): `tenants`, `users` (per schema §4.1, §4.2)
+- [x] Implement custom **Argon2id** `IPasswordHasher` in Infrastructure
+- [x] Implement **AES-256-GCM** encryption service (key from `ENCRYPTION_KEY` env)
+- [x] env-var config binding; secrets via env (not committed)
+- [~] Base `_Layout` renders + rebranded landing — *full Vona theme assets deferred to Phase 1 panels*
+- [~] **Acceptance:** unit tests prove Argon2id hash/verify + AES round-trip (**11/11 pass**); build green; migration SQL validated. *Runtime `docker compose up` check pending — requires Docker (not available in dev shell).*
 
 ---
 

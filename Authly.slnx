@@ -1,11 +1,11 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/Saarvix.Identity.Core/Saarvix.Identity.Core.csproj" />
-    <Project Path="src/Saarvix.Identity.Infrastructure/Saarvix.Identity.Infrastructure.csproj" />
-    <Project Path="src/Saarvix.Identity.Modules/Saarvix.Identity.Modules.csproj" />
-    <Project Path="src/Saarvix.Identity.Web/Saarvix.Identity.Web.csproj" />
+    <Project Path="src/Authly.Core/Authly.Core.csproj" />
+    <Project Path="src/Authly.Infrastructure/Authly.Infrastructure.csproj" />
+    <Project Path="src/Authly.Modules/Authly.Modules.csproj" />
+    <Project Path="src/Authly.Web/Authly.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/Saarvix.Identity.Tests/Saarvix.Identity.Tests.csproj" />
+    <Project Path="tests/Authly.Tests/Authly.Tests.csproj" />
   </Folder>
 </Solution>

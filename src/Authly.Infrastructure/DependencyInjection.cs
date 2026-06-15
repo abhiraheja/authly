@@ -2,9 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Authly.Core.Interfaces;
+using Authly.Core.OAuth;
 using Authly.Infrastructure.Data;
 using Authly.Infrastructure.Data.Repositories;
 using Authly.Infrastructure.Messaging;
+using Authly.Infrastructure.OAuth;
 using Authly.Infrastructure.Security;
 using Authly.Infrastructure.Tenancy;
 using StackExchange.Redis;
@@ -49,6 +51,9 @@ public static class DependencyInjection
         services.AddScoped<IWhatsAppProvider, LogWhatsAppProvider>();
         services.AddScoped<IWhatsAppProvider, Msg91WhatsAppProvider>();
 
+        // --- Social / OAuth2 login gateway (HTTP) ---
+        services.AddScoped<ISocialAuthGateway, SocialAuthGateway>();
+
         // --- Tenancy ---
         services.AddScoped<ITenantContext, TenantContext>();
 
@@ -71,6 +76,8 @@ public static class DependencyInjection
         services.AddScoped<IMessagingProviderRepository, MessagingProviderRepository>();
         services.AddScoped<IMessageTemplateRepository, MessageTemplateRepository>();
         services.AddScoped<IMessageLogRepository, MessageLogRepository>();
+        services.AddScoped<ISocialIdentityRepository, SocialIdentityRepository>();
+        services.AddScoped<ISocialProviderRepository, SocialProviderRepository>();
 
         return services;
     }

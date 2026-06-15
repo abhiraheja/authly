@@ -32,6 +32,13 @@ public interface IAuthService
     /// <summary>Consumes a reset token (single-use, expiring) within the tenant's context, sets the new password, and revokes active sessions.</summary>
     Task<bool> ResetPasswordAsync(Guid tenantId, string rawToken, string newPassword, CancellationToken ct = default);
 
+    /// <summary>
+    /// Creates a session for an already-authenticated user (e.g. after a social-login handshake),
+    /// updates last-login, and records login history. <paramref name="method"/> tags the channel
+    /// (e.g. "google") in login history. Used by surfaces other than password login.
+    /// </summary>
+    Task<Session> StartSessionAsync(User user, string method, RequestInfo info, CancellationToken ct = default);
+
     /// <summary>Returns the session if it is active (exists, not revoked, not expired); null otherwise.</summary>
     Task<Session?> GetActiveSessionAsync(Guid sessionId, CancellationToken ct = default);
 

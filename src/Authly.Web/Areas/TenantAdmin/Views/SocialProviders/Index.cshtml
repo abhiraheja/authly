@@ -1,0 +1,76 @@
+@model IReadOnlyList<SocialProvider>
+@{
+    var presets = SocialProviderPresets.Known;
+}
+
+<div class="page-title-head mb-3">
+    <h4 class="mb-0">Social login</h4>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h6 class="mb-3">Providers</h6>
+        <div class="row g-2">
+            @foreach (var preset in presets)
+            {
+                var existing = Model.FirstOrDefault(p => string.Equals(p.Provider, preset.Key, StringComparison.OrdinalIgnoreCase));
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center justify-content-between border rounded p-2">
+                        <div>
+                            <div class="fw-medium">@preset.DisplayName</div>
+                            <div class="small text-muted">
+                                @if (existing is not null)
+                                {
+                                    @(existing.IsActive ? "Active" : "Configured (inactive)")
+                                }
+                                else { <text>Not configured</text> }
+                            </div>
+                        </div>
+                        <a class="btn btn-sm btn-soft-primary" asp-area="TenantAdmin" asp-controller="SocialProviders"
+                           asp-action="Edit" asp-route-provider="@preset.Key" asp-route-id="@existing?.Id">
+                            @(existing is null ? "Configure" : "Edit")
+                        </a>
+                    </div>
+                </div>
+            }
+            <div class="col-md-6">
+                <div class="d-flex align-items-center justify-content-between border rounded p-2 border-dashed">
+                    <div>
+                        <div class="fw-medium">Custom (OAuth2/OIDC)</div>
+                        <div class="small text-muted">Bring your own endpoints</div>
+                    </div>
+                    <a class="btn btn-sm btn-soft-secondary" asp-area="TenantAdmin" asp-controller="SocialProviders"
+                       asp-action="Edit" asp-route-provider="custom">Add</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@{
+    var custom = Model.Where(p => !SocialProviderPresets.IsKnown(p.Provider)).ToList();
+}
+@if (custom.Count > 0)
+{
+    <div class="card">
+        <div class="card-body">
+            <h6 class="mb-3">Custom providers</h6>
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Provider</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var p in custom)
+                {
+                    <tr>
+                        <td class="fw-medium">@p.Provider</td>
+                        <td>@(p.IsActive ? "active" : "inactive")</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-soft-primary" asp-area="TenantAdmin" asp-controller="SocialProviders"
+                               asp-action="Edit" asp-route-provider="@p.Provider" asp-route-id="@p.Id">Edit</a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

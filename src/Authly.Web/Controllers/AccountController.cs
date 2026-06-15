@@ -24,13 +24,16 @@ public sealed class AccountController : Controller
     private readonly ITenantContext _tenant;
     private readonly IMfaService _mfa;
     private readonly MfaPendingStore _mfaPending;
+    private readonly Authly.Modules.Social.ISocialLoginService _social;
 
-    public AccountController(IAuthService auth, ITenantContext tenant, IMfaService mfa, MfaPendingStore mfaPending)
+    public AccountController(IAuthService auth, ITenantContext tenant, IMfaService mfa, MfaPendingStore mfaPending,
+        Authly.Modules.Social.ISocialLoginService social)
     {
         _auth = auth;
         _tenant = tenant;
         _mfa = mfa;
         _mfaPending = mfaPending;
+        _social = social;
     }
 
     // --- Registration ---
@@ -79,10 +82,11 @@ public sealed class AccountController : Controller
     // --- Login / logout ---
 
     [HttpGet("login")]
-    public IActionResult Login(string? returnUrl = null)
+    public async Task<IActionResult> Login(string? returnUrl = null, CancellationToken ct = default)
     {
         if (RequireTenant() is { } noTenant) return noTenant;
         ViewData["Title"] = "Sign in";
+        ViewData["SocialOptions"] = await _social.ListActiveOptionsAsync(_tenant.TenantId!.Value, ct);
         return View(new UserLoginViewModel { ReturnUrl = returnUrl });
     }
 

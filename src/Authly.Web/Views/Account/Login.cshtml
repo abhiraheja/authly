@@ -1,6 +1,8 @@
 @model UserLoginViewModel
 @{
     Layout = "_AuthLayout";
+    var socialOptions = ViewData["SocialOptions"] as IReadOnlyList<Authly.Modules.Social.SocialLoginOption>
+        ?? new List<Authly.Modules.Social.SocialLoginOption>();
 }
 
 <p class="text-center text-muted mb-4">Sign in to your account.</p>
@@ -8,6 +10,24 @@
 @if (TempData["Success"] is string success)
 {
     <div class="alert alert-success py-2 small">@success</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger py-2 small">@error</div>
+}
+
+@if (socialOptions.Count > 0)
+{
+    <div class="d-grid gap-2 mb-3">
+        @foreach (var opt in socialOptions)
+        {
+            <a class="btn btn-outline-secondary" asp-controller="Social" asp-action="Start"
+               asp-route-provider="@opt.Provider" asp-route-returnUrl="@Model.ReturnUrl">
+                Continue with @opt.DisplayName
+            </a>
+        }
+    </div>
+    <div class="text-center text-muted small mb-3">or</div>
 }
 
 <form asp-controller="Account" asp-action="Login" method="post">

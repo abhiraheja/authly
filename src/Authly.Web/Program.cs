@@ -26,6 +26,9 @@ builder.Services.AddScoped<ApiExceptionFilter>();
 // MFA login gate: holds the half-authenticated state in a data-protected cookie.
 builder.Services.AddSingleton<Authly.Web.Infrastructure.Mfa.MfaPendingStore>();
 
+// Social login: protects the OAuth state payload (CSRF defence + tenant/redirect binding).
+builder.Services.AddSingleton<Authly.Web.Infrastructure.Social.SocialStateProtector>();
+
 // Infrastructure (EF Core, Redis, Argon2id, AES) + business modules.
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddModules();

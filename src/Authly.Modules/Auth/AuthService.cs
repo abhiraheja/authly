@@ -91,13 +91,13 @@ public sealed class AuthService : IAuthService
 
         if (user is null)
         {
-            await RecordLoginAsync(tenantId, null, "failed", "unknown_user", info, ct);
+            await RecordLoginAsync(tenantId, null, "failed", "unknown_user", "password", info, ct);
             return new LoginResult(LoginOutcome.InvalidCredentials);
         }
 
         if (user.Status is UserStatus.Suspended or UserStatus.Deleted)
         {
-            await RecordLoginAsync(tenantId, user.Id, "blocked", $"status_{user.Status}".ToLowerInvariant(), info, ct);
+            await RecordLoginAsync(tenantId, user.Id, "blocked", $"status_{user.Status}".ToLowerInvariant(), "password", info, ct);
             await _audit.LogAsync("user.login", Actor(user.Id, info), tenantId, "user", user.Id,
                 result: "failure", metadata: new { reason = "blocked" }, ct: ct);
             return new LoginResult(LoginOutcome.Suspended, user);
@@ -105,21 +105,28 @@ public sealed class AuthService : IAuthService
 
         if (string.IsNullOrEmpty(user.PasswordHash) || !_passwordHasher.Verify(user.PasswordHash, password))
         {
-            await RecordLoginAsync(tenantId, user.Id, "failed", "bad_password", info, ct);
+            await RecordLoginAsync(tenantId, user.Id, "failed", "bad_password", "password", info, ct);
             await _audit.LogAsync("user.login", Actor(user.Id, info), tenantId, "user", user.Id,
                 result: "failure", metadata: new { reason = "bad_password" }, ct: ct);
             return new LoginResult(LoginOutcome.InvalidCredentials);
         }
 
+        var session = await StartSessionAsync(user, "password", info, ct);
+        return new LoginResult(LoginOutcome.Success, user, session);
+    }
+
+    public async Task<Session> StartSessionAsync(User user, string method, RequestInfo info, CancellationToken ct = default)
+    {
         var session = await CreateSessionAsync(user, info, ct);
 
         user.LastLoginAt = DateTimeOffset.UtcNow;
         await _users.UpdateAsync(user, ct);
 
-        await RecordLoginAsync(tenantId, user.Id, "success", null, info, ct);
-        await _audit.LogAsync("user.login", Actor(user.Id, info), tenantId, "user", user.Id, ct: ct);
+        await RecordLoginAsync(user.TenantId, user.Id, "success", null, method, info, ct);
+        await _audit.LogAsync("user.login", Actor(user.Id, info), user.TenantId, "user", user.Id,
+            metadata: new { method }, ct: ct);
 
-        return new LoginResult(LoginOutcome.Success, user, session);
+        return session;
     }
 
     public async Task ResendVerificationEmailAsync(Guid tenantId, string email, CancellationToken ct = default)
@@ -297,13 +304,13 @@ public sealed class AuthService : IAuthService
             }));
     }
 
-    private async Task RecordLoginAsync(Guid tenantId, Guid? userId, string result, string? reason, RequestInfo info, CancellationToken ct)
+    private async Task RecordLoginAsync(Guid tenantId, Guid? userId, string result, string? reason, string method, RequestInfo info, CancellationToken ct)
         => await _loginHistory.AddAsync(new LoginHistory
         {
             TenantId = tenantId,
             UserId = userId,
             Result = result,
-            Method = "password",
+            Method = method,
             Reason = reason,
             IpAddress = info.IpAddress,
             UserAgent = info.UserAgent,

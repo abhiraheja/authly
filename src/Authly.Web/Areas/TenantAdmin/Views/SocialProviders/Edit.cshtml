@@ -1,0 +1,81 @@
+@model SocialProviderInput
+@{
+    var isCustom = !SocialProviderPresets.IsKnown(Model.Provider);
+    var configured = Model.Id is not null;
+    var preset = SocialProviderPresets.Find(Model.Provider);
+    var redirectHint = $"{Context.Request.Scheme}://{Context.Request.Host}/account/external/{Model.Provider}/callback";
+}
+
+<div class="page-title-head mb-3">
+    <h4 class="mb-0">@(preset?.DisplayName ?? Model.Provider) login</h4>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form asp-area="TenantAdmin" asp-controller="SocialProviders" asp-action="Save" method="post">
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="Provider" />
+
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+
+            <div class="alert alert-info py-2 small">
+                Set this as the provider's redirect/callback URL:<br /><code>@redirectHint</code>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="ClientId" class="form-label">Client ID</label>
+                    <input asp-for="ClientId" class="form-control" autocomplete="off" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="ClientSecret" class="form-label">Client secret @(configured ? "(leave blank to keep)" : "")</label>
+                    <input asp-for="ClientSecret" type="password" class="form-control" autocomplete="new-password" />
+                </div>
+                <div class="col-12">
+                    <label asp-for="Scopes" class="form-label">Scopes (space-separated, blank = defaults)</label>
+                    <input asp-for="Scopes" class="form-control" placeholder="@(preset is null ? "openid email profile" : string.Join(' ', preset.DefaultScopes))" />
+                </div>
+
+                @if (isCustom)
+                {
+                    <div class="col-12"><hr class="my-1" /><span class="small text-muted">Generic OAuth2/OIDC endpoints</span></div>
+                    <div class="col-12">
+                        <label asp-for="AuthorizationEndpoint" class="form-label">Authorization endpoint</label>
+                        <input asp-for="AuthorizationEndpoint" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="TokenEndpoint" class="form-label">Token endpoint</label>
+                        <input asp-for="TokenEndpoint" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="UserInfoEndpoint" class="form-label">User-info endpoint</label>
+                        <input asp-for="UserInfoEndpoint" class="form-control" />
+                    </div>
+                }
+
+                <div class="col-12">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" asp-for="IsActive" id="isActive" />
+                        <label class="form-check-label" for="isActive">Active (show as a sign-in option)</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary">Save</button>
+                <a class="btn btn-soft-secondary" asp-area="TenantAdmin" asp-controller="SocialProviders" asp-action="Index">Cancel</a>
+                @if (configured)
+                {
+                    <form asp-area="TenantAdmin" asp-controller="SocialProviders" asp-action="Delete" asp-route-id="@Model.Id" method="post"
+                          class="ms-auto" onsubmit="return confirm('Remove this provider?');">
+                        <button type="submit" class="btn btn-soft-danger">Remove</button>
+                    </form>
+                }
+            </div>
+        </form>
+    </div>
+</div>
+
+<p class="small text-muted mt-3">
+    <i data-lucide="shield" class="me-1"></i> The client secret is encrypted at rest and never shown again after saving.
+</p>

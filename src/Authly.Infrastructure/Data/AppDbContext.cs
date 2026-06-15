@@ -34,6 +34,8 @@ public class AppDbContext : DbContext
     public DbSet<MessagingProvider> MessagingProviders => Set<MessagingProvider>();
     public DbSet<MessageTemplate> MessageTemplates => Set<MessageTemplate>();
     public DbSet<MessageLog> MessageLogs => Set<MessageLog>();
+    public DbSet<SocialIdentity> SocialIdentities => Set<SocialIdentity>();
+    public DbSet<SocialProvider> SocialProviders => Set<SocialProvider>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -477,6 +479,51 @@ public class AppDbContext : DbContext
             e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
 
             e.HasIndex(x => new { x.TenantId, x.CreatedAt }).HasDatabaseName("idx_message_log_tenant_created");
+
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<SocialIdentity>(e =>
+        {
+            e.ToTable("social_identities");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Provider).HasColumnName("provider").IsRequired();
+            e.Property(x => x.ProviderId).HasColumnName("provider_id").IsRequired();
+            e.Property(x => x.ProviderEmail).HasColumnName("provider_email");
+            e.Property(x => x.AccessToken).HasColumnName("access_token");
+            e.Property(x => x.RefreshToken).HasColumnName("refresh_token");
+            e.Property(x => x.ExpiresAt).HasColumnName("expires_at");
+            e.Property(x => x.RawProfile).HasColumnName("raw_profile").HasColumnType("jsonb").HasDefaultValueSql("'{}'");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            // Per-tenant uniqueness (tenant isolation over the spec's global UNIQUE(provider, provider_id)).
+            e.HasIndex(x => new { x.TenantId, x.Provider, x.ProviderId }).IsUnique().HasDatabaseName("idx_social_identity_unique");
+            e.HasIndex(x => x.UserId).HasDatabaseName("idx_social_user");
+
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<SocialProvider>(e =>
+        {
+            e.ToTable("social_providers");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Provider).HasColumnName("provider").IsRequired();
+            e.Property(x => x.ClientId).HasColumnName("client_id").IsRequired();
+            e.Property(x => x.ClientSecret).HasColumnName("client_secret");
+            e.Property(x => x.Scopes).HasColumnName("scopes");
+            e.Property(x => x.AuthorizationEndpoint).HasColumnName("authorization_endpoint");
+            e.Property(x => x.TokenEndpoint).HasColumnName("token_endpoint");
+            e.Property(x => x.UserInfoEndpoint).HasColumnName("user_info_endpoint");
+            e.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.Provider }).IsUnique().HasDatabaseName("idx_social_provider_unique");
 
             e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
         });

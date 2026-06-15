@@ -152,6 +152,7 @@ public class UserAdminServiceTests
         public Task ResendVerificationEmailAsync(Guid tenantId, string email, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<bool> VerifyEmailAsync(Guid tenantId, string rawToken, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<bool> ResetPasswordAsync(Guid tenantId, string rawToken, string newPassword, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<Session> StartSessionAsync(User user, string method, RequestInfo info, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<Session?> GetActiveSessionAsync(Guid sessionId, CancellationToken ct = default) => throw new NotImplementedException();
         public Task RevokeSessionAsync(Guid sessionId, CancellationToken ct = default) => throw new NotImplementedException();
     }

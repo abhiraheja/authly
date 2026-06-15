@@ -159,12 +159,12 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 **Goal:** Social sign-in starting with Google, plus account linking, configurable per tenant.
 
-- [ ] `social_identities` table (§4.3); tokens AES-encrypted
-- [ ] Google OAuth login + JIT user creation
-- [ ] **Account linking** (same email via password + Google → one account)
-- [ ] Additional providers (Facebook, GitHub, Microsoft, …) + generic OAuth2/OIDC config
-- [ ] Per-tenant provider enable/config UI
-- [ ] **Acceptance:** A user signs in with Google; linking merges with an existing email account; provider tokens stored encrypted.
+- [x] `social_identities` table (§4.3); access/refresh tokens AES-256-GCM encrypted. Added `social_providers` config table. Per-tenant unique (tenant,provider,provider_id) over the doc's global UNIQUE (tenant-isolation hard rule); RLS on both
+- [x] Google OAuth (authorization-code) login + JIT user creation (verified email → social-only user, no password)
+- [x] **Account linking** — callback links a verified provider email to an existing account; takeover guard: only link/JIT from a **provider-verified** email
+- [x] Additional providers (Google/Microsoft/GitHub/Facebook presets) + **generic OAuth2/OIDC** ("custom" provider w/ own endpoints); `SocialAuthGateway` (HttpClient) drives any standard endpoints, profile field-mapping per preset
+- [x] Per-tenant provider enable/config UI (`/tenantadmin/social`); client secret encrypted + write-only; login buttons on the sign-in page; callback redirect-URL hint
+- [~] **Acceptance:** logic unit-proven (13 new tests: presets, JIT-create, link-existing, returning-identity reuse, **token encryption at rest**, unverified-email rejection, unconfigured-provider guard, custom-endpoint validation). Live Google handshake (real client id/secret + network + Postgres) is runtime-pending. Note: social sign-in currently bypasses the MFA gate (documented; MFA-after-social is a future enhancement).
 
 ---
 

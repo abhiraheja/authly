@@ -42,4 +42,16 @@ public sealed class SecuritySettingsViewModel
 
     [Display(Name = "IP allowlist (one per line; empty = allow all)")]
     public string? AllowedIps { get; set; }
+
+    // --- Conditional / risk-based access (Phase 2) ---
+    [Display(Name = "Enable conditional access")]
+    public bool ConditionalAccessEnabled { get; set; }
+
+    [Display(Name = "When signing in from a new device or location")]
+    public Authly.Modules.Security.ConditionalAction NewDeviceAction { get; set; }
+        = Authly.Modules.Security.ConditionalAction.Allow;
+
+    [Display(Name = "When the user's email is unverified")]
+    public Authly.Modules.Security.ConditionalAction UnverifiedEmailAction { get; set; }
+        = Authly.Modules.Security.ConditionalAction.Allow;
 }

@@ -260,7 +260,13 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 ## Future Work (post-Foundation — master-plan Phases 2–4)
 
-- **Phase 2 (Advanced):** risk-based/conditional access, ABAC, anonymous/guest auth, impersonation, device management, anomaly detection, log streaming, migration tools (Auth0/Firebase importers), more SDKs, CLI.
+- **Phase 2 (Advanced):** ~~risk-based/conditional access~~ ✅, ABAC, anonymous/guest auth, impersonation, device management, anomaly detection, log streaming, migration tools (Auth0/Firebase importers), more SDKs, CLI.
+
+### Phase 2 — Conditional / risk-based access  *(done 2026-06-16, build + 6 tests, runtime-pending)*
+- [x] Per-tenant conditional-access policy (`TenantSecuritySettings.ConditionalAccessEnabled` + `NewDeviceAction`/`UnverifiedEmailAction` as `ConditionalAction` Allow|RequireMfa|Block), edited on the Tenant Admin → Security page.
+- [x] `IConditionalAccessService` evaluates the login context (reuses the Phase 12 `SuspiciousLoginDetector` for new-device/IP; checks unverified email); most-restrictive signal wins.
+- [x] Enforced in the end-user login path **before the session cookie is issued**: Block → revoke the just-created session + audit `user.login_blocked` + generic message; RequireMfa → step up (challenge if the user has a factor, else force enrollment) by elevating the existing MFA gate.
+- [~] **Acceptance:** verified by build + 6 unit tests (disabled-allows; new-device triggers action; known-device no-trigger; unverified-email triggers; most-restrictive-wins; verified+known allowed) — 209/209 total. **Runtime-pending:** a real new-device sign-in stepping up to MFA, and a Block denial, against a running app.
 - **Phase 3 (Enterprise):** SAML 2.0, SCIM 2.0, enterprise IdP federation, workload identity federation, DPoP/mTLS, `private_key_jwt`, full data residency, sub-organizations, B2B onboarding, SOC 2/ISO.
 - **Phase 4 (Future):** identity analytics, SAML IdP, B2C self-registration, federation hub, advanced risk scoring.
 - **SDKs** (Next.js/React, Node, .NET) — after the v1 API is stable.

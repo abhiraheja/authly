@@ -32,7 +32,10 @@ public sealed class SecurityController : TenantAdminControllerBase
             BlockedEmailDomains = Join(s.BlockedEmailDomains),
             BlockedIps = Join(s.BlockedIps),
             BlockedCountries = Join(s.BlockedCountries),
-            AllowedIps = Join(s.AllowedIps)
+            AllowedIps = Join(s.AllowedIps),
+            ConditionalAccessEnabled = s.ConditionalAccessEnabled,
+            NewDeviceAction = s.NewDeviceAction,
+            UnverifiedEmailAction = s.UnverifiedEmailAction
         });
     }
 
@@ -55,7 +58,10 @@ public sealed class SecurityController : TenantAdminControllerBase
             BlockedEmailDomains = Split(model.BlockedEmailDomains),
             BlockedIps = Split(model.BlockedIps),
             BlockedCountries = Split(model.BlockedCountries),
-            AllowedIps = Split(model.AllowedIps)
+            AllowedIps = Split(model.AllowedIps),
+            ConditionalAccessEnabled = model.ConditionalAccessEnabled,
+            NewDeviceAction = model.NewDeviceAction,
+            UnverifiedEmailAction = model.UnverifiedEmailAction
         }, model.CaptchaSecret, CurrentAudit(), ct);
 
         TempData["Success"] = "Security settings saved.";

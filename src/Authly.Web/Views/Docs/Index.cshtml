@@ -1,0 +1,66 @@
+@{
+    ViewData["Title"] = "Developer docs";
+}
+
+<div class="container py-4" style="max-width:920px;">
+    <h1 class="fw-bold mb-1">Developer documentation</h1>
+    <p class="lead text-muted">Authly is a standards-based OpenID Connect / OAuth 2.0 provider. Point your OIDC client at the discovery document and you're done.</p>
+
+    <div class="card my-4">
+        <div class="card-header">Your endpoints</div>
+        <div class="card-body">
+            <div class="mb-2">
+                <label class="form-label small mb-1">Discovery document</label>
+                <input class="form-control form-control-sm" value="@ViewBag.Discovery" readonly onclick="this.select()" />
+            </div>
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <label class="form-label small mb-1">Authorization</label>
+                    <input class="form-control form-control-sm" value="@ViewBag.Authorize" readonly onclick="this.select()" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small mb-1">Token</label>
+                    <input class="form-control form-control-sm" value="@ViewBag.Token" readonly onclick="this.select()" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small mb-1">UserInfo</label>
+                    <input class="form-control form-control-sm" value="@ViewBag.UserInfo" readonly onclick="this.select()" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h4>Quickstart</h4>
+    <ol>
+        <li>In your tenant admin console, open <strong>Get started</strong> and create your first application.</li>
+        <li>Copy the <strong>Client ID</strong> (and <strong>Client secret</strong> for web apps — shown once).</li>
+        <li>Register your <strong>redirect URI</strong> (exact match).</li>
+        <li>Configure your OIDC client with the issuer above and scope <code>openid profile email offline_access</code>.</li>
+        <li>Use the <strong>Sandbox</strong> to run a test login.</li>
+    </ol>
+
+    <h4 class="mt-4">Flows</h4>
+    <p>Authorization Code + PKCE (required), Refresh Token (rotated on use), and Client Credentials. Access tokens last 1&nbsp;hour; refresh tokens 14&nbsp;days.</p>
+
+    <h4 class="mt-4">Authorization request</h4>
+    <pre class="bg-light p-3 rounded small"><code>GET /connect/authorize
+  ?response_type=code
+  &amp;client_id=YOUR_CLIENT_ID
+  &amp;redirect_uri=https://myapp.com/callback
+  &amp;scope=openid profile email offline_access
+  &amp;code_challenge=CHALLENGE&amp;code_challenge_method=S256
+  &amp;state=RANDOM</code></pre>
+
+    <h4 class="mt-4">Token exchange</h4>
+    <pre class="bg-light p-3 rounded small"><code>POST /connect/token
+  grant_type=authorization_code
+  code=THE_CODE
+  redirect_uri=https://myapp.com/callback
+  client_id=YOUR_CLIENT_ID
+  client_secret=YOUR_SECRET   (confidential clients only)
+  code_verifier=THE_VERIFIER</code></pre>
+
+    <p class="text-muted mt-4">
+        Full guide with framework examples and troubleshooting: <code>docs/developer/Quickstart.md</code> in the repository.
+    </p>
+</div>

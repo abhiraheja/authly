@@ -47,6 +47,20 @@
             </li>
             <li class="side-nav-title">Operations</li>
             <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("Monitoring") ? "active" : "")"
+                   asp-area="SuperAdmin" asp-controller="Monitoring" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="activity"></i></span>
+                    <span class="menu-text">Monitoring</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("Announcements") ? "active" : "")"
+                   asp-area="SuperAdmin" asp-controller="Announcements" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="megaphone"></i></span>
+                    <span class="menu-text">Announcements</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
                 <a class="side-nav-link" href="/hangfire" target="_blank">
                     <span class="menu-icon"><i data-lucide="timer"></i></span>
                     <span class="menu-text">Background Jobs</span>

@@ -238,12 +238,12 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 **Goal:** Onboarding, sandbox, super-admin monitoring, and documentation.
 
-- [ ] Tenant **onboarding wizard** (first app → keys → branding → test login)
-- [ ] **Sandbox** environment per tenant
-- [ ] Super-admin **monitoring & health** dashboard (system metrics, login analytics, instance telemetry)
-- [ ] Platform ops: announcements, version/deprecation, background-job monitoring, backup status
-- [ ] Developer **documentation** + quickstart
-- [ ] **Acceptance:** A new company signs up and reaches a working test login via the wizard; super admin sees health + analytics; docs let an external dev integrate.
+- [x] Tenant **onboarding wizard** (first app → keys → branding → test login) — `OnboardingController` 4-step flow (reuses app/api-key/branding services); progress indicator partial; onboarding state in `Tenant.Settings` JSON (`IsOnboardedAsync`/`SetOnboardedAsync`, preserves other keys); dashboard nudge banner via `TenantBanners` view component until complete
+- [x] **Sandbox** environment per tenant — `SandboxController` test-login playground: validates credentials against the tenant's user store (scoped to TenantId, never issues an admin cookie) and surfaces OIDC endpoints (discovery/authorize/token/userinfo)
+- [x] Super-admin **monitoring & health** dashboard — `MonitoringController` + `IPlatformHealthProbe` (Postgres/Redis liveness + latency, never throws), reuse of `IInstanceMetricsCollector` for aggregate counts, `ILoginAnalyticsStore` (cross-tenant 14-day success/fail, RLS-bound per tenant, aggregate-only), self-hosted instance telemetry table
+- [x] Platform ops: announcements, version/deprecation, background-job monitoring, backup status — `Announcement` platform-level entity (no RLS) + `IAnnouncementService` + super-admin CRUD + `TenantBanners` banner to tenant admins; version/mode/deprecation from `IDeploymentContext`+config; backup status from config; Hangfire dashboard link
+- [x] Developer **documentation** + quickstart — `docs/developer/Quickstart.md` (concepts, endpoints, Auth-Code+PKCE/refresh/client-credentials flows, Next.js + cURL examples, token verification, troubleshooting) + in-app `/docs` page with live endpoints
+- [~] **Acceptance:** verified by build + 6 new unit tests (onboarding flag default/set-preserves-keys/idempotent-audit/malformed-tolerant; announcement severity-normalize/valid-severity/visible-filtering) — 203/203 total. **Runtime-pending:** a real signup→wizard→working test login round-trip, the super-admin health/analytics dashboard against live Postgres+Redis with traffic, and an external dev integrating via the docs all need a running app + DB + Redis + browser.
 
 ---
 

@@ -44,6 +44,7 @@ public class AppDbContext : DbContext
     public DbSet<PendingContactChange> PendingContactChanges => Set<PendingContactChange>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
     public DbSet<SelfHostedInstance> SelfHostedInstances => Set<SelfHostedInstance>();
+    public DbSet<Announcement> Announcements => Set<Announcement>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -484,6 +485,22 @@ public class AppDbContext : DbContext
             e.HasIndex(x => x.SyncKeyHash).IsUnique().HasDatabaseName("idx_self_hosted_instances_sync_key");
 
             e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.OwnerTenantId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Platform-level super-admin announcements. NOT tenant-scoped — no RLS, like super_admins.
+        b.Entity<Announcement>(e =>
+        {
+            e.ToTable("announcements");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.Title).HasColumnName("title").IsRequired();
+            e.Property(x => x.Body).HasColumnName("body").IsRequired();
+            e.Property(x => x.Severity).HasColumnName("severity").HasDefaultValue("info");
+            e.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            e.Property(x => x.ExpiresAt).HasColumnName("expires_at");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.IsActive, x.ExpiresAt }).HasDatabaseName("idx_announcements_visible");
         });
 
         b.Entity<MfaBackupCode>(e =>

@@ -17,4 +17,10 @@ public interface ITenantService
 
     /// <summary>Soft-deletes (status = Deleted); honors the offboarding grace model.</summary>
     Task DeleteAsync(Guid id, AuditContext actor, CancellationToken ct = default);
+
+    /// <summary>True once the tenant has finished (or dismissed) the onboarding wizard.</summary>
+    Task<bool> IsOnboardedAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>Marks onboarding as complete in the tenant's settings JSON.</summary>
+    Task SetOnboardedAsync(Guid id, AuditContext actor, CancellationToken ct = default);
 }

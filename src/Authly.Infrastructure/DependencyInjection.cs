@@ -78,6 +78,10 @@ public static class DependencyInjection
         services.AddScoped<Authly.Core.Compliance.IInstanceMetricsCollector, Compliance.InstanceMetricsCollector>();
         services.AddScoped<Authly.Core.Compliance.IRetentionStore, Compliance.RetentionStore>();
 
+        // --- Monitoring (Phase 14): platform health probe + cross-tenant login analytics. ---
+        services.AddScoped<Authly.Core.Monitoring.IPlatformHealthProbe, Monitoring.PlatformHealthProbe>();
+        services.AddScoped<Authly.Core.Monitoring.ILoginAnalyticsStore, Monitoring.LoginAnalyticsStore>();
+
         // --- Tenancy ---
         services.AddScoped<ITenantContext, TenantContext>();
 
@@ -110,6 +114,7 @@ public static class DependencyInjection
         services.AddScoped<IPendingContactChangeRepository, PendingContactChangeRepository>();
         services.AddScoped<IConsentRecordRepository, ConsentRecordRepository>();
         services.AddScoped<ISelfHostedInstanceRepository, SelfHostedInstanceRepository>();
+        services.AddScoped<IAnnouncementRepository, AnnouncementRepository>();
 
         return services;
     }

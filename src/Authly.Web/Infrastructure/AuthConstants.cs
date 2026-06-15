@@ -40,3 +40,16 @@ public static class TenantAdminClaims
 {
     public const string TenantId = "authly:tenant_id";
 }
+
+/// <summary>Claim types carried inside issued OAuth/OIDC tokens (access/identity).</summary>
+public static class TokenClaims
+{
+    /// <summary>Standard role claim ("role"); one claim per role name.</summary>
+    public const string Role = "role";
+
+    /// <summary>Flattened permission set; one claim per <c>resource.action</c>.</summary>
+    public const string Permissions = "permissions";
+
+    /// <summary>The tenant the token was issued for.</summary>
+    public const string TenantId = "tenant_id";
+}

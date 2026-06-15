@@ -1,0 +1,63 @@
+@model UserRolesViewModel
+
+<div class="page-title-head d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0">@Model.Email</h4>
+    <a class="btn btn-soft-secondary btn-sm" asp-area="TenantAdmin" asp-controller="Users" asp-action="Index">Back</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header"><h6 class="card-title mb-0">Assigned roles</h6></div>
+            <div class="card-body">
+                @if (Model.AssignedRoles.Count == 0)
+                {
+                    <p class="text-muted mb-0">No roles assigned.</p>
+                }
+                else
+                {
+                    <ul class="list-group list-group-flush">
+                    @foreach (var role in Model.AssignedRoles)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span><code>@role.Name</code>
+                                @if (role.IsSystem) { <span class="badge bg-soft-secondary ms-1">system</span> }
+                            </span>
+                            <form asp-area="TenantAdmin" asp-controller="Users" asp-action="Remove"
+                                  asp-route-id="@Model.UserId" method="post">
+                                <input type="hidden" name="roleId" value="@role.Id" />
+                                <button type="submit" class="btn btn-soft-danger btn-sm">Remove</button>
+                            </form>
+                        </li>
+                    }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header"><h6 class="card-title mb-0">Add a role</h6></div>
+            <div class="card-body">
+                @if (Model.AvailableRoles.Count == 0)
+                {
+                    <p class="text-muted mb-0">All roles are already assigned.</p>
+                }
+                else
+                {
+                    <form asp-area="TenantAdmin" asp-controller="Users" asp-action="Assign"
+                          asp-route-id="@Model.UserId" method="post" class="d-flex gap-2">
+                        <select name="roleId" class="form-select">
+                            @foreach (var role in Model.AvailableRoles)
+                            {
+                                <option value="@role.Id">@role.Name</option>
+                            }
+                        </select>
+                        <button type="submit" class="btn btn-primary">Assign</button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+</div>

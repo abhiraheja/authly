@@ -11,6 +11,9 @@ public interface IUserRepository
 {
     Task<User?> GetByIdAsync(Guid tenantId, Guid id, CancellationToken ct = default);
     Task<User?> GetByEmailAsync(Guid tenantId, string email, CancellationToken ct = default);
+
+    /// <summary>All users in a tenant (newest first), for tenant-admin management screens.</summary>
+    Task<IReadOnlyList<User>> ListByTenantAsync(Guid tenantId, CancellationToken ct = default);
     Task<bool> EmailExistsAsync(Guid tenantId, string email, CancellationToken ct = default);
 
     /// <summary>True if the tenant already has at least one tenant admin (used for first-admin bootstrap).</summary>

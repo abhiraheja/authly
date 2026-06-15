@@ -29,6 +29,21 @@
                     <span class="menu-text">Applications</span>
                 </a>
             </li>
+            <li class="side-nav-title">Access control</li>
+            <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("Roles") ? "active" : "")"
+                   asp-area="TenantAdmin" asp-controller="Roles" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="shield"></i></span>
+                    <span class="menu-text">Roles &amp; permissions</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("Users") ? "active" : "")"
+                   asp-area="TenantAdmin" asp-controller="Users" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="users"></i></span>
+                    <span class="menu-text">Users</span>
+                </a>
+            </li>
         </ul>
     </div>
 

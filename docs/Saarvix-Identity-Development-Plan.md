@@ -53,14 +53,15 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 **Goal:** Tenants exist and are CRUD-able; the platform owner can log into a Super Admin panel; tenant isolation is enforced at query level + Postgres RLS.
 
-- [ ] `Tenant` entity + repository + `Tenants` module service (create/read/update/suspend/delete)
-- [ ] `super_admins` table + entity (§4.15); super admin bootstrap from `SUPERADMIN_EMAIL/PASSWORD` (force change on first login)
-- [ ] Super Admin auth (separate from tenant users) + `Areas/SuperAdmin` panel shell (Vona)
-- [ ] Tenant list / create / suspend / delete UI in Super Admin panel
-- [ ] **Tenant isolation middleware** — resolves current tenant, sets `app.current_tenant` on the connection
-- [ ] Enable **Row Level Security** policies on all tenant-scoped tables (backstop)
-- [ ] Audit-log scaffolding invoked on tenant state changes
-- [ ] **Acceptance:** Super admin logs in, creates Tenant A + Tenant B; a query scoped to A cannot read B's rows (verified with RLS on and app filter on).
+- [x] `Tenant` entity + repository + `Tenants` module service (create/suspend/reactivate/soft-delete) with slug generation
+- [x] `super_admins` table + entity (§4.15); super admin bootstrap from `SUPERADMIN_EMAIL/PASSWORD` (force change on first login)
+- [x] Super Admin auth (isolated cookie scheme, separate from tenant users) + `Areas/SuperAdmin` panel shell (replicated Vona theme)
+- [x] Tenant list / create / suspend / reactivate / delete UI in Super Admin panel
+- [x] **Tenant isolation middleware** (`TenantResolutionMiddleware`) + `TenantConnectionInterceptor` sets `app.current_tenant` per connection
+- [x] **Row Level Security** on `users` (canonical tenant-scoped table) — `ENABLE` + `FORCE` + `tenant_isolation` policy (backstop); app also filters by tenant_id
+- [x] Audit-log scaffolding (`IAuditLogger`/`audit_logs`) invoked on every tenant state change
+- [~] **Acceptance:** build green, 19/19 unit tests pass (incl. tenant create/suspend/slug + audit), full migration SQL validated. *Runtime check (login → create Tenant A/B → cross-tenant read denied) pending `docker compose up` — no Docker in dev shell.*
+- *Note:* RLS applied to `users` only so far (the tenant-scoped table with data); `applications`, `sessions`, etc. get the same policy as those tables land in later phases.
 
 ---
 

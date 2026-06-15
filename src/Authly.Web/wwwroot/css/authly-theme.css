@@ -1,0 +1,255 @@
+/*
+ * authly-theme.css
+ * An ORIGINAL replication of the CoderThemes "Vona" admin look (minimal admin:
+ * soft shadows, rounded corners, muted surfaces, one accent, Lucide line icons).
+ * Built on Bootstrap 5.3.8 — no proprietary Vona CSS is used. Class taxonomy mirrors
+ * Vona (.wrapper, .sidenav-menu, .side-nav, .app-topbar, .page-content, .page-title-head,
+ * .btn-soft-*, .bg-soft-*, .avatar-*) so markup stays familiar and portable.
+ */
+
+:root,
+[data-bs-theme="light"] {
+    --bs-primary: #5b6df5;
+    --bs-primary-rgb: 91, 109, 245;
+    --bs-body-bg: #f5f6fa;
+    --bs-body-color: #34384b;
+    --bs-border-color: #e6e8f0;
+    --bs-secondary-color: #8a8fa3;
+
+    --authly-sidenav-bg: #ffffff;
+    --authly-sidenav-width: 260px;
+    --authly-topbar-height: 64px;
+    --authly-card-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 1px 3px rgba(16, 24, 40, .06);
+    --authly-radius: .65rem;
+}
+
+[data-bs-theme="dark"] {
+    --bs-primary: #7c8bff;
+    --bs-primary-rgb: 124, 139, 255;
+    --bs-body-bg: #15171f;
+    --bs-body-color: #c7cad6;
+    --bs-border-color: #2a2d3a;
+    --authly-sidenav-bg: #1b1e27;
+    --authly-card-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+}
+
+body {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: .9rem;
+}
+
+/* ---------------------------------------------------------------- App shell */
+.wrapper { display: flex; min-height: 100vh; }
+
+.sidenav-menu {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: var(--authly-sidenav-width);
+    background: var(--authly-sidenav-bg);
+    border-inline-end: 1px solid var(--bs-border-color);
+    display: flex;
+    flex-direction: column;
+    z-index: 1030;
+}
+
+.sidenav-menu .logo {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    height: var(--authly-topbar-height);
+    padding-inline: 1.25rem;
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--bs-body-color);
+    text-decoration: none;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+.sidenav-menu .logo .logo-mark {
+    display: grid;
+    place-items: center;
+    width: 32px; height: 32px;
+    border-radius: .5rem;
+    background: var(--bs-primary);
+    color: #fff;
+}
+
+.side-nav { list-style: none; margin: 0; padding: .75rem .75rem 2rem; overflow-y: auto; }
+.side-nav-title {
+    padding: 1rem .75rem .35rem;
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color);
+}
+.side-nav-item { margin-bottom: .15rem; }
+.side-nav-link {
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    padding: .55rem .75rem;
+    border-radius: var(--authly-radius);
+    color: var(--bs-body-color);
+    text-decoration: none;
+    font-weight: 500;
+    transition: background-color .12s ease, color .12s ease;
+}
+.side-nav-link:hover { background: rgba(var(--bs-primary-rgb), .08); color: var(--bs-primary); }
+.side-nav-link.active { background: var(--bs-primary); color: #fff; }
+.side-nav-link.active .menu-icon { color: #fff; }
+.menu-icon { display: inline-flex; color: var(--bs-secondary-color); }
+.menu-icon svg { width: 18px; height: 18px; }
+.menu-text { flex: 1; }
+
+/* ---------------------------------------------------------------- Topbar */
+.app-topbar {
+    position: sticky;
+    top: 0;
+    height: var(--authly-topbar-height);
+    background: var(--authly-sidenav-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-inline: 1.5rem;
+    z-index: 1020;
+}
+.app-topbar .topbar-item.ms-auto { margin-inline-start: auto; }
+
+/* ---------------------------------------------------------------- Content */
+.content-area {
+    flex: 1;
+    margin-inline-start: var(--authly-sidenav-width);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.page-content { flex: 1; }
+.page-content > .container-fluid { padding: 1.5rem; }
+
+.page-title-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+}
+.page-title-head h4 { margin: 0; font-weight: 600; font-size: 1.2rem; }
+
+.footer {
+    border-top: 1px solid var(--bs-border-color);
+    padding: 1rem 1.5rem;
+    color: var(--bs-secondary-color);
+    font-size: .82rem;
+}
+
+/* ---------------------------------------------------------------- Cards */
+.card {
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--authly-radius);
+    box-shadow: var(--authly-card-shadow);
+}
+.card-header {
+    background: transparent;
+    border-bottom: 1px solid var(--bs-border-color);
+    font-weight: 600;
+    padding: 1rem 1.25rem;
+}
+.card-body { padding: 1.25rem; }
+
+.stat-card .stat-value { font-size: 1.6rem; font-weight: 700; }
+
+/* ---------------------------------------------------------------- Buttons */
+.btn { border-radius: .5rem; font-weight: 500; }
+.btn-soft-primary   { background: rgba(var(--bs-primary-rgb), .12); color: var(--bs-primary); }
+.btn-soft-primary:hover { background: var(--bs-primary); color: #fff; }
+.btn-soft-secondary { background: rgba(138, 143, 163, .14); color: #6b7080; }
+.btn-soft-danger    { background: rgba(var(--bs-danger-rgb), .12); color: var(--bs-danger); }
+.btn-soft-danger:hover { background: var(--bs-danger); color: #fff; }
+.btn-soft-success   { background: rgba(var(--bs-success-rgb), .14); color: var(--bs-success); }
+.btn-soft-success:hover { background: var(--bs-success); color: #fff; }
+.btn-icon { display: inline-grid; place-items: center; padding: .4rem; }
+.btn-icon svg { width: 16px; height: 16px; }
+
+/* ---------------------------------------------------------------- Soft backgrounds / badges */
+.bg-soft-primary { background: rgba(var(--bs-primary-rgb), .12) !important; color: var(--bs-primary); }
+.bg-soft-success { background: rgba(var(--bs-success-rgb), .14) !important; color: var(--bs-success); }
+.bg-soft-danger  { background: rgba(var(--bs-danger-rgb), .12) !important; color: var(--bs-danger); }
+.bg-soft-warning { background: rgba(var(--bs-warning-rgb), .16) !important; color: #b5870b; }
+
+.badge-lighten-success { background: rgba(var(--bs-success-rgb), .14); color: var(--bs-success); }
+.badge-lighten-secondary { background: rgba(138, 143, 163, .18); color: #6b7080; }
+.badge-lighten-danger { background: rgba(var(--bs-danger-rgb), .12); color: var(--bs-danger); }
+
+/* ---------------------------------------------------------------- Avatars */
+.avatar-sm { width: 2rem; height: 2rem; }
+.avatar-md { width: 2.75rem; height: 2.75rem; }
+.avatar-lg { width: 3.5rem; height: 3.5rem; }
+.avatar-title {
+    display: grid; place-items: center;
+    width: 100%; height: 100%;
+    border-radius: .5rem;
+    font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- Tables */
+.table { --bs-table-bg: transparent; }
+.table > :not(caption) > * > * { padding: .8rem 1rem; }
+.table thead th {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: var(--bs-secondary-color);
+    font-weight: 600;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+/* ---------------------------------------------------------------- Forms */
+.form-label { font-weight: 500; margin-bottom: .35rem; }
+.form-control, .form-select {
+    border-radius: .5rem;
+    border-color: var(--bs-border-color);
+    padding: .55rem .8rem;
+}
+.form-control:focus, .form-select:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 .2rem rgba(var(--bs-primary-rgb), .15);
+}
+
+/* ---------------------------------------------------------------- Auth pages (no shell) */
+.auth-wrapper {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background:
+        radial-gradient(1200px 500px at 50% -10%, rgba(var(--bs-primary-rgb), .12), transparent),
+        var(--bs-body-bg);
+}
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--authly-sidenav-bg, #fff);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 1rem;
+    box-shadow: 0 10px 40px rgba(16, 24, 40, .08);
+    padding: 2.25rem;
+}
+.auth-brand {
+    display: flex; align-items: center; justify-content: center;
+    gap: .55rem; font-weight: 700; font-size: 1.35rem; margin-bottom: .35rem;
+}
+.auth-brand .logo-mark {
+    display: grid; place-items: center;
+    width: 36px; height: 36px; border-radius: .55rem;
+    background: var(--bs-primary); color: #fff;
+}
+
+/* ---------------------------------------------------------------- Responsive */
+@media (max-width: 991.98px) {
+    .sidenav-menu { transform: translateX(-100%); transition: transform .2s ease; }
+    .sidenav-menu.show { transform: translateX(0); }
+    .content-area { margin-inline-start: 0; }
+}

@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Authly.Core\Authly.Core.csproj" />
     <ProjectReference Include="..\..\src\Authly.Infrastructure\Authly.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Authly.Modules\Authly.Modules.csproj" />
   </ItemGroup>
 
 </Project>

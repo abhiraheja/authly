@@ -163,6 +163,12 @@ body {
 
 /* ---------------------------------------------------------------- Buttons */
 .btn { border-radius: .5rem; font-weight: 500; }
+/* Honor the per-tenant button text color (set by branding) on the primary button. */
+.btn-primary {
+    --bs-btn-color: var(--authly-on-primary, #fff);
+    --bs-btn-hover-color: var(--authly-on-primary, #fff);
+    --bs-btn-active-color: var(--authly-on-primary, #fff);
+}
 .btn-soft-primary   { background: rgba(var(--bs-primary-rgb), .12); color: var(--bs-primary); }
 .btn-soft-primary:hover { background: var(--bs-primary); color: #fff; }
 .btn-soft-secondary { background: rgba(138, 143, 163, .14); color: #6b7080; }
@@ -245,6 +251,31 @@ body {
     display: grid; place-items: center;
     width: 36px; height: 36px; border-radius: .55rem;
     background: var(--bs-primary); color: #fff;
+}
+.auth-logo { max-height: 44px; max-width: 240px; object-fit: contain; }
+
+/* Split layout: a branded panel beside the form card. */
+.auth-split { grid-template-columns: 1fr 1fr; gap: 0; place-items: stretch; padding: 0; }
+.auth-split .auth-card {
+    margin: auto; box-shadow: none; border: 0; border-radius: 0;
+    background: transparent; max-width: 440px;
+}
+.auth-aside {
+    display: flex; flex-direction: column; justify-content: center;
+    gap: 1rem; padding: 3rem;
+    background:
+        radial-gradient(900px 500px at 20% 10%, rgba(var(--bs-primary-rgb), .28), transparent),
+        var(--bs-primary);
+    color: #fff;
+}
+.auth-aside .auth-brand, .auth-aside .auth-brand-lg { justify-content: flex-start; color: #fff; font-size: 1.8rem; }
+.auth-aside .auth-brand .logo-mark { background: rgba(255, 255, 255, .2); }
+.auth-tagline { font-size: 1.05rem; opacity: .9; max-width: 26rem; }
+
+@media (max-width: 767.98px) {
+    .auth-split { grid-template-columns: 1fr; }
+    .auth-split .auth-aside { display: none; }
+    .auth-split .auth-card { padding: 2.25rem; }
 }
 
 /* ---------------------------------------------------------------- Responsive */

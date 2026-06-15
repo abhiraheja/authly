@@ -29,6 +29,9 @@ builder.Services.AddSingleton<Authly.Web.Infrastructure.Mfa.MfaPendingStore>();
 // Social login: protects the OAuth state payload (CSRF defence + tenant/redirect binding).
 builder.Services.AddSingleton<Authly.Web.Infrastructure.Social.SocialStateProtector>();
 
+// Per-tenant branding for the hosted login / portal layouts (request-scoped, resolved once).
+builder.Services.AddScoped<Authly.Web.Infrastructure.Branding.CurrentBranding>();
+
 // Infrastructure (EF Core, Redis, Argon2id, AES) + business modules.
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddModules();
@@ -67,6 +70,8 @@ builder.Services.AddAuthentication(AuthSchemes.SuperAdmin)
         options.AccessDeniedPath = "/account/login";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
+        // Re-check the backing session on each request so portal session-revoke / password-change take effect.
+        options.Events.OnValidatePrincipal = SessionCookieValidator.ValidateAsync;
     })
     .AddCookie(AuthSchemes.TenantAdmin, options =>
     {

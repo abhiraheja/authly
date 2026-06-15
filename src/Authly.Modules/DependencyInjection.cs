@@ -1,9 +1,11 @@
 using Authly.Core.Events;
+using Authly.Modules.Account;
 using Authly.Modules.ApiKeys;
 using Authly.Modules.Applications;
 using Authly.Modules.Audit;
 using Authly.Modules.Auth;
 using Authly.Modules.Authorization;
+using Authly.Modules.Branding;
 using Authly.Modules.Claims;
 using Authly.Modules.Hooks;
 using Authly.Modules.Messaging;
@@ -42,6 +44,10 @@ public static class DependencyInjection
         services.AddScoped<IPipelineHookService, PipelineHookService>();
         services.AddScoped<IClaimConfigService, ClaimConfigService>();
         services.AddScoped<ITokenClaimAssembler, TokenClaimAssembler>();
+
+        // Phase 10 — per-tenant branding + custom domain; end-user portal self-service.
+        services.AddScoped<IBrandingService, BrandingService>();
+        services.AddScoped<IAccountSelfService, AccountSelfService>();
         return services;
     }
 }

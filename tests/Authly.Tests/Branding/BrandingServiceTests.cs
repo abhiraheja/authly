@@ -1,0 +1,154 @@
+using Authly.Core.Branding;
+using Authly.Core.Entities;
+using Authly.Core.Interfaces;
+using Authly.Modules.Audit;
+using Authly.Modules.Branding;
+using Authly.Modules.Common;
+
+namespace Authly.Tests.Branding;
+
+public class BrandingServiceTests
+{
+    private static readonly Guid Tenant = Guid.NewGuid();
+
+    [Fact]
+    public async Task Save_persists_validated_branding_and_audits()
+    {
+        var h = new Harness();
+        await h.Service.SaveAsync(Tenant, new BrandingInput
+        {
+            LogoUrl = "https://cdn.acme.com/logo.svg",
+            PrimaryColor = "#AABBCC",
+            ButtonTextColor = "#FFFFFF",
+            FontFamily = "Roboto, sans-serif",
+            Layout = Core.Enums.BrandingLayout.Split,
+            DarkMode = true,
+            Tagline = "  Hello  "
+        }, AuditContext.System);
+
+        var saved = TenantBrandingJson.Parse(h.Tenant.Branding);
+        Assert.Equal("#aabbcc", saved.PrimaryColor);                 // normalized to lower-case
+        Assert.Equal(Core.Enums.BrandingLayout.Split, saved.Layout);
+        Assert.True(saved.DarkMode);
+        Assert.Equal("Hello", saved.Tagline);                        // trimmed
+        Assert.Contains("tenant.branding_updated", h.Audit.Events);
+    }
+
+    [Fact]
+    public async Task Save_rejects_a_non_hex_color()
+    {
+        var h = new Harness();
+        await Assert.ThrowsAsync<BrandingConfigInvalidException>(() =>
+            h.Service.SaveAsync(Tenant, new BrandingInput { PrimaryColor = "blue" }, AuditContext.System));
+    }
+
+    [Fact]
+    public async Task Save_rejects_a_non_http_logo_url()
+    {
+        var h = new Harness();
+        await Assert.ThrowsAsync<BrandingConfigInvalidException>(() =>
+            h.Service.SaveAsync(Tenant, new BrandingInput
+            {
+                PrimaryColor = "#5b6df5", ButtonTextColor = "#fff", LogoUrl = "javascript:alert(1)"
+            }, AuditContext.System));
+    }
+
+    [Fact]
+    public async Task Save_strips_dangerous_characters_from_the_font()
+    {
+        var h = new Harness();
+        await h.Service.SaveAsync(Tenant, new BrandingInput
+        {
+            PrimaryColor = "#5b6df5", ButtonTextColor = "#fff", FontFamily = "Inter</style><script>"
+        }, AuditContext.System);
+
+        var saved = TenantBrandingJson.Parse(h.Tenant.Branding);
+        Assert.DoesNotContain("<", saved.FontFamily);
+        Assert.DoesNotContain(">", saved.FontFamily);
+    }
+
+    [Fact]
+    public async Task SetCustomDomain_normalizes_and_persists()
+    {
+        var h = new Harness();
+        await h.Service.SetCustomDomainAsync(Tenant, "https://Auth.Acme.com/", AuditContext.System);
+        Assert.Equal("auth.acme.com", h.Tenant.CustomDomain);
+        Assert.Contains("tenant.custom_domain_updated", h.Audit.Events);
+    }
+
+    [Fact]
+    public async Task SetCustomDomain_clears_on_blank()
+    {
+        var h = new Harness();
+        h.Tenant.CustomDomain = "auth.acme.com";
+        await h.Service.SetCustomDomainAsync(Tenant, "   ", AuditContext.System);
+        Assert.Null(h.Tenant.CustomDomain);
+    }
+
+    [Fact]
+    public async Task SetCustomDomain_rejects_an_invalid_host()
+    {
+        var h = new Harness();
+        await Assert.ThrowsAsync<BrandingConfigInvalidException>(() =>
+            h.Service.SetCustomDomainAsync(Tenant, "not a domain", AuditContext.System));
+    }
+
+    [Fact]
+    public async Task SetCustomDomain_rejects_a_domain_owned_by_another_tenant()
+    {
+        var h = new Harness();
+        var other = new Tenant { Id = Guid.NewGuid(), Name = "Other", Slug = "other", CustomDomain = "auth.acme.com" };
+        h.Repo.Store[other.Id] = other;
+
+        await Assert.ThrowsAsync<BrandingConfigInvalidException>(() =>
+            h.Service.SetCustomDomainAsync(Tenant, "auth.acme.com", AuditContext.System));
+    }
+
+    [Fact]
+    public async Task SetCustomDomain_allows_keeping_the_tenants_own_domain()
+    {
+        var h = new Harness();
+        h.Tenant.CustomDomain = "auth.acme.com";
+        await h.Service.SetCustomDomainAsync(Tenant, "auth.acme.com", AuditContext.System); // no throw
+        Assert.Equal("auth.acme.com", h.Tenant.CustomDomain);
+    }
+
+    private sealed class Harness
+    {
+        public readonly FakeTenantRepo Repo = new();
+        public readonly RecordingAudit Audit = new();
+        public readonly BrandingService Service;
+        public readonly Tenant Tenant;
+
+        public Harness()
+        {
+            Tenant = new Tenant { Id = BrandingServiceTests.Tenant, Name = "Acme", Slug = "acme" };
+            Repo.Store[Tenant.Id] = Tenant;
+            Service = new BrandingService(Repo, Audit);
+        }
+    }
+
+    private sealed class FakeTenantRepo : ITenantRepository
+    {
+        public readonly Dictionary<Guid, Tenant> Store = new();
+        public Task<Tenant?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult(Store.GetValueOrDefault(id));
+        public Task<Tenant?> GetBySlugAsync(string slug, CancellationToken ct = default)
+            => Task.FromResult(Store.Values.FirstOrDefault(t => t.Slug == slug));
+        public Task<Tenant?> GetByCustomDomainOrNullAsync(string host, CancellationToken ct = default)
+            => Task.FromResult(Store.Values.FirstOrDefault(t => t.CustomDomain == host));
+        public Task<IReadOnlyList<Tenant>> ListAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<Tenant>>(Store.Values.ToList());
+        public Task<bool> SlugExistsAsync(string slug, CancellationToken ct = default)
+            => Task.FromResult(Store.Values.Any(t => t.Slug == slug));
+        public Task AddAsync(Tenant tenant, CancellationToken ct = default) { Store[tenant.Id] = tenant; return Task.CompletedTask; }
+        public Task UpdateAsync(Tenant tenant, CancellationToken ct = default) { Store[tenant.Id] = tenant; return Task.CompletedTask; }
+    }
+
+    private sealed class RecordingAudit : IAuditLogger
+    {
+        public readonly List<string> Events = new();
+        public Task LogAsync(string @event, AuditContext actor, Guid? tenantId = null, string? resourceType = null,
+            Guid? resourceId = null, string result = "success", object? metadata = null, CancellationToken ct = default)
+        { Events.Add(@event); return Task.CompletedTask; }
+    }
+}

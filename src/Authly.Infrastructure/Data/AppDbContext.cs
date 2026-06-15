@@ -63,6 +63,9 @@ public class AppDbContext : DbContext
 
             e.HasIndex(x => x.Slug).IsUnique().HasDatabaseName("idx_tenants_slug");
             e.HasIndex(x => x.ParentId).HasDatabaseName("idx_tenants_parent");
+            // A custom auth domain resolves to exactly one tenant (Postgres treats NULLs as distinct,
+            // so tenants without a custom domain are unaffected).
+            e.HasIndex(x => x.CustomDomain).IsUnique().HasDatabaseName("idx_tenants_custom_domain");
 
             e.HasOne(x => x.Parent).WithMany().HasForeignKey(x => x.ParentId)
                 .OnDelete(DeleteBehavior.Restrict);

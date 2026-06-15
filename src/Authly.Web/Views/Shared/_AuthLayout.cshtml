@@ -1,20 +1,66 @@
+@inject Authly.Web.Infrastructure.Branding.CurrentBranding Branding
+@{
+    var brand = await Branding.GetAsync();
+    var brandName = await Branding.GetDisplayNameAsync();
+    var theme = brand.DarkMode ? "dark" : "light";
+    var split = brand.Layout == Authly.Core.Enums.BrandingLayout.Split;
+}
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
+<html lang="en" data-bs-theme="@theme">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] · Authly</title>
+    <title>@ViewData["Title"] · @brandName</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
     <link rel="stylesheet" href="~/css/authly-theme.css" asp-append-version="true" />
+    @* Per-tenant theming: override the brand variables consumed by the theme stylesheet. *@
+    <style>
+        :root, [data-bs-theme="light"], [data-bs-theme="dark"] {
+            --bs-primary: @brand.PrimaryColor;
+            --bs-primary-rgb: @brand.PrimaryColorRgb;
+            --authly-on-primary: @brand.ButtonTextColor;
+        }
+        body { font-family: @Html.Raw(brand.FontFamily); }
+    </style>
 </head>
 <body>
-<div class="auth-wrapper">
+<div class="auth-wrapper @(split ? "auth-split" : "")">
+    @if (split)
+    {
+        <aside class="auth-aside">
+            <div class="auth-brand auth-brand-lg">
+                @if (brand.LogoUrl is not null)
+                {
+                    <img src="@brand.LogoUrl" alt="@brandName" class="auth-logo" />
+                }
+                else
+                {
+                    <span class="logo-mark"><i data-lucide="shield-check"></i></span>
+                    <span>@brandName</span>
+                }
+            </div>
+            @if (!string.IsNullOrEmpty(brand.Tagline))
+            {
+                <p class="auth-tagline">@brand.Tagline</p>
+            }
+        </aside>
+    }
     <div class="auth-card">
-        <div class="auth-brand">
-            <span class="logo-mark"><i data-lucide="shield-check"></i></span>
-            <span>Authly</span>
-        </div>
+        @if (!split)
+        {
+            <div class="auth-brand">
+                @if (brand.LogoUrl is not null)
+                {
+                    <img src="@brand.LogoUrl" alt="@brandName" class="auth-logo" />
+                }
+                else
+                {
+                    <span class="logo-mark"><i data-lucide="shield-check"></i></span>
+                    <span>@brandName</span>
+                }
+            </div>
+        }
         @RenderBody()
     </div>
 </div>

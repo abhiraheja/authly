@@ -7,6 +7,7 @@ using Authly.Core.Interfaces;
 using Authly.Core.Messaging;
 using Authly.Modules.Audit;
 using Authly.Modules.Common;
+using Authly.Modules.Messaging;
 using Microsoft.Extensions.Logging;
 
 namespace Authly.Modules.Mfa;
@@ -29,7 +30,7 @@ public sealed class MfaService : IMfaService
     private readonly IEncryptionService _encryption;
     private readonly ITokenHasher _hasher;
     private readonly ICredentialGenerator _generator;
-    private readonly IEmailQueue _emailQueue;
+    private readonly IMessageQueue _messages;
     private readonly IAuditLogger _audit;
     private readonly ILogger<MfaService> _logger;
 
@@ -43,7 +44,7 @@ public sealed class MfaService : IMfaService
         IEncryptionService encryption,
         ITokenHasher hasher,
         ICredentialGenerator generator,
-        IEmailQueue emailQueue,
+        IMessageQueue messages,
         IAuditLogger audit,
         ILogger<MfaService> logger)
     {
@@ -56,7 +57,7 @@ public sealed class MfaService : IMfaService
         _encryption = encryption;
         _hasher = hasher;
         _generator = generator;
-        _emailQueue = emailQueue;
+        _messages = messages;
         _audit = audit;
         _logger = logger;
     }
@@ -224,9 +225,15 @@ public sealed class MfaService : IMfaService
             CreatedAt = DateTimeOffset.UtcNow
         }, ct);
 
-        _emailQueue.Queue(BuildOtpEmail(user, raw));
+        _messages.Enqueue(new MessageSendRequest(tenantId, MessageTemplateKeys.Otp,
+            MessageChannel.Email, user.Email, new Dictionary<string, string>
+            {
+                ["user_name"] = string.IsNullOrWhiteSpace(user.FirstName) ? "there" : user.FirstName!,
+                ["otp"] = raw,
+                ["expiry_minutes"] = "10"
+            }));
         _logger.LogInformation("Email OTP issued for user {UserId} in tenant {TenantId}.", user.Id, tenantId);
-        // The raw code is never logged.
+        // The raw code travels only inside the queued message variables; never logged.
     }
 
     // --- Backup codes -------------------------------------------------------
@@ -373,20 +380,4 @@ public sealed class MfaService : IMfaService
     private static bool FixedTimeEquals(string a, string b)
         => System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
             System.Text.Encoding.UTF8.GetBytes(a), System.Text.Encoding.UTF8.GetBytes(b));
-
-    private static EmailMessage BuildOtpEmail(User user, string code)
-    {
-        var name = string.IsNullOrWhiteSpace(user.FirstName) ? "there" : user.FirstName!;
-        var subject = "Your verification code";
-        var text =
-            $"Hi {name},\n\n" +
-            $"Your one-time verification code is: {code}\n\n" +
-            "It expires in 10 minutes. If you didn't try to sign in, you can ignore this email.";
-        var html =
-            $"<p>Hi {System.Net.WebUtility.HtmlEncode(name)},</p>" +
-            "<p>Your one-time verification code is:</p>" +
-            $"<p style=\"font-size:24px;font-weight:bold;letter-spacing:3px\">{code}</p>" +
-            "<p>It expires in 10 minutes. If you didn't try to sign in, you can ignore this email.</p>";
-        return new EmailMessage(user.Email, $"{user.FirstName} {user.LastName}".Trim(), subject, html, text, user.TenantId);
-    }
 }

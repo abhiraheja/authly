@@ -32,8 +32,8 @@ builder.Services.AddModules();
 
 // Web-layer adapters for module/core abstractions (routing + Hangfire live here).
 builder.Services.AddScoped<IAuthUrlBuilder, AuthUrlBuilder>();
-builder.Services.AddScoped<IEmailQueue, HangfireEmailQueue>();
-builder.Services.AddScoped<EmailDispatchJob>();
+builder.Services.AddScoped<IMessageQueue, HangfireMessageQueue>();
+builder.Services.AddScoped<MessageDispatchJob>();
 
 // OAuth 2.0 / OIDC server (OpenIddict) — endpoints, flows, dev signing keys.
 builder.Services.AddAuthlyOpenIddict(builder.Environment.IsDevelopment());

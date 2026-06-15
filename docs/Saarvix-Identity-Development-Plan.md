@@ -144,14 +144,14 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 **Goal:** Pluggable email + WhatsApp providers (BYOK), a template engine with variables, WhatsApp OTP, and a real email provider — all sending via Hangfire.
 
-- [ ] Provider interfaces (email + WhatsApp) in Infrastructure
-- [ ] `messaging_providers` table (§4.11) + BYOK config UI (config encrypted)
-- [ ] Template engine + `message_templates` (§4.11) with variables (`{{otp}}`, `{{user_name}}`, …), preview, send-test, multi-locale
-- [ ] Built-in templates (verify, magic link, OTP, reset, welcome, alerts) — security-critical ones styleable but not breakable
-- [ ] **WhatsApp OTP** via a provider (MSG91/Gupshup first, per decision)
-- [ ] Real email provider (Zepto/SMTP) replacing the Phase 2 stub
-- [ ] `message_log` (§4.11) + delivery tracking + channel fallback (WhatsApp→email)
-- [ ] **Acceptance:** A tenant configures BYOK email + WhatsApp; verification email and WhatsApp OTP deliver via Hangfire; template variables render; failed channel falls back.
+- [x] Provider interfaces (email + WhatsApp) in Core (`IEmailProvider`/`IWhatsAppProvider`), implementations in Infrastructure; selected per tenant by provider key
+- [x] `messaging_providers` table (§4.11) + BYOK config UI; secret fields (api_key/password) AES-256-GCM encrypted at rest, write-only in the UI; RLS on the tenant-scoped tables
+- [x] Template engine (`TemplateRenderer`, `{{var}}` w/ HTML-encoding) + `message_templates` overrides, preview (sample vars), send-test, multi-locale (locale→en fallback)
+- [x] Built-in templates (verify_email, reset_password, otp [email+whatsapp], magic_link, welcome, security_alert); security-critical keys validated to keep their required `{{action_url}}`/`{{otp}}` variable
+- [x] **WhatsApp OTP** path: MSG91 provider (HTTP); Gupshup is the same-shape extension (documented). MFA email-OTP + Auth verify/reset now route through templates
+- [x] Real email providers (SMTP via System.Net.Mail, ZeptoMail via HTTP) replacing the Phase 2 stub; `log` provider is the dev default when no BYOK configured
+- [x] `message_log` (§4.11) + delivery tracking (queued/sent/failed, routing metadata only — never body/OTP) + channel fallback (WhatsApp→email); all sends via Hangfire (`MessageDispatchJob` binds tenant for RLS)
+- [~] **Acceptance:** logic unit-proven (12 new tests: render/encode, builtin resolution, active-provider selection, log fallback, WhatsApp→email fallback, override-beats-builtin, secret encryption, required-var validation). Live BYOK delivery (real Zepto/MSG91 keys + Hangfire) is runtime-pending (no keys/network/Postgres in dev).
 
 ---
 

@@ -4,6 +4,7 @@ using Authly.Core.Interfaces;
 using Authly.Core.Messaging;
 using Authly.Modules.Audit;
 using Authly.Modules.Common;
+using Authly.Modules.Messaging;
 using Microsoft.Extensions.Logging;
 
 namespace Authly.Modules.Auth;
@@ -23,7 +24,7 @@ public sealed class AuthService : IAuthService
     private readonly IPasswordResetTokenRepository _resetTokens;
     private readonly IPasswordHasher _passwordHasher;
     private readonly ITokenHasher _tokenHasher;
-    private readonly IEmailQueue _emailQueue;
+    private readonly IMessageQueue _messages;
     private readonly IAuthUrlBuilder _urls;
     private readonly IAuditLogger _audit;
     private readonly ILogger<AuthService> _logger;
@@ -36,7 +37,7 @@ public sealed class AuthService : IAuthService
         IPasswordResetTokenRepository resetTokens,
         IPasswordHasher passwordHasher,
         ITokenHasher tokenHasher,
-        IEmailQueue emailQueue,
+        IMessageQueue messages,
         IAuthUrlBuilder urls,
         IAuditLogger audit,
         ILogger<AuthService> logger)
@@ -48,7 +49,7 @@ public sealed class AuthService : IAuthService
         _resetTokens = resetTokens;
         _passwordHasher = passwordHasher;
         _tokenHasher = tokenHasher;
-        _emailQueue = emailQueue;
+        _messages = messages;
         _urls = urls;
         _audit = audit;
         _logger = logger;
@@ -180,7 +181,13 @@ public sealed class AuthService : IAuthService
         }, ct);
 
         var url = _urls.BuildPasswordResetUrl(tenantId, raw);
-        _emailQueue.Queue(BuildPasswordResetEmail(user, url));
+        _messages.Enqueue(new MessageSendRequest(tenantId, MessageTemplateKeys.ResetPassword,
+            MessageChannel.Email, user.Email, new Dictionary<string, string>
+            {
+                ["user_name"] = NameOf(user),
+                ["action_url"] = url,
+                ["expiry_hours"] = "1"
+            }));
 
         await _audit.LogAsync("user.password_reset_requested", Actor(user.Id, info), tenantId,
             "user", user.Id, ct: ct);
@@ -281,7 +288,13 @@ public sealed class AuthService : IAuthService
         }, ct);
 
         var url = _urls.BuildEmailVerificationUrl(user.TenantId, raw);
-        _emailQueue.Queue(BuildVerificationEmail(user, url));
+        _messages.Enqueue(new MessageSendRequest(user.TenantId, MessageTemplateKeys.VerifyEmail,
+            MessageChannel.Email, user.Email, new Dictionary<string, string>
+            {
+                ["user_name"] = NameOf(user),
+                ["action_url"] = url,
+                ["expiry_hours"] = "24"
+            }));
     }
 
     private async Task RecordLoginAsync(Guid tenantId, Guid? userId, string result, string? reason, RequestInfo info, CancellationToken ct)
@@ -303,37 +316,5 @@ public sealed class AuthService : IAuthService
 
     private static string Normalize(string email) => email.Trim().ToLowerInvariant();
 
-    private static EmailMessage BuildVerificationEmail(User user, string url)
-    {
-        var name = string.IsNullOrWhiteSpace(user.FirstName) ? "there" : user.FirstName!;
-        var subject = "Verify your email address";
-        var text =
-            $"Hi {name},\n\n" +
-            "Confirm your email address to finish setting up your account:\n\n" +
-            $"{url}\n\n" +
-            "This link expires in 24 hours. If you didn't create an account, you can ignore this email.";
-        var html =
-            $"<p>Hi {System.Net.WebUtility.HtmlEncode(name)},</p>" +
-            "<p>Confirm your email address to finish setting up your account:</p>" +
-            $"<p><a href=\"{url}\">Verify email</a></p>" +
-            "<p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>";
-        return new EmailMessage(user.Email, $"{user.FirstName} {user.LastName}".Trim(), subject, html, text, user.TenantId);
-    }
-
-    private static EmailMessage BuildPasswordResetEmail(User user, string url)
-    {
-        var name = string.IsNullOrWhiteSpace(user.FirstName) ? "there" : user.FirstName!;
-        var subject = "Reset your password";
-        var text =
-            $"Hi {name},\n\n" +
-            "We received a request to reset your password. Use the link below to choose a new one:\n\n" +
-            $"{url}\n\n" +
-            "This link expires in 1 hour. If you didn't request this, you can safely ignore this email.";
-        var html =
-            $"<p>Hi {System.Net.WebUtility.HtmlEncode(name)},</p>" +
-            "<p>We received a request to reset your password. Use the link below to choose a new one:</p>" +
-            $"<p><a href=\"{url}\">Reset password</a></p>" +
-            "<p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>";
-        return new EmailMessage(user.Email, $"{user.FirstName} {user.LastName}".Trim(), subject, html, text, user.TenantId);
-    }
+    private static string NameOf(User user) => string.IsNullOrWhiteSpace(user.FirstName) ? "there" : user.FirstName!;
 }

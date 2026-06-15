@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using System.Text.RegularExpressions;
 using Authly.Core.Entities;
 using Authly.Core.Enums;
 using Authly.Core.Interfaces;
@@ -182,9 +181,10 @@ public class MfaServiceTests
         var user = h.NewUser();
 
         await h.Service.SendEmailOtpAsync(Tenant, user);
-        var msg = Assert.Single(h.Email.Sent);
-        var code = Regex.Match(msg.TextBody, @"\b\d{6}\b").Value;
-        Assert.NotEmpty(code);
+        var req = Assert.Single(h.Messages.Sent);
+        Assert.Equal("otp", req.TemplateKey);
+        var code = req.Variables["otp"];
+        Assert.Matches(@"^\d{6}$", code);
 
         Assert.True(await h.Service.VerifyEmailOtpAsync(Tenant, user.Id, code, AuditContext.System));
         Assert.False(await h.Service.VerifyEmailOtpAsync(Tenant, user.Id, code, AuditContext.System)); // burned
@@ -200,8 +200,8 @@ public class MfaServiceTests
         for (var i = 0; i < 5; i++)
             Assert.False(await h.Service.VerifyEmailOtpAsync(Tenant, user.Id, "999999", AuditContext.System));
 
-        // After the attempt cap, even the right code (extracted) no longer works.
-        var code = Regex.Match(h.Email.Sent[0].TextBody, @"\b\d{6}\b").Value;
+        // After the attempt cap, even the right code no longer works.
+        var code = h.Messages.Sent[0].Variables["otp"];
         Assert.False(await h.Service.VerifyEmailOtpAsync(Tenant, user.Id, code, AuditContext.System));
     }
 
@@ -259,7 +259,7 @@ public class MfaServiceTests
         public readonly FakeOtpRepo Otp = new();
         public readonly FakeUserRoleRepo Roles = new();
         public readonly FakeTenantRepo Tenants = new();
-        public readonly FakeEmailQueue Email = new();
+        public readonly FakeMessageQueue Messages = new();
         public readonly AesEncryptionService Encryption =
             new(Options.Create(new EncryptionOptions { Key = "3J8mZ1qg9X0vQpYb2sR7tU4wK6nL5cD8eF1aH0iJ2kM=" }));
         public readonly MfaService Service;
@@ -267,7 +267,7 @@ public class MfaServiceTests
         public Harness()
         {
             Service = new MfaService(Factors, Backup, Otp, Roles, Tenants, new TotpService(),
-                Encryption, new Sha256TokenHasher(), new CredentialGenerator(), Email,
+                Encryption, new Sha256TokenHasher(), new CredentialGenerator(), Messages,
                 new RecordingAuditLogger(), NullLogger<MfaService>.Instance);
         }
 
@@ -366,10 +366,10 @@ public class MfaServiceTests
         public Task UpdateAsync(Tenant t, CancellationToken ct = default) => Task.CompletedTask;
     }
 
-    private sealed class FakeEmailQueue : IEmailQueue
+    private sealed class FakeMessageQueue : IMessageQueue
     {
-        public readonly List<EmailMessage> Sent = new();
-        public void Queue(EmailMessage message) => Sent.Add(message);
+        public readonly List<MessageSendRequest> Sent = new();
+        public void Enqueue(MessageSendRequest request) => Sent.Add(request);
     }
 
     private sealed class RecordingAuditLogger : IAuditLogger

@@ -41,8 +41,13 @@ public static class DependencyInjection
         services.AddSingleton<ICredentialGenerator, CredentialGenerator>();
         services.AddSingleton<ITotpService, TotpService>();
 
-        // --- Messaging (Phase 2: stub sender; real BYOK provider added later) ---
-        services.AddScoped<IEmailSender, StubEmailSender>();
+        // --- Messaging (Phase 7: pluggable BYOK providers selected per tenant) ---
+        services.AddHttpClient();
+        services.AddScoped<IEmailProvider, LogEmailProvider>();
+        services.AddScoped<IEmailProvider, SmtpEmailProvider>();
+        services.AddScoped<IEmailProvider, ZeptoEmailProvider>();
+        services.AddScoped<IWhatsAppProvider, LogWhatsAppProvider>();
+        services.AddScoped<IWhatsAppProvider, Msg91WhatsAppProvider>();
 
         // --- Tenancy ---
         services.AddScoped<ITenantContext, TenantContext>();
@@ -63,6 +68,9 @@ public static class DependencyInjection
         services.AddScoped<IMfaFactorRepository, MfaFactorRepository>();
         services.AddScoped<IMfaBackupCodeRepository, MfaBackupCodeRepository>();
         services.AddScoped<IOtpCodeRepository, OtpCodeRepository>();
+        services.AddScoped<IMessagingProviderRepository, MessagingProviderRepository>();
+        services.AddScoped<IMessageTemplateRepository, MessageTemplateRepository>();
+        services.AddScoped<IMessageLogRepository, MessageLogRepository>();
 
         return services;
     }

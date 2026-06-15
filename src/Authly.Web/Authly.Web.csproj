@@ -15,6 +15,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.9" />
     <PackageReference Include="OpenIddict.AspNetCore" Version="7.5.0" />
+    <PackageReference Include="QRCoder" Version="1.6.0" />
   </ItemGroup>
 
   <PropertyGroup>

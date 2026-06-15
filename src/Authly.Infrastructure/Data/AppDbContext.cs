@@ -28,6 +28,9 @@ public class AppDbContext : DbContext
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
+    public DbSet<MfaFactor> MfaFactors => Set<MfaFactor>();
+    public DbSet<MfaBackupCode> MfaBackupCodes => Set<MfaBackupCode>();
+    public DbSet<OtpCode> OtpCodes => Set<OtpCode>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -355,5 +358,99 @@ public class AppDbContext : DbContext
             e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+        b.Entity<MfaFactor>(e =>
+        {
+            e.ToTable("mfa_factors");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Type).HasColumnName("type").HasConversion(
+                v => FactorTypeToString(v), v => ParseFactorType(v)).IsRequired();
+            e.Property(x => x.Secret).HasColumnName("secret");
+            e.Property(x => x.Status).HasColumnName("status").HasConversion(
+                v => v.ToString().ToLowerInvariant(), v => ParseFactorStatus(v))
+                .HasDefaultValue(MfaFactorStatus.Pending).IsRequired();
+            e.Property(x => x.FriendlyName).HasColumnName("friendly_name");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            e.Property(x => x.LastUsedAt).HasColumnName("last_used_at");
+
+            e.HasIndex(x => x.UserId).HasDatabaseName("idx_mfa_user");
+            e.HasIndex(x => x.TenantId).HasDatabaseName("idx_mfa_tenant");
+
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<MfaBackupCode>(e =>
+        {
+            e.ToTable("mfa_backup_codes");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
+            e.Property(x => x.CodeHash).HasColumnName("code_hash").IsRequired();
+            e.Property(x => x.Used).HasColumnName("used").HasDefaultValue(false);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => x.UserId).HasDatabaseName("idx_mfa_backup_user");
+
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<OtpCode>(e =>
+        {
+            e.ToTable("otp_codes");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Channel).HasColumnName("channel").HasConversion(
+                v => v.ToString().ToLowerInvariant(), v => ParseChannel(v)).IsRequired();
+            e.Property(x => x.CodeHash).HasColumnName("code_hash").IsRequired();
+            e.Property(x => x.Attempts).HasColumnName("attempts").HasDefaultValue(0);
+            e.Property(x => x.ExpiresAt).HasColumnName("expires_at").IsRequired();
+            e.Property(x => x.Used).HasColumnName("used").HasDefaultValue(false);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.UserId }).HasDatabaseName("idx_otp_tenant_user");
+
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
     }
+
+    // MFA factor type maps to fixed snake_case text the schema (§4.4) specifies.
+    private static string FactorTypeToString(MfaFactorType v) => v switch
+    {
+        MfaFactorType.Totp => "totp",
+        MfaFactorType.EmailOtp => "email_otp",
+        MfaFactorType.WhatsAppOtp => "whatsapp_otp",
+        MfaFactorType.Passkey => "passkey",
+        _ => throw new InvalidOperationException($"Unknown mfa factor type '{v}'.")
+    };
+
+    private static MfaFactorType ParseFactorType(string v) => v switch
+    {
+        "totp" => MfaFactorType.Totp,
+        "email_otp" => MfaFactorType.EmailOtp,
+        "whatsapp_otp" => MfaFactorType.WhatsAppOtp,
+        "passkey" => MfaFactorType.Passkey,
+        _ => throw new InvalidOperationException($"Unknown mfa factor type '{v}'.")
+    };
+
+    private static MfaFactorStatus ParseFactorStatus(string v) => v switch
+    {
+        "pending" => MfaFactorStatus.Pending,
+        "active" => MfaFactorStatus.Active,
+        "revoked" => MfaFactorStatus.Revoked,
+        _ => throw new InvalidOperationException($"Unknown mfa factor status '{v}'.")
+    };
+
+    private static OtpChannel ParseChannel(string v) => v switch
+    {
+        "email" => OtpChannel.Email,
+        "whatsapp" => OtpChannel.WhatsApp,
+        _ => throw new InvalidOperationException($"Unknown otp channel '{v}'.")
+    };
 }

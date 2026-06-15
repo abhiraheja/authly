@@ -130,13 +130,13 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 **Goal:** Our own TOTP, backup codes, and Email OTP, wired into the login flow with per-tenant/per-role policy.
 
-- [ ] `mfa_factors` + `mfa_backup_codes` tables (§4.4)
-- [ ] **TOTP** (RFC 6238): generate secret + QR, enroll, verify; secret AES-encrypted
-- [ ] Backup codes: generate, hash, one-time use
-- [ ] **Email OTP** via `otp_codes` (§4.9)
-- [ ] Wire MFA step into login flow (post-password challenge)
-- [ ] MFA policy config per tenant + per role (required-all / admins-only / optional)
-- [ ] **Acceptance:** User enrolls TOTP (scans QR in a real authenticator app), logs in with a 6-digit code, falls back to a backup code; policy forces MFA for admins.
+- [x] `mfa_factors` + `mfa_backup_codes` tables (§4.4) — plus `otp_codes` (§4.9); RLS on the tenant-scoped ones (mfa_factors, otp_codes)
+- [x] **TOTP** (RFC 6238): `TotpService` (HMAC-SHA1/6-digit/30s, Base32), generate secret + QR (QRCoder SVG), enroll/confirm/verify; secret AES-256-GCM encrypted
+- [x] Backup codes: 10 × `xxxxx-xxxxx`, SHA-256 hashed, one-time use, regen drops old set
+- [x] **Email OTP** via `otp_codes`: send (Hangfire email queue), verify, 10-min expiry, 5-attempt cap; code never logged
+- [x] Wire MFA step into login flow — `MfaController` gate via data-protected `authly.mfa` pending cookie; session cookie issued only after the factor clears
+- [x] MFA policy config per tenant + per role (Optional / AdminsOnly / Required) in `tenants.settings` JSON; tenant-admin UI; self-service portal (`/account/security`)
+- [~] **Acceptance:** logic unit-proven (23 new tests: TOTP round-trip, backup single-use, email-OTP burn, policy → enroll/challenge decisions). Live "scan QR in a real authenticator app + full login" pass still pending Postgres run.
 
 ---
 

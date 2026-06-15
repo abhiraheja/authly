@@ -15,4 +15,10 @@ public interface ICredentialGenerator
 
     /// <summary><c>authly_sk_</c> + 48 random URL-safe characters (Management API key).</summary>
     string GenerateApiKey();
+
+    /// <summary>A numeric one-time passcode of the given length (default 6) for email/WhatsApp OTP.</summary>
+    string GenerateNumericOtp(int digits = 6);
+
+    /// <summary>A recovery code in the form <c>xxxxx-xxxxx</c> (lower-case Crockford-ish alphabet).</summary>
+    string GenerateBackupCode();
 }

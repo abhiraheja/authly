@@ -44,6 +44,13 @@
                     <span class="menu-text">Users</span>
                 </a>
             </li>
+            <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("MfaPolicy") ? "active" : "")"
+                   asp-area="TenantAdmin" asp-controller="MfaPolicy" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="lock-keyhole"></i></span>
+                    <span class="menu-text">MFA policy</span>
+                </a>
+            </li>
             <li class="side-nav-title">Developers</li>
             <li class="side-nav-item">
                 <a class="side-nav-link @(IsActive("ApiKeys") ? "active" : "")"

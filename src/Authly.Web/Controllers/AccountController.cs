@@ -2,7 +2,9 @@ using System.Security.Claims;
 using Authly.Core.Interfaces;
 using Authly.Modules.Auth;
 using Authly.Modules.Common;
+using Authly.Modules.Mfa;
 using Authly.Web.Infrastructure;
+using Authly.Web.Infrastructure.Mfa;
 using Authly.Web.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -20,11 +22,15 @@ public sealed class AccountController : Controller
 {
     private readonly IAuthService _auth;
     private readonly ITenantContext _tenant;
+    private readonly IMfaService _mfa;
+    private readonly MfaPendingStore _mfaPending;
 
-    public AccountController(IAuthService auth, ITenantContext tenant)
+    public AccountController(IAuthService auth, ITenantContext tenant, IMfaService mfa, MfaPendingStore mfaPending)
     {
         _auth = auth;
         _tenant = tenant;
+        _mfa = mfa;
+        _mfaPending = mfaPending;
     }
 
     // --- Registration ---
@@ -98,13 +104,26 @@ public sealed class AccountController : Controller
             return View(model);
         }
 
-        await SignInUserAsync(result.User.Id, result.User.Email, result.User.TenantId,
+        var returnUrl = !string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl)
+            ? model.ReturnUrl : null;
+
+        // Password is correct, but the session cookie is only issued once any MFA gate is cleared.
+        var decision = await _mfa.EvaluateLoginAsync(_tenant.TenantId!.Value, result.User, ct);
+        if (decision.Requirement != MfaLoginRequirement.NotRequired)
+        {
+            _mfaPending.Save(HttpContext, new MfaPendingLogin(
+                result.User.Id, result.User.TenantId, result.Session.Id,
+                result.User.Email, result.User.EmailVerified, returnUrl));
+
+            return decision.Requirement == MfaLoginRequirement.EnrollmentRequired
+                ? RedirectToAction(nameof(MfaController.Enroll), "Mfa")
+                : RedirectToAction(nameof(MfaController.Challenge), "Mfa");
+        }
+
+        await UserSignIn.SignInAsync(HttpContext, result.User.Id, result.User.Email, result.User.TenantId,
             result.Session.Id, result.User.EmailVerified);
 
-        if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
-            return Redirect(model.ReturnUrl);
-
-        return RedirectToAction(nameof(Index));
+        return returnUrl is not null ? Redirect(returnUrl) : RedirectToAction(nameof(Index));
     }
 
     [HttpPost("logout")]
@@ -209,19 +228,4 @@ public sealed class AccountController : Controller
         => new(
             HttpContext.Connection.RemoteIpAddress?.ToString(),
             Request.Headers.UserAgent.ToString() is { Length: > 0 } ua ? ua : null);
-
-    private async Task SignInUserAsync(Guid userId, string email, Guid tenantId, Guid sessionId, bool emailVerified)
-    {
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, userId.ToString()),
-            new(ClaimTypes.Name, email),
-            new(UserClaims.TenantId, tenantId.ToString()),
-            new(UserClaims.SessionId, sessionId.ToString()),
-            new(UserClaims.EmailVerified, emailVerified ? "true" : "false")
-        };
-        var identity = new ClaimsIdentity(claims, AuthSchemes.User);
-        await HttpContext.SignInAsync(AuthSchemes.User, new ClaimsPrincipal(identity),
-            new AuthenticationProperties { IsPersistent = true });
-    }
 }

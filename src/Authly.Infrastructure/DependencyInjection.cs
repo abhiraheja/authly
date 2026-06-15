@@ -70,6 +70,14 @@ public static class DependencyInjection
         services.AddScoped<IWebhookSender, HttpWebhookSender>();
         services.AddScoped<IPipelineHookClient, HttpPipelineHookClient>();
 
+        // --- Deployment / self-host (Phase 13): mode + version + sync config from env (§10). ---
+        services.AddSingleton<Authly.Core.Deployment.IDeploymentContext, Deployment.DeploymentContext>();
+
+        // --- Compliance & retention (Phase 13): GDPR/DPDP export+erasure, telemetry, cleanup. ---
+        services.AddScoped<Authly.Core.Compliance.IComplianceDataStore, Compliance.ComplianceDataStore>();
+        services.AddScoped<Authly.Core.Compliance.IInstanceMetricsCollector, Compliance.InstanceMetricsCollector>();
+        services.AddScoped<Authly.Core.Compliance.IRetentionStore, Compliance.RetentionStore>();
+
         // --- Tenancy ---
         services.AddScoped<ITenantContext, TenantContext>();
 
@@ -100,6 +108,8 @@ public static class DependencyInjection
         services.AddScoped<IClaimConfigRepository, ClaimConfigRepository>();
         services.AddScoped<IRecoveryContactRepository, RecoveryContactRepository>();
         services.AddScoped<IPendingContactChangeRepository, PendingContactChangeRepository>();
+        services.AddScoped<IConsentRecordRepository, ConsentRecordRepository>();
+        services.AddScoped<ISelfHostedInstanceRepository, SelfHostedInstanceRepository>();
 
         return services;
     }

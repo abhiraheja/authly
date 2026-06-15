@@ -1,0 +1,58 @@
+# Self-host deployment of Authly. Same image as cloud; flipped into self_hosted mode so it pushes
+# AGGREGATE-ONLY telemetry (version + counts + health) to the cloud control plane every ~6h.
+# No user data, emails, tokens, or secrets ever leave this instance, and sync failures never
+# block authentication (the instance runs normally offline for 30+ days).
+#
+# Usage:
+#   1. Register the instance in the cloud super-admin panel (Self-hosted → Issue sync key).
+#   2. Put the issued key + your secrets in a .env file next to this compose file:
+#        ENCRYPTION_KEY=<32-byte base64>      # generate your own; DO NOT reuse the dev key
+#        SUPERADMIN_EMAIL=you@example.com
+#        SUPERADMIN_PASSWORD=<strong password>
+#        SYNC_KEY=<the key issued by cloud>
+#        SYNC_ENDPOINT=https://cloud.saarvix.com/api/sync
+#   3. docker compose -f docker-compose.self-host.yml up -d
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - DATABASE_URL=Host=postgres;Database=authly;Username=authly;Password=${POSTGRES_PASSWORD:-authly}
+      - REDIS_URL=redis:6379
+      - DEPLOYMENT_MODE=self_hosted
+      - SYNC_ENDPOINT=${SYNC_ENDPOINT}
+      - SYNC_KEY=${SYNC_KEY}
+      # Provide your OWN values — never the dev defaults.
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - SUPERADMIN_EMAIL=${SUPERADMIN_EMAIL}
+      - SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD}
+      # Optional retention windows (days).
+      - RETENTION_LOGIN_HISTORY_DAYS=${RETENTION_LOGIN_HISTORY_DAYS:-90}
+      - RETENTION_AUDIT_DAYS=${RETENTION_AUDIT_DAYS:-365}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  postgres:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=authly
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-authly}
+      - POSTGRES_DB=authly
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authly"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+
+volumes:
+  pgdata:

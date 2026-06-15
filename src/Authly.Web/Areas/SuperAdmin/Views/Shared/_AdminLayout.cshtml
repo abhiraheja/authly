@@ -38,6 +38,13 @@
                     <span class="menu-text">Tenants</span>
                 </a>
             </li>
+            <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("Instances") ? "active" : "")"
+                   asp-area="SuperAdmin" asp-controller="Instances" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="server"></i></span>
+                    <span class="menu-text">Self-hosted</span>
+                </a>
+            </li>
             <li class="side-nav-title">Operations</li>
             <li class="side-nav-item">
                 <a class="side-nav-link" href="/hangfire" target="_blank">

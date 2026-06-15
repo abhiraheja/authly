@@ -90,6 +90,13 @@
                     <span class="menu-text">Login activity</span>
                 </a>
             </li>
+            <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("Privacy") ? "active" : "")"
+                   asp-area="Portal" asp-controller="Privacy" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="shield-user"></i></span>
+                    <span class="menu-text">Privacy &amp; data</span>
+                </a>
+            </li>
         </ul>
     </div>
 

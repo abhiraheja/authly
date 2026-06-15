@@ -21,6 +21,11 @@ public sealed class RegisterViewModel
     [Required, DataType(DataType.Password), Display(Name = "Confirm password")]
     [Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
     public string ConfirmPassword { get; set; } = string.Empty;
+
+    /// <summary>Consent to the terms of service and privacy policy (GDPR/DPDP) — required to register.</summary>
+    [Display(Name = "I agree to the Terms of Service and Privacy Policy")]
+    [Range(typeof(bool), "true", "true", ErrorMessage = "You must accept the Terms and Privacy Policy to create an account.")]
+    public bool AcceptTerms { get; set; }
 }
 
 /// <summary>End-user email/password sign-in form.</summary>

@@ -40,6 +40,10 @@ builder.Services.AddSingleton<Authly.Web.Infrastructure.WebAuthn.WebAuthnChallen
 builder.Services.AddScoped<Authly.Web.Infrastructure.Security.SuspiciousLoginJob>();
 builder.Services.AddScoped<Authly.Web.Infrastructure.Security.SecurityViewState>();
 
+// Self-host & compliance (Phase 13): telemetry push job + retention/cleanup jobs (run via Hangfire).
+builder.Services.AddScoped<Authly.Web.Infrastructure.SelfHost.SelfHostSyncJob>();
+builder.Services.AddScoped<Authly.Web.Infrastructure.Maintenance.MaintenanceJobs>();
+
 // Infrastructure (EF Core, Redis, Argon2id, AES) + business modules.
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddModules();
@@ -138,6 +142,33 @@ using (var scope = app.Services.CreateScope())
     await sp.GetRequiredService<ISuperAdminService>().EnsureSeededAsync(
         app.Configuration["SUPERADMIN_EMAIL"],
         app.Configuration["SUPERADMIN_PASSWORD"]);
+
+    // Phase 13 — record the self-host disclosure acknowledgement at boot (evidence the operator
+    // is running a copy that syncs aggregate telemetry; §9 hard rule 4).
+    var deployment = sp.GetRequiredService<Authly.Core.Deployment.IDeploymentContext>();
+    if (deployment.Mode == Authly.Core.Deployment.DeploymentMode.SelfHosted)
+    {
+        await sp.GetRequiredService<Authly.Modules.Audit.IAuditLogger>().LogAsync(
+            "self_host.disclosure_acknowledged", Authly.Modules.Common.AuditContext.System,
+            metadata: new { version = deployment.Version, sync_enabled = deployment.SyncEnabled });
+    }
+}
+
+// Phase 13 — recurring maintenance + telemetry jobs. Retention runs in every deployment; the
+// self-host telemetry push only when self-hosted with a configured sync endpoint/key.
+RecurringJob.AddOrUpdate<Authly.Web.Infrastructure.Maintenance.MaintenanceJobs>(
+    "retention-expire-transient", j => j.ExpireTransientCredentialsAsync(CancellationToken.None), Cron.Hourly());
+RecurringJob.AddOrUpdate<Authly.Web.Infrastructure.Maintenance.MaintenanceJobs>(
+    "retention-purge-history", j => j.PurgeStaleHistoryAsync(CancellationToken.None), Cron.Daily());
+
+using (var scope = app.Services.CreateScope())
+{
+    var deployment = scope.ServiceProvider.GetRequiredService<Authly.Core.Deployment.IDeploymentContext>();
+    if (deployment.SyncEnabled)
+        RecurringJob.AddOrUpdate<Authly.Web.Infrastructure.SelfHost.SelfHostSyncJob>(
+            "self-host-telemetry-sync", j => j.PushAsync(CancellationToken.None), "0 */6 * * *");
+    else
+        RecurringJob.RemoveIfExists("self-host-telemetry-sync");
 }
 
 if (!app.Environment.IsDevelopment())

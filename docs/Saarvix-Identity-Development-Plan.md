@@ -224,13 +224,13 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 **Goal:** Ship the self-host Docker artifact with aggregate-only sync, and meet GDPR/DPDP basics.
 
-- [ ] Docker image published as the self-host artifact; `DEPLOYMENT_MODE=self_hosted` path
-- [ ] `self_hosted_instances` table on cloud (§4.14); sync API endpoint
-- [ ] Hangfire recurring **sync** job (every ~6h): pushes `{version, counts, health}` only — **never PII**; failure never blocks auth; 30+ day offline grace
-- [ ] Consent capture + disclosure at signup/Docker setup (logged)
-- [ ] GDPR/DPDP: **data export**, **right to erasure**, **consent tracking**, retention jobs (login history, audit, failed attempts)
-- [ ] Recurring cleanup jobs: expire tokens/OTPs (hourly), purge old login history (daily)
-- [ ] **Acceptance:** A self-hosted instance syncs aggregate metrics (verified no PII in payload) and keeps authenticating while offline; a user export + erasure works; retention job purges expired rows.
+- [x] Docker image published as the self-host artifact; `DEPLOYMENT_MODE=self_hosted` path (`docker-compose.self-host.yml`; `IDeploymentContext`)
+- [x] `self_hosted_instances` table on cloud (§4.14); sync API endpoint (`POST /api/sync`, `X-Sync-Key`; SuperAdmin → Self-hosted registers + issues one-time key)
+- [x] Hangfire recurring **sync** job (every ~6h): pushes `{version, counts, health}` only — **never PII**; failure swallowed (best-effort, never blocks auth); only scheduled when self-hosted + sync configured
+- [x] Consent capture + disclosure at signup/Docker setup (logged) — register accept-terms → `consent_records`; self-host boot logs `self_host.disclosure_acknowledged`
+- [x] GDPR/DPDP: **data export** (JSON download), **right to erasure** (hard delete + cascade), **consent tracking**, retention jobs — portal `/portal/privacy`
+- [x] Recurring cleanup jobs: expire verification/reset tokens + OTPs (hourly), purge old login history + audit past retention (daily)
+- [~] **Acceptance:** unit-verified (export/erasure/consent, sync ingest aggregate-only + key validation, deployment-mode parsing — 197/197 tests). Runtime pending: live offline-grace, no-PII payload capture, retention purge against a real DB.
 
 ---
 

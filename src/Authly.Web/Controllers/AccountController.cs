@@ -25,15 +25,24 @@ public sealed class AccountController : Controller
     private readonly IMfaService _mfa;
     private readonly MfaPendingStore _mfaPending;
     private readonly Authly.Modules.Social.ISocialLoginService _social;
+    private readonly Authly.Modules.AdvancedAuth.IMagicLinkService _magic;
+    private readonly Authly.Modules.AdvancedAuth.IContactChangeService _contactChange;
+    private readonly Authly.Modules.AdvancedAuth.IRecoveryService _recovery;
 
     public AccountController(IAuthService auth, ITenantContext tenant, IMfaService mfa, MfaPendingStore mfaPending,
-        Authly.Modules.Social.ISocialLoginService social)
+        Authly.Modules.Social.ISocialLoginService social,
+        Authly.Modules.AdvancedAuth.IMagicLinkService magic,
+        Authly.Modules.AdvancedAuth.IContactChangeService contactChange,
+        Authly.Modules.AdvancedAuth.IRecoveryService recovery)
     {
         _auth = auth;
         _tenant = tenant;
         _mfa = mfa;
         _mfaPending = mfaPending;
         _social = social;
+        _magic = magic;
+        _contactChange = contactChange;
+        _recovery = recovery;
     }
 
     // --- Registration ---
@@ -219,6 +228,130 @@ public sealed class AccountController : Controller
 
         TempData["Success"] = "Your password has been reset. Please sign in.";
         return RedirectToAction(nameof(Login));
+    }
+
+    // --- Magic link (passwordless) ---
+
+    [HttpGet("magic-link")]
+    public IActionResult MagicLink()
+    {
+        if (RequireTenant() is { } noTenant) return noTenant;
+        ViewData["Title"] = "Email me a sign-in link";
+        return View(new EmailOnlyViewModel());
+    }
+
+    [HttpPost("magic-link")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MagicLink(EmailOnlyViewModel model, CancellationToken ct)
+    {
+        if (RequireTenant() is { } noTenant) return noTenant;
+        ViewData["Title"] = "Email me a sign-in link";
+        if (!ModelState.IsValid) return View(model);
+
+        await _magic.RequestAsync(_tenant.TenantId!.Value, model.Email, CurrentRequest(), ct);
+        // Always the same response, whether or not the account exists (anti-enumeration).
+        ViewData["Email"] = model.Email;
+        return View("MagicLinkSent");
+    }
+
+    [HttpGet("magic")]
+    public async Task<IActionResult> Magic(string? token, CancellationToken ct)
+    {
+        if (RequireTenant() is { } noTenant) return noTenant;
+
+        var user = string.IsNullOrWhiteSpace(token)
+            ? null
+            : await _magic.CompleteAsync(_tenant.TenantId!.Value, token!, ct);
+
+        if (user is null)
+        {
+            TempData["Error"] = "This sign-in link is invalid or has expired. Request a new one.";
+            return RedirectToAction(nameof(Login));
+        }
+
+        var session = await _auth.StartSessionAsync(user, "magic_link", CurrentRequest(), ct);
+        await UserSignIn.SignInAsync(HttpContext, user.Id, user.Email, user.TenantId, session.Id, user.EmailVerified);
+        return Portal();
+    }
+
+    // --- Account recovery ---
+
+    [HttpGet("recover-request")]
+    public IActionResult RecoverRequest()
+    {
+        if (RequireTenant() is { } noTenant) return noTenant;
+        ViewData["Title"] = "Recover your account";
+        return View(new EmailOnlyViewModel());
+    }
+
+    [HttpPost("recover-request")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RecoverRequest(EmailOnlyViewModel model, CancellationToken ct)
+    {
+        if (RequireTenant() is { } noTenant) return noTenant;
+        ViewData["Title"] = "Recover your account";
+        if (!ModelState.IsValid) return View(model);
+
+        await _recovery.InitiateRecoveryAsync(_tenant.TenantId!.Value, model.Email, CurrentRequest(), ct);
+        // Anti-enumeration: same confirmation whether or not the account exists.
+        ViewData["Email"] = model.Email;
+        return View("RecoverSent");
+    }
+
+    // The recovery link lands here and lets the user set a new password (recovery issues a reset token).
+    [HttpGet("recover")]
+    public IActionResult Recover(string? token)
+    {
+        if (RequireTenant() is { } noTenant) return noTenant;
+        ViewData["Title"] = "Set a new password";
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            ViewData["InvalidToken"] = true;
+            return View(new ResetPasswordViewModel());
+        }
+        return View(new ResetPasswordViewModel { Token = token });
+    }
+
+    [HttpPost("recover")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Recover(ResetPasswordViewModel model, CancellationToken ct)
+    {
+        if (RequireTenant() is { } noTenant) return noTenant;
+        ViewData["Title"] = "Set a new password";
+        if (!ModelState.IsValid) return View(model);
+
+        var ok = await _auth.ResetPasswordAsync(_tenant.TenantId!.Value, model.Token, model.NewPassword, ct);
+        if (!ok)
+        {
+            ModelState.AddModelError(string.Empty, "This recovery link is invalid or has expired. Request a new one.");
+            return View(model);
+        }
+
+        TempData["Success"] = "Your password has been set. Please sign in.";
+        return RedirectToAction(nameof(Login));
+    }
+
+    // --- Email/phone change (links from the confirmation + cancel emails) ---
+
+    [HttpGet("change/verify")]
+    public async Task<IActionResult> VerifyContactChange(string? token, CancellationToken ct)
+    {
+        if (RequireTenant() is { } noTenant) return noTenant;
+        ViewData["Title"] = "Contact change";
+        ViewData["Verified"] = !string.IsNullOrWhiteSpace(token)
+            && await _contactChange.VerifyAsync(_tenant.TenantId!.Value, token!, ct);
+        return View("ContactChangeResult");
+    }
+
+    [HttpGet("change/cancel")]
+    public async Task<IActionResult> CancelContactChange(string? token, CancellationToken ct)
+    {
+        ViewData["Title"] = "Contact change";
+        // Cancellation works from the OLD address even if signed out; the token is the proof.
+        ViewData["Cancelled"] = !string.IsNullOrWhiteSpace(token)
+            && await _contactChange.CancelAsync(token!, ct);
+        ViewData["IsCancel"] = true;
+        return View("ContactChangeResult");
     }
 
     // --- helpers ---

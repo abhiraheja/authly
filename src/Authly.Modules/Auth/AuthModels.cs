@@ -42,4 +42,10 @@ public interface IAuthUrlBuilder
 {
     string BuildEmailVerificationUrl(Guid tenantId, string rawToken);
     string BuildPasswordResetUrl(Guid tenantId, string rawToken);
+
+    // Phase 11 — advanced auth links.
+    string BuildMagicLinkUrl(Guid tenantId, string rawToken);
+    string BuildContactChangeVerifyUrl(Guid tenantId, string rawToken);
+    string BuildContactChangeCancelUrl(Guid tenantId, string rawToken);
+    string BuildRecoveryUrl(Guid tenantId, string rawToken);
 }

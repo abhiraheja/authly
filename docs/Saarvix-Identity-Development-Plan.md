@@ -197,11 +197,11 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 **Goal:** Passkeys, magic link, account recovery, and secure email/phone change.
 
-- [ ] **Passkeys / WebAuthn** (FIDO2) enroll + login (store credential in `mfa_factors`)
-- [ ] **Magic link** passwordless login (via `verification_tokens` type=magic_link)
-- [ ] Tiered **account recovery** (backup codes → recovery contact → admin-assisted → identity verification); notify all contacts; optional cooldown; fully audited
-- [ ] **Email/phone change** secure flow: verify current identity → verify new contact → notify old with cancel link → optional cooldown
-- [ ] **Acceptance:** A passkey logs a user in; a magic link logs in once and expires; recovery notifies contacts and is audited; email change is cancellable from the old address.
+- [x] **Passkeys / WebAuthn** (FIDO2) enroll + login (store credential in `mfa_factors`) — Core `IWebAuthnGateway` seam + Fido2NetLib impl in Infrastructure (rpId/origin from request host via `IWebAuthnRelyingParty`, so passkeys bind to localhost or a tenant custom domain); `PasskeyService` stores type=passkey factors (`credential_id` column + public key/counter JSON in `secret`); passwordless `/account/passkey` login + portal `/portal/passkeys` enrol; `authly-webauthn.js` drives the browser ceremony; data-protected challenge cookie binds the ceremony to the tenant/user
+- [x] **Magic link** passwordless login (via `verification_tokens` type=magic_link) — `MagicLinkService` (anti-enumeration request, 15-min single-use token, opening it verifies the inbox); `/account/magic-link` + `/account/magic`; "Email me a sign-in link" on the login page
+- [x] Tiered **account recovery** (backup codes → recovery contact → admin-assisted → identity verification); notify all contacts; optional cooldown; fully audited — `recovery_contacts` table + `RecoveryService` (manage contacts; `InitiateRecoveryAsync` issues a recovery/reset token and notifies the account email **plus every recovery contact**, anti-enumeration, audited `user.recovery_initiated`); backup-code tier reuses MFA; admin-assisted/identity-verification tiers documented as follow-on
+- [x] **Email/phone change** secure flow: verify current identity → verify new contact → notify old with cancel link → optional cooldown — `pending_contact_changes` table + `ContactChangeService` (current identity = authenticated portal session; confirmation link to the new contact, cancel link to the current email; 2-min cooldown; email uniqueness re-checked at apply); `/portal/contact` to start, `/account/change/verify` + `/account/change/cancel` public links
+- [~] **Acceptance:** verified by build + 18 new unit tests (magic-link request/anti-enum/single-use/expiry/verifies-email; contact-change notify-both/already-in-use/cooldown/verify-applies/cancel-from-old; recovery add-idempotent/remove-ownership/notify-all-channels/anti-enum; passkey exclude-existing/store-active/begin-null-when-none/verify-bumps-counter/remove-ownership). **Runtime-pending:** a real passkey ceremony in a browser+authenticator, the live magic-link/recovery emails, and a cross-device cancel all need a running app + Postgres + a real authenticator. *(Transitive note: Fido2NetLib pulls IdentityModel; pinned to 6.35.0 to clear GHSA-59j7-ghrg-fj52.)*
 
 ---
 

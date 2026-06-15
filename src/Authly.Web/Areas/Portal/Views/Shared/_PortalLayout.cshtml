@@ -56,6 +56,27 @@
                 </a>
             </li>
             <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("Passkeys") ? "active" : "")"
+                   asp-area="Portal" asp-controller="Passkeys" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="key-round"></i></span>
+                    <span class="menu-text">Passkeys</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("Contact") ? "active" : "")"
+                   asp-area="Portal" asp-controller="Contact" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="at-sign"></i></span>
+                    <span class="menu-text">Email &amp; phone</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("Recovery") ? "active" : "")"
+                   asp-area="Portal" asp-controller="Recovery" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="life-buoy"></i></span>
+                    <span class="menu-text">Account recovery</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
                 <a class="side-nav-link @(IsActive("Sessions") ? "active" : "")"
                    asp-area="Portal" asp-controller="Sessions" asp-action="Index">
                     <span class="menu-icon"><i data-lucide="monitor-smartphone"></i></span>

@@ -40,6 +40,8 @@ public class AppDbContext : DbContext
     public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
     public DbSet<PipelineHook> PipelineHooks => Set<PipelineHook>();
     public DbSet<ClaimConfig> ClaimConfigs => Set<ClaimConfig>();
+    public DbSet<RecoveryContact> RecoveryContacts => Set<RecoveryContact>();
+    public DbSet<PendingContactChange> PendingContactChanges => Set<PendingContactChange>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -381,6 +383,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.Type).HasColumnName("type").HasConversion(
                 v => FactorTypeToString(v), v => ParseFactorType(v)).IsRequired();
             e.Property(x => x.Secret).HasColumnName("secret");
+            e.Property(x => x.CredentialId).HasColumnName("credential_id");
             e.Property(x => x.Status).HasColumnName("status").HasConversion(
                 v => v.ToString().ToLowerInvariant(), v => ParseFactorStatus(v))
                 .HasDefaultValue(MfaFactorStatus.Pending).IsRequired();
@@ -390,6 +393,51 @@ public class AppDbContext : DbContext
 
             e.HasIndex(x => x.UserId).HasDatabaseName("idx_mfa_user");
             e.HasIndex(x => x.TenantId).HasDatabaseName("idx_mfa_tenant");
+
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<RecoveryContact>(e =>
+        {
+            e.ToTable("recovery_contacts");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
+            e.Property(x => x.Type).HasColumnName("type").HasConversion(
+                v => v.ToString().ToLowerInvariant(), v => ParseContactType(v)).IsRequired();
+            e.Property(x => x.Value).HasColumnName("value").IsRequired();
+            e.Property(x => x.Verified).HasColumnName("verified").HasDefaultValue(false);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.UserId }).HasDatabaseName("idx_recovery_contacts_user");
+
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<PendingContactChange>(e =>
+        {
+            e.ToTable("pending_contact_changes");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
+            e.Property(x => x.ChangeType).HasColumnName("change_type").HasConversion(
+                v => v.ToString().ToLowerInvariant(), v => ParseContactType(v)).IsRequired();
+            e.Property(x => x.NewValue).HasColumnName("new_value").IsRequired();
+            e.Property(x => x.VerifyTokenHash).HasColumnName("verify_token_hash").IsRequired();
+            e.Property(x => x.CancelTokenHash).HasColumnName("cancel_token_hash").IsRequired();
+            e.Property(x => x.Status).HasColumnName("status").HasConversion(
+                v => v.ToString().ToLowerInvariant(), v => ParseContactChangeStatus(v))
+                .HasDefaultValue(ContactChangeStatus.Pending).IsRequired();
+            e.Property(x => x.ExpiresAt).HasColumnName("expires_at").IsRequired();
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.UserId }).HasDatabaseName("idx_pending_contact_changes_user");
+            e.HasIndex(x => x.VerifyTokenHash).IsUnique().HasDatabaseName("idx_pending_contact_changes_verify");
+            e.HasIndex(x => x.CancelTokenHash).IsUnique().HasDatabaseName("idx_pending_contact_changes_cancel");
 
             e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
@@ -715,5 +763,20 @@ public class AppDbContext : DbContext
         "email" => OtpChannel.Email,
         "whatsapp" => OtpChannel.WhatsApp,
         _ => throw new InvalidOperationException($"Unknown otp channel '{v}'.")
+    };
+
+    private static ContactType ParseContactType(string v) => v switch
+    {
+        "email" => ContactType.Email,
+        "phone" => ContactType.Phone,
+        _ => throw new InvalidOperationException($"Unknown contact type '{v}'.")
+    };
+
+    private static ContactChangeStatus ParseContactChangeStatus(string v) => v switch
+    {
+        "pending" => ContactChangeStatus.Pending,
+        "completed" => ContactChangeStatus.Completed,
+        "cancelled" => ContactChangeStatus.Cancelled,
+        _ => throw new InvalidOperationException($"Unknown contact change status '{v}'.")
     };
 }

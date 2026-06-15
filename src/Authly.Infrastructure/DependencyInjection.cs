@@ -56,6 +56,9 @@ public static class DependencyInjection
         // --- Social / OAuth2 login gateway (HTTP) ---
         services.AddScoped<ISocialAuthGateway, SocialAuthGateway>();
 
+        // --- WebAuthn / FIDO2 passkey ceremony (Phase 11) ---
+        services.AddScoped<Authly.Core.WebAuthn.IWebAuthnGateway, Fido2WebAuthnGateway>();
+
         // --- Webhooks & pipeline hooks (HTTP transports) ---
         services.AddScoped<IWebhookSender, HttpWebhookSender>();
         services.AddScoped<IPipelineHookClient, HttpPipelineHookClient>();
@@ -88,6 +91,8 @@ public static class DependencyInjection
         services.AddScoped<IWebhookDeliveryRepository, WebhookDeliveryRepository>();
         services.AddScoped<IPipelineHookRepository, PipelineHookRepository>();
         services.AddScoped<IClaimConfigRepository, ClaimConfigRepository>();
+        services.AddScoped<IRecoveryContactRepository, RecoveryContactRepository>();
+        services.AddScoped<IPendingContactChangeRepository, PendingContactChangeRepository>();
 
         return services;
     }

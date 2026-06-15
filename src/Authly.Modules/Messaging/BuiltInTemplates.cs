@@ -12,8 +12,14 @@ public static class MessageTemplateKeys
     public const string Welcome = "welcome";
     public const string SecurityAlert = "security_alert";
 
+    // Phase 11 — advanced auth.
+    public const string VerifyNewContact = "verify_new_contact";
+    public const string ContactChangeAlert = "contact_change_alert";
+    public const string AccountRecovery = "account_recovery";
+
     public static readonly IReadOnlyList<string> All =
-        new[] { VerifyEmail, ResetPassword, Otp, MagicLink, Welcome, SecurityAlert };
+        new[] { VerifyEmail, ResetPassword, Otp, MagicLink, Welcome, SecurityAlert,
+                VerifyNewContact, ContactChangeAlert, AccountRecovery };
 }
 
 /// <summary>The rendered-ready content of a template (before variable substitution).</summary>
@@ -71,6 +77,31 @@ public static class BuiltInTemplates
             "<p>Hi {{user_name}},</p>" +
             "<p>{{message}}</p>" +
             "<p>If this wasn't you, secure your account immediately.</p>"),
+
+        [(MessageTemplateKeys.VerifyNewContact, MessageChannel.Email)] = new(
+            "Confirm your new email address",
+            "<p>Hi {{user_name}},</p>" +
+            "<p>Confirm this address to finish changing the email on your {{app_name}} account:</p>" +
+            "<p><a href=\"{{action_url}}\">Confirm new email</a></p>" +
+            "<p>This link expires in {{expiry_hours}} hours. If you didn't request this, you can ignore this email.</p>"),
+
+        [(MessageTemplateKeys.VerifyNewContact, MessageChannel.WhatsApp)] = new(
+            null,
+            "{{app_name}}: confirm this number for your account: {{action_url}} (expires in {{expiry_hours}} hours)."),
+
+        [(MessageTemplateKeys.ContactChangeAlert, MessageChannel.Email)] = new(
+            "Your {{app_name}} contact details are being changed",
+            "<p>Hi {{user_name}},</p>" +
+            "<p>A request was made to change the {{contact_type}} on your account. If this was you, no action is needed.</p>" +
+            "<p>If you did NOT request this, cancel it now:</p>" +
+            "<p><a href=\"{{action_url}}\">Cancel this change</a></p>"),
+
+        [(MessageTemplateKeys.AccountRecovery, MessageChannel.Email)] = new(
+            "Recover your {{app_name}} account",
+            "<p>Hi {{user_name}},</p>" +
+            "<p>We received a request to recover access to your account. Use the link below to continue:</p>" +
+            "<p><a href=\"{{action_url}}\">Recover account</a></p>" +
+            "<p>This link expires in {{expiry_hours}} hour(s). If you didn't request this, you can ignore this message.</p>"),
     };
 
     public static TemplateContent? Find(string key, MessageChannel channel)

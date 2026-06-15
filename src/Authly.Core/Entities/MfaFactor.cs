@@ -15,8 +15,17 @@ public class MfaFactor
 
     public MfaFactorType Type { get; set; }
 
-    /// <summary>AES-256 encrypted TOTP secret (or webauthn credential for passkeys). NULL for OTP factors.</summary>
+    /// <summary>
+    /// AES-256 encrypted TOTP secret, or — for passkeys — the JSON-encoded WebAuthn credential
+    /// (public key, sign counter, AAGUID). NULL for OTP factors.
+    /// </summary>
     public string? Secret { get; set; }
+
+    /// <summary>
+    /// For passkeys: the base64url WebAuthn credential id, used to match an assertion to this
+    /// factor. NULL for non-passkey factors.
+    /// </summary>
+    public string? CredentialId { get; set; }
 
     public MfaFactorStatus Status { get; set; } = MfaFactorStatus.Pending;
 

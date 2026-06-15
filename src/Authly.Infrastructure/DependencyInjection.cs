@@ -39,6 +39,7 @@ public static class DependencyInjection
         services.AddSingleton<IEncryptionService, AesEncryptionService>();
         services.AddSingleton<ITokenHasher, Sha256TokenHasher>();
         services.AddSingleton<ICredentialGenerator, CredentialGenerator>();
+        services.AddSingleton<ITotpService, TotpService>();
 
         // --- Messaging (Phase 2: stub sender; real BYOK provider added later) ---
         services.AddScoped<IEmailSender, StubEmailSender>();
@@ -59,6 +60,9 @@ public static class DependencyInjection
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IUserRoleRepository, UserRoleRepository>();
         services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
+        services.AddScoped<IMfaFactorRepository, MfaFactorRepository>();
+        services.AddScoped<IMfaBackupCodeRepository, MfaBackupCodeRepository>();
+        services.AddScoped<IOtpCodeRepository, OtpCodeRepository>();
 
         return services;
     }

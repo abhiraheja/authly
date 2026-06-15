@@ -1,0 +1,35 @@
+@model MfaEnrollViewModel
+@{
+    Layout = "_AuthLayout";
+}
+
+<p class="text-center text-muted mb-3">
+    Your organization requires two-step verification. Scan this QR code with an authenticator
+    app (Google Authenticator, 1Password, Authy…), then enter the 6-digit code.
+</p>
+
+@if (Model.Error is not null)
+{
+    <div class="alert alert-danger py-2 small">@Model.Error</div>
+}
+
+<div class="text-center mb-3">
+    <div class="d-inline-block p-2 bg-white rounded border" style="max-width:200px">@Html.Raw(Model.QrSvg)</div>
+</div>
+
+<p class="text-center small text-muted">
+    Can't scan? Enter this key manually:<br /><code>@Model.Secret</code>
+</p>
+
+<form asp-controller="Mfa" asp-action="Enroll" method="post">
+    <input type="hidden" asp-for="FactorId" />
+    <div class="mb-3">
+        <label asp-for="Code" class="form-label"></label>
+        <input asp-for="Code" class="form-control text-center" inputmode="numeric" autocomplete="one-time-code"
+               maxlength="6" placeholder="123456" autofocus />
+        <span asp-validation-for="Code" class="text-danger small"></span>
+    </div>
+    <div class="d-grid">
+        <button type="submit" class="btn btn-primary">Verify &amp; continue</button>
+    </div>
+</form>

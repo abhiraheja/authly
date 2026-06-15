@@ -23,6 +23,9 @@ builder.Services.AddHttpContextAccessor();
 // Management API: error-envelope filter is resolved per request via [ServiceFilter].
 builder.Services.AddScoped<ApiExceptionFilter>();
 
+// MFA login gate: holds the half-authenticated state in a data-protected cookie.
+builder.Services.AddSingleton<Authly.Web.Infrastructure.Mfa.MfaPendingStore>();
+
 // Infrastructure (EF Core, Redis, Argon2id, AES) + business modules.
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddModules();

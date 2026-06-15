@@ -3,6 +3,7 @@ using Authly.Modules.Applications;
 using Authly.Modules.Audit;
 using Authly.Modules.Auth;
 using Authly.Modules.Authorization;
+using Authly.Modules.Mfa;
 using Authly.Modules.Users;
 using Authly.Modules.SuperAdmins;
 using Authly.Modules.TenantAdmins;
@@ -25,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<IRbacService, RbacService>();
         services.AddScoped<IApiKeyService, ApiKeyService>();
         services.AddScoped<IUserAdminService, UserAdminService>();
+        services.AddScoped<IMfaService, MfaService>();
         return services;
     }
 }

@@ -1,0 +1,49 @@
+@model MfaPolicyViewModel
+
+<div class="page-title-head mb-3">
+    <h4 class="mb-0">Multi-factor authentication</h4>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form asp-area="TenantAdmin" asp-controller="MfaPolicy" asp-action="Index" method="post">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+
+            <div class="mb-4">
+                <label class="form-label fw-medium">Enforcement</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="Policy" value="Optional" id="pOptional" />
+                    <label class="form-check-label" for="pOptional">
+                        <strong>Optional</strong> — users may enable MFA; only those who do are challenged.
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="Policy" value="AdminsOnly" id="pAdmins" />
+                    <label class="form-check-label" for="pAdmins">
+                        <strong>Admins only</strong> — tenant administrators must use MFA; optional for everyone else.
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="Policy" value="Required" id="pRequired" />
+                    <label class="form-check-label" for="pRequired">
+                        <strong>Required</strong> — every user must complete MFA to sign in.
+                    </label>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-medium">Allowed methods</label>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" asp-for="AllowTotp" id="allowTotp" />
+                    <label class="form-check-label" for="allowTotp">Authenticator apps (TOTP)</label>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" asp-for="AllowEmailOtp" id="allowEmail" />
+                    <label class="form-check-label" for="allowEmail">Email one-time codes</label>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Save policy</button>
+        </form>
+    </div>
+</div>

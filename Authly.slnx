@@ -1,1 +1,11 @@
-<Solution />
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Saarvix.Identity.Core/Saarvix.Identity.Core.csproj" />
+    <Project Path="src/Saarvix.Identity.Infrastructure/Saarvix.Identity.Infrastructure.csproj" />
+    <Project Path="src/Saarvix.Identity.Modules/Saarvix.Identity.Modules.csproj" />
+    <Project Path="src/Saarvix.Identity.Web/Saarvix.Identity.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Saarvix.Identity.Tests/Saarvix.Identity.Tests.csproj" />
+  </Folder>
+</Solution>

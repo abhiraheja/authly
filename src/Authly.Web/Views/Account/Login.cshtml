@@ -1,0 +1,40 @@
+@model UserLoginViewModel
+@{
+    Layout = "_AuthLayout";
+}
+
+<p class="text-center text-muted mb-4">Sign in to your account.</p>
+
+@if (TempData["Success"] is string success)
+{
+    <div class="alert alert-success py-2 small">@success</div>
+}
+
+<form asp-controller="Account" asp-action="Login" method="post">
+    <input type="hidden" asp-for="ReturnUrl" />
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label">Email</label>
+        <input asp-for="Email" class="form-control" autocomplete="username" placeholder="you@example.com" />
+        <span asp-validation-for="Email" class="text-danger small"></span>
+    </div>
+
+    <div class="mb-2">
+        <label asp-for="Password" class="form-label">Password</label>
+        <input asp-for="Password" class="form-control" autocomplete="current-password" placeholder="••••••••" />
+        <span asp-validation-for="Password" class="text-danger small"></span>
+    </div>
+
+    <div class="d-flex justify-content-end mb-4">
+        <a asp-controller="Account" asp-action="ForgotPassword" class="small">Forgot password?</a>
+    </div>
+
+    <div class="d-grid">
+        <button type="submit" class="btn btn-primary">Sign in</button>
+    </div>
+</form>
+
+<p class="text-center text-muted small mt-4 mb-0">
+    Don't have an account? <a asp-controller="Account" asp-action="Register">Create one</a>
+</p>

@@ -17,6 +17,10 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<SuperAdmin> SuperAdmins => Set<SuperAdmin>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<Session> Sessions => Set<Session>();
+    public DbSet<LoginHistory> LoginHistory => Set<LoginHistory>();
+    public DbSet<VerificationToken> VerificationTokens => Set<VerificationToken>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -118,6 +122,95 @@ public class AppDbContext : DbContext
 
             e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        b.Entity<Session>(e =>
+        {
+            e.ToTable("sessions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.ApplicationId).HasColumnName("application_id");
+            e.Property(x => x.RefreshTokenHash).HasColumnName("refresh_token_hash").IsRequired();
+            e.Property(x => x.RefreshFamilyId).HasColumnName("refresh_family_id").IsRequired();
+            e.Property(x => x.IpAddress).HasColumnName("ip_address");
+            e.Property(x => x.UserAgent).HasColumnName("user_agent");
+            e.Property(x => x.DeviceFingerprint).HasColumnName("device_fingerprint");
+            e.Property(x => x.Location).HasColumnName("location");
+            e.Property(x => x.Trusted).HasColumnName("trusted").HasDefaultValue(false);
+            e.Property(x => x.LastActiveAt).HasColumnName("last_active_at").HasDefaultValueSql("NOW()");
+            e.Property(x => x.ExpiresAt).HasColumnName("expires_at").IsRequired();
+            e.Property(x => x.Revoked).HasColumnName("revoked").HasDefaultValue(false);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => x.RefreshTokenHash).IsUnique().HasDatabaseName("idx_sessions_refresh");
+            e.HasIndex(x => new { x.UserId, x.TenantId }).HasDatabaseName("idx_sessions_user");
+            e.HasIndex(x => x.RefreshFamilyId).HasDatabaseName("idx_sessions_family");
+
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<LoginHistory>(e =>
+        {
+            e.ToTable("login_history");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Result).HasColumnName("result").IsRequired();
+            e.Property(x => x.Method).HasColumnName("method");
+            e.Property(x => x.IpAddress).HasColumnName("ip_address");
+            e.Property(x => x.UserAgent).HasColumnName("user_agent");
+            e.Property(x => x.Device).HasColumnName("device");
+            e.Property(x => x.Location).HasColumnName("location");
+            e.Property(x => x.Reason).HasColumnName("reason");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.UserId, x.CreatedAt }).HasDatabaseName("idx_login_user");
+            e.HasIndex(x => new { x.TenantId, x.CreatedAt }).HasDatabaseName("idx_login_tenant");
+
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<VerificationToken>(e =>
+        {
+            e.ToTable("verification_tokens");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
+            e.Property(x => x.Type).HasColumnName("type").IsRequired();
+            e.Property(x => x.Target).HasColumnName("target").IsRequired();
+            e.Property(x => x.TokenHash).HasColumnName("token_hash").IsRequired();
+            e.Property(x => x.ExpiresAt).HasColumnName("expires_at").IsRequired();
+            e.Property(x => x.Used).HasColumnName("used").HasDefaultValue(false);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => x.TokenHash).IsUnique().HasDatabaseName("idx_verification_token_hash");
+            e.HasIndex(x => x.UserId).HasDatabaseName("idx_verification_user");
+
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<PasswordResetToken>(e =>
+        {
+            e.ToTable("password_reset_tokens");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
+            e.Property(x => x.TokenHash).HasColumnName("token_hash").IsRequired();
+            e.Property(x => x.ExpiresAt).HasColumnName("expires_at").IsRequired();
+            e.Property(x => x.Used).HasColumnName("used").HasDefaultValue(false);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => x.TokenHash).IsUnique().HasDatabaseName("idx_reset_token_hash");
+            e.HasIndex(x => x.UserId).HasDatabaseName("idx_reset_user");
+
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

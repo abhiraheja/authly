@@ -1,0 +1,47 @@
+@model RegisterViewModel
+@{
+    Layout = "_AuthLayout";
+}
+
+<p class="text-center text-muted mb-4">Create your account.</p>
+
+<form asp-controller="Account" asp-action="Register" method="post">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label">Email</label>
+        <input asp-for="Email" class="form-control" autocomplete="email" placeholder="you@example.com" />
+        <span asp-validation-for="Email" class="text-danger small"></span>
+    </div>
+
+    <div class="row g-2 mb-3">
+        <div class="col">
+            <label asp-for="FirstName" class="form-label">First name</label>
+            <input asp-for="FirstName" class="form-control" autocomplete="given-name" />
+        </div>
+        <div class="col">
+            <label asp-for="LastName" class="form-label">Last name</label>
+            <input asp-for="LastName" class="form-control" autocomplete="family-name" />
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Password" class="form-label">Password</label>
+        <input asp-for="Password" class="form-control" autocomplete="new-password" placeholder="••••••••" />
+        <span asp-validation-for="Password" class="text-danger small"></span>
+    </div>
+
+    <div class="mb-4">
+        <label asp-for="ConfirmPassword" class="form-label">Confirm password</label>
+        <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" placeholder="••••••••" />
+        <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+    </div>
+
+    <div class="d-grid">
+        <button type="submit" class="btn btn-primary">Create account</button>
+    </div>
+</form>
+
+<p class="text-center text-muted small mt-4 mb-0">
+    Already have an account? <a asp-controller="Account" asp-action="Login">Sign in</a>
+</p>

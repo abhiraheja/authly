@@ -14,6 +14,9 @@ namespace Authly.Web.Infrastructure;
 /// </summary>
 public sealed class TenantResolutionMiddleware
 {
+    /// <summary>Dev-only cookie remembering the chosen tenant slug (non-production only).</summary>
+    private const string DevTenantCookie = "authly.dev_tenant";
+
     private readonly RequestDelegate _next;
     private readonly IWebHostEnvironment _env;
 
@@ -31,10 +34,26 @@ public sealed class TenantResolutionMiddleware
             var host = context.Request.Host.Host;
             var tenant = await tenants.GetByCustomDomainOrNullAsync(host, context.RequestAborted);
 
-            if (tenant is null && !_env.IsProduction()
-                && context.Request.Headers.TryGetValue("X-Tenant-Slug", out var slug))
+            // Non-production conveniences so a tenant surface can be exercised from a browser
+            // without a custom domain: an X-Tenant-Slug header, a ?tenant= query (which is then
+            // remembered in a cookie so follow-up navigations and email-link clicks resolve too).
+            if (tenant is null && !_env.IsProduction())
             {
-                tenant = await tenants.GetBySlugAsync(slug.ToString(), context.RequestAborted);
+                string? slug = null;
+                if (context.Request.Headers.TryGetValue("X-Tenant-Slug", out var header))
+                    slug = header.ToString();
+                else if (context.Request.Query.TryGetValue("tenant", out var query))
+                    slug = query.ToString();
+                else if (context.Request.Cookies.TryGetValue(DevTenantCookie, out var cookie))
+                    slug = cookie;
+
+                if (!string.IsNullOrWhiteSpace(slug))
+                {
+                    tenant = await tenants.GetBySlugAsync(slug, context.RequestAborted);
+                    if (tenant is not null)
+                        context.Response.Cookies.Append(DevTenantCookie, tenant.Slug,
+                            new CookieOptions { HttpOnly = true, IsEssential = true, SameSite = SameSiteMode.Lax });
+                }
             }
 
             if (tenant is not null)

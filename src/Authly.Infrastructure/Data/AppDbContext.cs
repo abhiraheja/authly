@@ -36,6 +36,10 @@ public class AppDbContext : DbContext
     public DbSet<MessageLog> MessageLogs => Set<MessageLog>();
     public DbSet<SocialIdentity> SocialIdentities => Set<SocialIdentity>();
     public DbSet<SocialProvider> SocialProviders => Set<SocialProvider>();
+    public DbSet<WebhookEndpoint> WebhookEndpoints => Set<WebhookEndpoint>();
+    public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
+    public DbSet<PipelineHook> PipelineHooks => Set<PipelineHook>();
+    public DbSet<ClaimConfig> ClaimConfigs => Set<ClaimConfig>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -527,7 +531,147 @@ public class AppDbContext : DbContext
 
             e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
         });
+
+        b.Entity<WebhookEndpoint>(e =>
+        {
+            e.ToTable("webhook_endpoints");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Url).HasColumnName("url").IsRequired();
+            e.Property(x => x.Events).HasColumnName("events").HasColumnType("text[]").HasDefaultValueSql("'{}'");
+            e.Property(x => x.Secret).HasColumnName("secret").IsRequired();
+            e.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => x.TenantId).HasDatabaseName("idx_webhook_endpoints_tenant");
+
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<WebhookDelivery>(e =>
+        {
+            e.ToTable("webhook_deliveries");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.EndpointId).HasColumnName("endpoint_id").IsRequired();
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Event).HasColumnName("event").IsRequired();
+            e.Property(x => x.Payload).HasColumnName("payload").HasColumnType("jsonb").HasDefaultValueSql("'{}'");
+            e.Property(x => x.Status).HasColumnName("status").HasConversion(
+                v => v.ToString().ToLowerInvariant(), v => ParseDeliveryStatus(v))
+                .HasDefaultValue(WebhookDeliveryStatus.Pending).IsRequired();
+            e.Property(x => x.Attempts).HasColumnName("attempts").HasDefaultValue(0);
+            e.Property(x => x.ResponseCode).HasColumnName("response_code");
+            e.Property(x => x.LastError).HasColumnName("last_error");
+            e.Property(x => x.NextRetryAt).HasColumnName("next_retry_at");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.CreatedAt }).HasDatabaseName("idx_webhook_deliveries_tenant");
+            e.HasIndex(x => x.EndpointId).HasDatabaseName("idx_webhook_deliveries_endpoint");
+
+            e.HasOne<WebhookEndpoint>().WithMany().HasForeignKey(x => x.EndpointId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<PipelineHook>(e =>
+        {
+            e.ToTable("pipeline_hooks");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Stage).HasColumnName("stage").HasConversion(
+                v => StageToString(v), v => ParseStage(v)).IsRequired();
+            e.Property(x => x.Url).HasColumnName("url").IsRequired();
+            e.Property(x => x.Secret).HasColumnName("secret").IsRequired();
+            e.Property(x => x.TimeoutMs).HasColumnName("timeout_ms").HasDefaultValue(3000);
+            e.Property(x => x.OnFailure).HasColumnName("on_failure").HasConversion(
+                v => v.ToString().ToLowerInvariant(), v => ParseFailureMode(v))
+                .HasDefaultValue(HookFailureMode.Continue).IsRequired();
+            e.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.Stage }).HasDatabaseName("idx_pipeline_hooks_tenant_stage");
+
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ClaimConfig>(e =>
+        {
+            e.ToTable("claim_configs");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.ApplicationId).HasColumnName("application_id");
+            e.Property(x => x.TokenType).HasColumnName("token_type").HasConversion(
+                v => v.ToString().ToLowerInvariant(), v => ParseClaimTokenType(v)).IsRequired();
+            e.Property(x => x.Type).HasColumnName("type").HasConversion(
+                v => v.ToString().ToLowerInvariant(), v => ParseClaimSourceType(v)).IsRequired();
+            e.Property(x => x.ClaimName).HasColumnName("claim_name").IsRequired();
+            e.Property(x => x.Source).HasColumnName("source");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.ApplicationId }).HasDatabaseName("idx_claim_configs_tenant_app");
+
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Application>().WithMany().HasForeignKey(x => x.ApplicationId).OnDelete(DeleteBehavior.Cascade);
+        });
     }
+
+    private static WebhookDeliveryStatus ParseDeliveryStatus(string v) => v switch
+    {
+        "pending" => WebhookDeliveryStatus.Pending,
+        "success" => WebhookDeliveryStatus.Success,
+        "failed" => WebhookDeliveryStatus.Failed,
+        _ => throw new InvalidOperationException($"Unknown webhook delivery status '{v}'.")
+    };
+
+    // Pipeline stage maps to fixed snake_case text the schema (§4.12) specifies.
+    private static string StageToString(PipelineStage v) => v switch
+    {
+        PipelineStage.PreRegistration => "pre_registration",
+        PipelineStage.PostRegistration => "post_registration",
+        PipelineStage.PreLogin => "pre_login",
+        PipelineStage.PostLogin => "post_login",
+        PipelineStage.PreToken => "pre_token",
+        PipelineStage.SendOtp => "send_otp",
+        PipelineStage.SendEmail => "send_email",
+        _ => throw new InvalidOperationException($"Unknown pipeline stage '{v}'.")
+    };
+
+    private static PipelineStage ParseStage(string v) => v switch
+    {
+        "pre_registration" => PipelineStage.PreRegistration,
+        "post_registration" => PipelineStage.PostRegistration,
+        "pre_login" => PipelineStage.PreLogin,
+        "post_login" => PipelineStage.PostLogin,
+        "pre_token" => PipelineStage.PreToken,
+        "send_otp" => PipelineStage.SendOtp,
+        "send_email" => PipelineStage.SendEmail,
+        _ => throw new InvalidOperationException($"Unknown pipeline stage '{v}'.")
+    };
+
+    private static HookFailureMode ParseFailureMode(string v) => v switch
+    {
+        "continue" => HookFailureMode.Continue,
+        "block" => HookFailureMode.Block,
+        _ => throw new InvalidOperationException($"Unknown hook failure mode '{v}'.")
+    };
+
+    private static ClaimTokenType ParseClaimTokenType(string v) => v switch
+    {
+        "id" => ClaimTokenType.Id,
+        "access" => ClaimTokenType.Access,
+        _ => throw new InvalidOperationException($"Unknown claim token type '{v}'.")
+    };
+
+    private static ClaimSourceType ParseClaimSourceType(string v) => v switch
+    {
+        "static" => ClaimSourceType.Static,
+        "metadata" => ClaimSourceType.Metadata,
+        "webhook" => ClaimSourceType.Webhook,
+        _ => throw new InvalidOperationException($"Unknown claim source type '{v}'.")
+    };
 
     private static MessageChannel ParseMessageChannel(string v) => v switch
     {

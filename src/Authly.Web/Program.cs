@@ -37,6 +37,8 @@ builder.Services.AddModules();
 builder.Services.AddScoped<IAuthUrlBuilder, AuthUrlBuilder>();
 builder.Services.AddScoped<IMessageQueue, HangfireMessageQueue>();
 builder.Services.AddScoped<MessageDispatchJob>();
+builder.Services.AddScoped<Authly.Core.Events.IWebhookQueue, Authly.Web.Infrastructure.Webhooks.HangfireWebhookQueue>();
+builder.Services.AddScoped<Authly.Web.Infrastructure.Webhooks.WebhookDispatchJob>();
 
 // OAuth 2.0 / OIDC server (OpenIddict) — endpoints, flows, dev signing keys.
 builder.Services.AddAuthlyOpenIddict(builder.Environment.IsDevelopment());

@@ -172,12 +172,12 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 **Goal:** Event system with HMAC-signed webhooks (retry + delivery log), pipeline hooks at each auth stage, and custom token claims (static + metadata + webhook).
 
-- [ ] Event system + 40+ event catalogue (auth, user lifecycle, MFA, sessions, org, token, app)
-- [ ] `webhook_endpoints` + `webhook_deliveries` (§4.12); HMAC-SHA256 signing; per-event routing
-- [ ] Hangfire dispatch + exponential-backoff retry (1m→5m→30m→2h→24h) + delivery log + manual retry + test-in-dashboard
-- [ ] `pipeline_hooks` (§4.12): pre/post registration, pre/post login, pre-token, send-OTP, send-email, etc.; timeout + on_failure (continue/block)
-- [ ] **Custom token claims** (`claim_configs` §4.13): static + user/app-metadata mapping + webhook claims (claim assembly §5.6 steps 2–4)
-- [ ] **Acceptance:** A test webhook fires with valid HMAC and replay protection; a failed delivery retries on schedule; a pre-token webhook injects a custom claim respecting timeout/on_failure.
+- [x] Event system + 40+ event catalogue (auth, user lifecycle, MFA, sessions, org, token, app) — `EventCatalog` (47 events) + `IEventPublisher`; `AuditLogger` fans every tenant-scoped audited event out to subscribed endpoints
+- [x] `webhook_endpoints` + `webhook_deliveries` (§4.12); HMAC-SHA256 signing (`WebhookSigner`, `sha256=` over `timestamp.body` + timestamp/delivery-id headers = replay protection); per-event routing (exact name or `*`)
+- [x] Hangfire dispatch + exponential-backoff retry (1m→5m→30m→2h→24h, `WebhookRetrySchedule`) + delivery log + manual retry + test-in-dashboard
+- [x] `pipeline_hooks` (§4.12): pre/post registration, pre/post login, pre-token, send-OTP, send-email stages; per-call timeout + on_failure (continue=fail-open / block=fail-closed); `pre_token` hook response merged as claims
+- [x] **Custom token claims** (`claim_configs` §4.13): static + user/app-metadata mapping (dotted path, `user_metadata.`/`app_metadata.` prefix) + webhook claims via `pre_token` hooks — `TokenClaimAssembler` wired into `/connect/authorize` + client-credentials issuance (claim assembly §5.6 steps 2–4; block vetoes issuance)
+- [~] **Acceptance:** verified by build + 20 new unit tests (HMAC sign/verify + replay-window, retry-ladder progression + exhaustion, event routing/wildcard/inactive, dispatch success/retry/exhaust, pipeline block/continue/merge/unwrap, claim assembly static/metadata/hook/block/token-type). **Runtime-pending:** a real receiver verifying HMAC, an observed scheduled retry, and a live pre-token hook injecting a claim require a running app + Postgres + an external endpoint.
 
 ---
 

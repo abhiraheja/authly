@@ -86,6 +86,26 @@
                     </div>
                 </div>
             </div>
+
+            <div class="card mb-4">
+                <div class="card-header">Conditional access (risk-based)</div>
+                <div class="card-body">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" asp-for="ConditionalAccessEnabled" />
+                        <label class="form-check-label" asp-for="ConditionalAccessEnabled"></label>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="NewDeviceAction" class="form-label"></label>
+                        <select asp-for="NewDeviceAction" asp-items="Html.GetEnumSelectList<Authly.Modules.Security.ConditionalAction>()" class="form-select"></select>
+                        <div class="form-text">Triggers when both the IP and device are unseen among the user's past sign-ins.</div>
+                    </div>
+                    <div class="mb-1">
+                        <label asp-for="UnverifiedEmailAction" class="form-label"></label>
+                        <select asp-for="UnverifiedEmailAction" asp-items="Html.GetEnumSelectList<Authly.Modules.Security.ConditionalAction>()" class="form-select"></select>
+                        <div class="form-text"><strong>Require MFA</strong> steps up to a second factor (or enrollment); <strong>Block</strong> denies the sign-in.</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

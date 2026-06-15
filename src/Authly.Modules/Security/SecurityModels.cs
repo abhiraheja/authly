@@ -32,6 +32,14 @@ public sealed class TenantSecuritySettings
     /// <summary>Per-org IP allowlist; when non-empty, only these IPs/CIDRs may authenticate.</summary>
     public List<string> AllowedIps { get; set; } = new();
 
+    // --- Conditional / risk-based access (Phase 2) ---
+    /// <summary>Master switch for the conditional-access rules below.</summary>
+    public bool ConditionalAccessEnabled { get; set; }
+    /// <summary>Action when a sign-in comes from a new device + location (unseen IP and user-agent).</summary>
+    public ConditionalAction NewDeviceAction { get; set; } = ConditionalAction.Allow;
+    /// <summary>Action when the signing-in user's email is not yet verified.</summary>
+    public ConditionalAction UnverifiedEmailAction { get; set; } = ConditionalAction.Allow;
+
     public bool HasCaptcha => CaptchaEnabled
         && !string.IsNullOrWhiteSpace(CaptchaProvider)
         && !string.IsNullOrWhiteSpace(CaptchaSecretEncrypted);

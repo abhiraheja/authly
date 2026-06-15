@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Authly.Core.Interfaces;
+using Authly.Modules.Audit;
 using Authly.Modules.Auth;
 using Authly.Modules.Common;
 using Authly.Modules.Mfa;
@@ -32,8 +33,10 @@ public sealed class AccountController : Controller
     private readonly Authly.Modules.Security.IAccountLockoutService _lockout;
     private readonly Authly.Modules.Security.ISecurityScreeningService _screening;
     private readonly Authly.Modules.Security.IBlockListService _blockList;
+    private readonly Authly.Modules.Security.IConditionalAccessService _conditional;
     private readonly Authly.Web.Infrastructure.Security.SecurityViewState _securityView;
     private readonly Authly.Modules.Compliance.IConsentService _consent;
+    private readonly IAuditLogger _audit;
     private readonly Hangfire.IBackgroundJobClient _jobs;
 
     public AccountController(IAuthService auth, ITenantContext tenant, IMfaService mfa, MfaPendingStore mfaPending,
@@ -44,8 +47,10 @@ public sealed class AccountController : Controller
         Authly.Modules.Security.IAccountLockoutService lockout,
         Authly.Modules.Security.ISecurityScreeningService screening,
         Authly.Modules.Security.IBlockListService blockList,
+        Authly.Modules.Security.IConditionalAccessService conditional,
         Authly.Web.Infrastructure.Security.SecurityViewState securityView,
         Authly.Modules.Compliance.IConsentService consent,
+        IAuditLogger audit,
         Hangfire.IBackgroundJobClient jobs)
     {
         _auth = auth;
@@ -59,8 +64,10 @@ public sealed class AccountController : Controller
         _lockout = lockout;
         _screening = screening;
         _blockList = blockList;
+        _conditional = conditional;
         _securityView = securityView;
         _consent = consent;
+        _audit = audit;
         _jobs = jobs;
     }
 
@@ -189,15 +196,34 @@ public sealed class AccountController : Controller
         var returnUrl = !string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl)
             ? model.ReturnUrl : null;
 
+        // Risk-based access: block or force a step-up before the session cookie is issued.
+        var access = await _conditional.EvaluateAsync(tenantId, result.User, CurrentRequest(), ct);
+        if (access.Action == Authly.Modules.Security.ConditionalAction.Block)
+        {
+            await _auth.RevokeSessionAsync(result.Session.Id, ct);
+            var actor = new AuditContext(result.User.Id, "user", ip, CurrentRequest().UserAgent);
+            await _audit.LogAsync("user.login_blocked", actor, tenantId, "user", result.User.Id,
+                result: "blocked", metadata: new { reason = access.Reason }, ct: ct);
+            ModelState.AddModelError(string.Empty, "Sign-in was blocked by your organization's access policy.");
+            return View(model);
+        }
+        var forceStepUp = access.Action == Authly.Modules.Security.ConditionalAction.RequireMfa;
+
         // Password is correct, but the session cookie is only issued once any MFA gate is cleared.
         var decision = await _mfa.EvaluateLoginAsync(_tenant.TenantId!.Value, result.User, ct);
-        if (decision.Requirement != MfaLoginRequirement.NotRequired)
+        var requirement = decision.Requirement;
+        // Step-up: if the policy demands MFA but the user has no factor (so the normal gate is
+        // NotRequired), force enrollment before sign-in. Users with a factor are already challenged.
+        if (forceStepUp && requirement == MfaLoginRequirement.NotRequired)
+            requirement = MfaLoginRequirement.EnrollmentRequired;
+
+        if (requirement != MfaLoginRequirement.NotRequired)
         {
             _mfaPending.Save(HttpContext, new MfaPendingLogin(
                 result.User.Id, result.User.TenantId, result.Session.Id,
                 result.User.Email, result.User.EmailVerified, returnUrl));
 
-            return decision.Requirement == MfaLoginRequirement.EnrollmentRequired
+            return requirement == MfaLoginRequirement.EnrollmentRequired
                 ? RedirectToAction(nameof(MfaController.Enroll), "Mfa")
                 : RedirectToAction(nameof(MfaController.Challenge), "Mfa");
         }

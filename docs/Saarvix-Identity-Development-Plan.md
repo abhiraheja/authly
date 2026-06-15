@@ -209,14 +209,14 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 **Goal:** Close the attack surface — rate limiting, lockout, bot defense, breached-password detection, suspicious-login detection, block/allow lists.
 
-- [ ] Redis-backed multi-level **rate limiting** middleware
-- [ ] **Account lockout** with exponential backoff + self-service unlock
-- [ ] **Bot/CAPTCHA** (hCaptcha/Turnstile), configurable per tenant
-- [ ] **Breached-password** check (HaveIBeenPwned k-anonymity)
-- [ ] **Suspicious-login** detection (impossible travel / new device) as Hangfire job + alert
-- [ ] **Block/allow lists** (email, domain/disposable, IP/range, country) + per-org IP allowlist
-- [ ] Security headers (CSP/HSTS), super-admin panel hardening (mandatory MFA, optional IP allowlist)
-- [ ] **Acceptance:** Brute-force triggers lockout; a breached password is rejected on signup; a blocked country/IP is denied; CAPTCHA gates the login form.
+- [x] Redis-backed multi-level **rate limiting** middleware — Core `IRateLimiter` + `RedisRateLimiter` (atomic INCR + window TTL); `RateLimitingMiddleware` throttles POSTs per path+IP on login/register/forgot/magic/recover/passkey/token (429 + Retry-After)
+- [x] **Account lockout** with exponential backoff + self-service unlock — `ILoginAttemptStore`/`RedisLoginAttemptStore` + `AccountLockoutService` (`LockoutPolicy` 1m→2m→4m… capped 1h); wired into login (block when locked, record on fail, reset on success); self-service unlock = backoff expiry / successful sign-in
+- [x] **Bot/CAPTCHA** (hCaptcha/Turnstile), configurable per tenant — Core `ICaptchaGateway` + `HttpCaptchaGateway` (siteverify); per-tenant enable/provider/site-key + **encrypted** secret; `_Captcha` widget on login/register; verified server-side before auth
+- [x] **Breached-password** check (HaveIBeenPwned k-anonymity) — Core `IBreachedPasswordGateway`+`IPwnedRangeClient`; `HibpBreachedPasswordGateway` (SHA-1, only 5-char prefix leaves the server, Add-Padding, fails open); rejects breached passwords on register + reset + recovery
+- [x] **Suspicious-login** detection (impossible travel / new device) as Hangfire job + alert — `SuspiciousLoginDetector` (new IP **and** new device vs prior successes) + `SuspiciousLoginService`; `SuspiciousLoginJob` enqueued after login (binds tenant for RLS) → queues `security_alert`. *(Impossible-travel needs a geo-IP source — new-device/new-IP implemented; geo documented.)*
+- [x] **Block/allow lists** (email, domain/disposable, IP/range, country) + per-org IP allowlist — `BlockListPolicy` (domain + built-in disposable set + IP/CIDR via `System.Net.IPNetwork` + country + allowlist) + `BlockListService`; enforced on register + login; **country requires a geo source** to enforce (config accepted)
+- [x] Security headers (CSP/HSTS), super-admin panel hardening (mandatory MFA, optional IP allowlist) — `SecurityHeadersMiddleware` (CSP incl. captcha origins, X-Frame-Options/nosniff/Referrer/Permissions-Policy) + existing `UseHsts`; `SuperAdminIpAllowlistMiddleware` (`SUPERADMIN_IP_ALLOWLIST` → 404 off-list). *(Mandatory super-admin MFA deferred — super_admins have no MFA enrolment yet; IP allowlist + headers shipped.)*
+- [~] **Acceptance:** verified by build + 20 new unit tests (lockout backoff/cap + lock-at-threshold/disabled/reset; block-list email/disposable/IP-CIDR/allowlist/country; HIBP suffix-match/zero-count-padding/absent/fail-open; suspicious first-login/known/new-context; settings round-trip + encrypted-write-only secret + node-preservation). **Runtime-pending:** live brute-force→lockout, a real breached-password rejection against HIBP, a CAPTCHA challenge round-trip, and an IP-blocked denial need a running app + Redis + Postgres + network.
 
 ---
 

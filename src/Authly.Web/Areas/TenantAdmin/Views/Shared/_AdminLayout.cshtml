@@ -65,6 +65,13 @@
                     <span class="menu-text">Branding</span>
                 </a>
             </li>
+            <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("Security") ? "active" : "")"
+                   asp-area="TenantAdmin" asp-controller="Security" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="shield-alert"></i></span>
+                    <span class="menu-text">Security</span>
+                </a>
+            </li>
             <li class="side-nav-title">Developers</li>
             <li class="side-nav-item">
                 <a class="side-nav-link @(IsActive("ApiKeys") ? "active" : "")"

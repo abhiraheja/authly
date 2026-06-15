@@ -10,4 +10,7 @@ public interface ISessionRepository
     Task<IReadOnlyList<Session>> ListActiveForUserAsync(Guid tenantId, Guid userId, CancellationToken ct = default);
     Task AddAsync(Session session, CancellationToken ct = default);
     Task UpdateAsync(Session session, CancellationToken ct = default);
+
+    /// <summary>Revokes all of a user's active sessions; returns the number revoked.</summary>
+    Task<int> RevokeAllForUserAsync(Guid tenantId, Guid userId, CancellationToken ct = default);
 }

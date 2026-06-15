@@ -15,6 +15,7 @@ public sealed class CredentialGenerator : ICredentialGenerator
 
     public string GenerateClientId() => "client_" + RandomString(24);
     public string GenerateClientSecret() => "secret_" + RandomString(48);
+    public string GenerateApiKey() => "authly_sk_" + RandomString(48);
 
     private static string RandomString(int length)
     {

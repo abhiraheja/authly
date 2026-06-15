@@ -29,7 +29,11 @@ public sealed class TenantResolutionMiddleware
     public async Task InvokeAsync(HttpContext context, ITenantContext tenantContext, ITenantRepository tenants)
     {
         var path = context.Request.Path;
-        if (!path.StartsWithSegments("/superadmin") && !path.StartsWithSegments("/hangfire"))
+        // Platform surfaces are tenant-less; the Management API binds its tenant from the token,
+        // not the host, so it is excluded from host/dev-cookie resolution here.
+        if (!path.StartsWithSegments("/superadmin")
+            && !path.StartsWithSegments("/hangfire")
+            && !path.StartsWithSegments("/api"))
         {
             var host = context.Request.Host.Host;
             var tenant = await tenants.GetByCustomDomainOrNullAsync(host, context.RequestAborted);

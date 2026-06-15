@@ -33,4 +33,9 @@ public sealed class SessionRepository : ISessionRepository
         _db.Sessions.Update(session);
         await _db.SaveChangesAsync(ct);
     }
+
+    public Task<int> RevokeAllForUserAsync(Guid tenantId, Guid userId, CancellationToken ct = default)
+        => _db.Sessions
+            .Where(s => s.TenantId == tenantId && s.UserId == userId && !s.Revoked)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Revoked, true), ct);
 }

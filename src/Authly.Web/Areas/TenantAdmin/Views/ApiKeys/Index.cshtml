@@ -1,0 +1,69 @@
+@model IReadOnlyList<ApiKey>
+@{
+    var newKey = TempData["NewApiKey"] as string;
+}
+
+<div class="page-title-head d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0">API keys</h4>
+    <a class="btn btn-primary btn-sm" asp-area="TenantAdmin" asp-controller="ApiKeys" asp-action="Create">
+        <i data-lucide="plus" class="me-1"></i> New API key
+    </a>
+</div>
+
+@if (newKey is not null)
+{
+    <div class="alert alert-warning">
+        <h6 class="alert-heading"><i data-lucide="key-round" class="me-1"></i> Copy your API key now</h6>
+        <p class="small mb-2">This key is shown <strong>once</strong> and cannot be retrieved again. Send it as the <code>X-API-Key</code> header.</p>
+        <div><code>@newKey</code></div>
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        @if (Model.Count == 0)
+        {
+            <p class="text-muted mb-0">No API keys yet. Create one for programmatic access to the Management API.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Scopes</th>
+                            <th>Last used</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var key in Model)
+                    {
+                        <tr>
+                            <td class="fw-medium">@key.Name</td>
+                            <td><code>@string.Join(" ", key.Scopes)</code></td>
+                            <td class="text-muted small">@(key.LastUsedAt?.ToString("yyyy-MM-dd HH:mm") ?? "never")</td>
+                            <td>
+                                @if (key.Revoked) { <span class="badge bg-soft-danger">revoked</span> }
+                                else if (key.ExpiresAt is { } exp && exp <= DateTimeOffset.UtcNow) { <span class="badge bg-soft-secondary">expired</span> }
+                                else { <span class="badge bg-soft-success">active</span> }
+                            </td>
+                            <td class="text-end">
+                                @if (!key.Revoked)
+                                {
+                                    <form asp-area="TenantAdmin" asp-controller="ApiKeys" asp-action="Revoke" asp-route-id="@key.Id" method="post"
+                                          onsubmit="return confirm('Revoke this API key? Applications using it will stop working.');">
+                                        <button type="submit" class="btn btn-soft-danger btn-sm">Revoke</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

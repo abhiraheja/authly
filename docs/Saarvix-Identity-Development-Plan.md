@@ -85,16 +85,16 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 **Goal:** OpenIddict issues standards-compliant tokens. Tenants create Applications (client id/secret). Auth Code + PKCE, Refresh (rotation + reuse detection), and Client Credentials all work.
 
-- [ ] Integrate **OpenIddict** server + standard endpoints (§5.1: authorize, token, userinfo, introspect, revoke, logout, discovery, JWKS)
-- [ ] `applications` + `application_secrets` tables (§4.5); tenant admin UI to create apps
-- [ ] Secret generation: `client_[24]` / `secret_[48]`, shown once, stored hashed; rotation endpoint
-- [ ] **Authorization Code + PKCE** flow (§5.2) → branded login page hand-off
-- [ ] **Refresh token** flow with rotation + `refresh_family_id` **reuse detection** (§5.4)
-- [ ] **Client Credentials** flow (§5.3)
-- [ ] JWKS + discovery serving asymmetric keys (RS256/ES256); key rotation via super admin
-- [ ] Token claim assembly — standard claims first (§5.6 step 1)
-- [ ] Audience binding (token for app A rejected at app B)
-- [ ] **Acceptance:** A confidential web app completes Auth Code+PKCE end-to-end; refresh rotates and a reused refresh token kills the family; client_credentials returns an access token; `/.well-known/openid-configuration` + JWKS validate with a standard client lib.
+- [x] Integrate **OpenIddict** 7.5 server + standard endpoints (§5.1) — authorize/token/userinfo/logout via passthrough controller; introspect/revoke/discovery/JWKS served by OpenIddict
+- [x] `applications` + `application_secrets` tables (§4.5, our mirror) + OpenIddict EF stores; **Tenant Admin** UI to create/manage apps
+- [x] Secret generation: `client_[24]` / `secret_[48]`, shown once, stored hashed (Argon2id mirror; OpenIddict validates); rotation via UI (REST endpoint = Phase 5)
+- [x] **Authorization Code + PKCE** flow (§5.2) → hand-off to the branded end-user login, cross-tenant guard
+- [~] **Refresh token** flow with rotation — OpenIddict rotation + reuse rejection (authorization-scoped revocation acts as the "family"); the `sessions.refresh_family_id` mirror is not yet wired to OpenIddict tokens
+- [x] **Client Credentials** flow (§5.3) — subject = client, scoped to the client's tenant
+- [~] JWKS + discovery (RS256) via OpenIddict **dev certificates**; persisted keys + super-admin key rotation still TODO
+- [x] Token claim assembly — standard claims first (§5.6 step 1): sub, email, email_verified, name, tenant_id with per-scope destinations; re-checks account active on refresh
+- [~] Audience binding — OpenIddict binds tokens to the issuing client by default; explicit resource/audience config not set yet
+- [~] **Acceptance:** Build + 35/35 unit tests green (ApplicationService create/rotate/delete + public/confidential/machine behavior). **Full OAuth runtime acceptance pending a Postgres run** (no DB/Docker in dev shell) — end-to-end code+PKCE, refresh rotation, client_credentials, and discovery/JWKS validation against a standard client lib still to be exercised.
 
 ---
 

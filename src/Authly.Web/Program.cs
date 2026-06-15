@@ -10,6 +10,7 @@ using Authly.Modules.Auth;
 using Authly.Modules.SuperAdmins;
 using Authly.Web.Infrastructure;
 using Authly.Web.Infrastructure.Messaging;
+using Authly.Web.Infrastructure.OAuth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +26,10 @@ builder.Services.AddModules();
 builder.Services.AddScoped<IAuthUrlBuilder, AuthUrlBuilder>();
 builder.Services.AddScoped<IEmailQueue, HangfireEmailQueue>();
 builder.Services.AddScoped<EmailDispatchJob>();
+
+// OAuth 2.0 / OIDC server (OpenIddict) — endpoints, flows, dev signing keys.
+builder.Services.AddAuthlyOpenIddict(builder.Environment.IsDevelopment());
+builder.Services.AddScoped<IOAuthClientStore, OpenIddictClientStore>();
 
 // Two fully isolated cookie schemes: platform super-admin and tenant end-users.
 builder.Services.AddAuthentication(AuthSchemes.SuperAdmin)
@@ -49,6 +54,17 @@ builder.Services.AddAuthentication(AuthSchemes.SuperAdmin)
         options.AccessDeniedPath = "/account/login";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
+    })
+    .AddCookie(AuthSchemes.TenantAdmin, options =>
+    {
+        options.Cookie.Name = "authly.tenantadmin";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.LoginPath = "/tenantadmin/account/login";
+        options.LogoutPath = "/tenantadmin/account/logout";
+        options.AccessDeniedPath = "/tenantadmin/account/login";
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
     });
 
 builder.Services.AddAuthorizationBuilder()
@@ -57,6 +73,9 @@ builder.Services.AddAuthorizationBuilder()
         .RequireAuthenticatedUser())
     .AddPolicy(AuthPolicies.User, policy => policy
         .AddAuthenticationSchemes(AuthSchemes.User)
+        .RequireAuthenticatedUser())
+    .AddPolicy(AuthPolicies.TenantAdmin, policy => policy
+        .AddAuthenticationSchemes(AuthSchemes.TenantAdmin)
         .RequireAuthenticatedUser());
 
 // Hangfire: background jobs stored in PostgreSQL, dashboard at /hangfire.

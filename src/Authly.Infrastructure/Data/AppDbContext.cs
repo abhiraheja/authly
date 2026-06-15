@@ -21,6 +21,8 @@ public class AppDbContext : DbContext
     public DbSet<LoginHistory> LoginHistory => Set<LoginHistory>();
     public DbSet<VerificationToken> VerificationTokens => Set<VerificationToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<Application> Applications => Set<Application>();
+    public DbSet<ApplicationSecret> ApplicationSecrets => Set<ApplicationSecret>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -64,6 +66,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.Status).HasColumnName("status").HasConversion<string>()
                 .HasDefaultValue(UserStatus.Active).IsRequired();
             e.Property(x => x.IsAnonymous).HasColumnName("is_anonymous").HasDefaultValue(false);
+            e.Property(x => x.IsTenantAdmin).HasColumnName("is_tenant_admin").HasDefaultValue(false);
             e.Property(x => x.FirstName).HasColumnName("first_name");
             e.Property(x => x.LastName).HasColumnName("last_name");
             e.Property(x => x.AvatarUrl).HasColumnName("avatar_url");
@@ -210,6 +213,52 @@ public class AppDbContext : DbContext
             e.HasIndex(x => x.UserId).HasDatabaseName("idx_reset_user");
 
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<Application>(e =>
+        {
+            e.ToTable("applications");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.ClientId).HasColumnName("client_id").IsRequired();
+            e.Property(x => x.Name).HasColumnName("name").IsRequired();
+            e.Property(x => x.Type).HasColumnName("type").HasConversion<string>().IsRequired();
+            e.Property(x => x.GrantTypes).HasColumnName("grant_types").HasColumnType("text[]").IsRequired();
+            e.Property(x => x.RedirectUris).HasColumnName("redirect_uris").HasColumnType("text[]")
+                .HasDefaultValueSql("'{}'");
+            e.Property(x => x.AllowedScopes).HasColumnName("allowed_scopes").HasColumnType("text[]")
+                .HasDefaultValueSql("'{}'");
+            e.Property(x => x.TokenLifetime).HasColumnName("token_lifetime").HasDefaultValue(3600);
+            e.Property(x => x.IsFirstParty).HasColumnName("is_first_party").HasDefaultValue(false);
+            e.Property(x => x.Settings).HasColumnName("settings").HasColumnType("jsonb").HasDefaultValueSql("'{}'");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
+            e.Ignore(x => x.IsConfidential);
+
+            e.HasIndex(x => x.ClientId).IsUnique().HasDatabaseName("idx_apps_client_id");
+            e.HasIndex(x => x.TenantId).HasDatabaseName("idx_apps_tenant");
+
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ApplicationSecret>(e =>
+        {
+            e.ToTable("application_secrets");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.ApplicationId).HasColumnName("application_id").IsRequired();
+            e.Property(x => x.SecretHash).HasColumnName("secret_hash").IsRequired();
+            e.Property(x => x.Label).HasColumnName("label");
+            e.Property(x => x.ExpiresAt).HasColumnName("expires_at");
+            e.Property(x => x.Revoked).HasColumnName("revoked").HasDefaultValue(false);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => x.ApplicationId).HasDatabaseName("idx_app_secrets_app");
+
+            e.HasOne(x => x.Application).WithMany(a => a.Secrets).HasForeignKey(x => x.ApplicationId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

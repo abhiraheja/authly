@@ -1,0 +1,104 @@
+@model Application
+@{
+    var secrets = ViewData["Secrets"] as IReadOnlyList<ApplicationSecret> ?? new List<ApplicationSecret>();
+    var newClientId = TempData["NewClientId"] as string;
+    var newSecret = TempData["NewClientSecret"] as string;
+}
+
+<div class="page-title-head d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0">@Model.Name</h4>
+    <a class="btn btn-soft-secondary btn-sm" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index">Back</a>
+</div>
+
+@if (newSecret is not null)
+{
+    <div class="alert alert-warning">
+        <h6 class="alert-heading"><i data-lucide="key-round" class="me-1"></i> Copy your credentials now</h6>
+        <p class="small mb-2">This secret is shown <strong>once</strong> and cannot be retrieved again. Store it securely.</p>
+        @if (newClientId is not null)
+        {
+            <div class="mb-2"><span class="text-muted small d-block">Client ID</span><code>@newClientId</code></div>
+        }
+        <div><span class="text-muted small d-block">Client secret</span><code>@newSecret</code></div>
+    </div>
+}
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header"><h6 class="card-title mb-0">Configuration</h6></div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4 text-muted">Client ID</dt>
+                    <dd class="col-sm-8"><code>@Model.ClientId</code></dd>
+
+                    <dt class="col-sm-4 text-muted">Type</dt>
+                    <dd class="col-sm-8"><span class="badge bg-soft-primary">@Model.Type</span>
+                        @if (Model.IsConfidential) { <span class="badge bg-soft-secondary">confidential</span> }
+                        else { <span class="badge bg-soft-secondary">public (PKCE)</span> }
+                    </dd>
+
+                    <dt class="col-sm-4 text-muted">Grant types</dt>
+                    <dd class="col-sm-8">@string.Join(", ", Model.GrantTypes)</dd>
+
+                    <dt class="col-sm-4 text-muted">Scopes</dt>
+                    <dd class="col-sm-8">@string.Join(" ", Model.AllowedScopes)</dd>
+
+                    <dt class="col-sm-4 text-muted">Redirect URIs</dt>
+                    <dd class="col-sm-8">
+                        @if (Model.RedirectUris.Count == 0) { <span class="text-muted">—</span> }
+                        else { foreach (var u in Model.RedirectUris) { <div><code>@u</code></div> } }
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h6 class="card-title mb-0">Client secrets</h6>
+                @if (Model.IsConfidential)
+                {
+                    <form asp-area="TenantAdmin" asp-controller="Applications" asp-action="RotateSecret" asp-route-id="@Model.Id" method="post">
+                        <button type="submit" class="btn btn-soft-primary btn-sm">Rotate secret</button>
+                    </form>
+                }
+            </div>
+            <div class="card-body">
+                @if (!Model.IsConfidential)
+                {
+                    <p class="text-muted small mb-0">Public client — no secret. Uses PKCE.</p>
+                }
+                else if (secrets.Count == 0)
+                {
+                    <p class="text-muted small mb-0">No secrets recorded.</p>
+                }
+                else
+                {
+                    <ul class="list-group list-group-flush">
+                    @foreach (var s in secrets)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span>@(s.Label ?? "secret") <span class="text-muted small">· @s.CreatedAt.ToString("yyyy-MM-dd")</span></span>
+                            @if (s.Revoked) { <span class="badge bg-soft-danger">revoked</span> }
+                            else { <span class="badge bg-soft-success">active</span> }
+                        </li>
+                    }
+                    </ul>
+                }
+            </div>
+        </div>
+
+        <div class="card mt-3 border-danger">
+            <div class="card-body">
+                <h6 class="text-danger">Danger zone</h6>
+                <p class="text-muted small">Deleting an application immediately revokes its tokens and credentials.</p>
+                <form asp-area="TenantAdmin" asp-controller="Applications" asp-action="Delete" asp-route-id="@Model.Id" method="post"
+                      onsubmit="return confirm('Delete this application? This cannot be undone.');">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">Delete application</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

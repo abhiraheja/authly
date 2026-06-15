@@ -16,6 +16,7 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(conn)
+            .UseOpenIddict() // register OpenIddict's EF entities so migrations include them
             .Options;
 
         return new AppDbContext(options);

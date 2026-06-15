@@ -11,6 +11,7 @@ using Authly.Modules.Claims;
 using Authly.Modules.Hooks;
 using Authly.Modules.Messaging;
 using Authly.Modules.Mfa;
+using Authly.Modules.Security;
 using Authly.Modules.Social;
 using Authly.Modules.Users;
 using Authly.Modules.SuperAdmins;
@@ -55,6 +56,13 @@ public static class DependencyInjection
         services.AddScoped<IContactChangeService, ContactChangeService>();
         services.AddScoped<IRecoveryService, RecoveryService>();
         services.AddScoped<IPasskeyService, PasskeyService>();
+
+        // Phase 12 — security hardening.
+        services.AddScoped<ISecuritySettingsService, SecuritySettingsService>();
+        services.AddScoped<IBlockListService, BlockListService>();
+        services.AddScoped<IAccountLockoutService, AccountLockoutService>();
+        services.AddScoped<ISecurityScreeningService, SecurityScreeningService>();
+        services.AddScoped<ISuspiciousLoginService, SuspiciousLoginService>();
         return services;
     }
 }

@@ -1,0 +1,16 @@
+@{
+    var captcha = ViewData["Captcha"] as Authly.Web.Infrastructure.Security.CaptchaWidget;
+}
+@if (captcha is not null)
+{
+    if (string.Equals(captcha.Provider, "turnstile", StringComparison.OrdinalIgnoreCase))
+    {
+        <div class="cf-turnstile mb-3" data-sitekey="@captcha.SiteKey"></div>
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    }
+    else
+    {
+        <div class="h-captcha mb-3" data-sitekey="@captcha.SiteKey"></div>
+        <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+    }
+}

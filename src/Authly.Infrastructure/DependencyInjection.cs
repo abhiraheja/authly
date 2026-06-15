@@ -59,6 +59,13 @@ public static class DependencyInjection
         // --- WebAuthn / FIDO2 passkey ceremony (Phase 11) ---
         services.AddScoped<Authly.Core.WebAuthn.IWebAuthnGateway, Fido2WebAuthnGateway>();
 
+        // --- Security hardening (Phase 12): rate limiting, lockout, breached-pw, CAPTCHA ---
+        services.AddSingleton<Authly.Core.Security.IRateLimiter, RedisRateLimiter>();
+        services.AddSingleton<Authly.Core.Security.ILoginAttemptStore, RedisLoginAttemptStore>();
+        services.AddScoped<Authly.Core.Security.IPwnedRangeClient, PwnedRangeClient>();
+        services.AddScoped<Authly.Core.Security.IBreachedPasswordGateway, HibpBreachedPasswordGateway>();
+        services.AddScoped<Authly.Core.Security.ICaptchaGateway, HttpCaptchaGateway>();
+
         // --- Webhooks & pipeline hooks (HTTP transports) ---
         services.AddScoped<IWebhookSender, HttpWebhookSender>();
         services.AddScoped<IPipelineHookClient, HttpPipelineHookClient>();

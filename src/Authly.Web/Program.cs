@@ -36,6 +36,10 @@ builder.Services.AddScoped<Authly.Web.Infrastructure.Branding.CurrentBranding>()
 builder.Services.AddScoped<Authly.Core.WebAuthn.IWebAuthnRelyingParty, Authly.Web.Infrastructure.WebAuthn.WebAuthnRelyingParty>();
 builder.Services.AddSingleton<Authly.Web.Infrastructure.WebAuthn.WebAuthnChallengeStore>();
 
+// Security hardening (Phase 12): suspicious-login analysis job (runs via Hangfire) + view-state helper.
+builder.Services.AddScoped<Authly.Web.Infrastructure.Security.SuspiciousLoginJob>();
+builder.Services.AddScoped<Authly.Web.Infrastructure.Security.SecurityViewState>();
+
 // Infrastructure (EF Core, Redis, Argon2id, AES) + business modules.
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddModules();
@@ -143,6 +147,12 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Security headers on every response; super-admin IP allowlist + sensitive-endpoint rate limiting.
+app.UseMiddleware<Authly.Web.Infrastructure.Security.SecurityHeadersMiddleware>();
+app.UseMiddleware<Authly.Web.Infrastructure.Security.SuperAdminIpAllowlistMiddleware>();
+app.UseMiddleware<Authly.Web.Infrastructure.Security.RateLimitingMiddleware>();
+
 app.UseRouting();
 
 // Resolve tenant (sets app.current_tenant for the RLS backstop) before auth.

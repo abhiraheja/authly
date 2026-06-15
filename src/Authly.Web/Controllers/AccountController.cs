@@ -6,6 +6,7 @@ using Authly.Modules.Mfa;
 using Authly.Web.Infrastructure;
 using Authly.Web.Infrastructure.Mfa;
 using Authly.Web.Models;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -28,12 +29,22 @@ public sealed class AccountController : Controller
     private readonly Authly.Modules.AdvancedAuth.IMagicLinkService _magic;
     private readonly Authly.Modules.AdvancedAuth.IContactChangeService _contactChange;
     private readonly Authly.Modules.AdvancedAuth.IRecoveryService _recovery;
+    private readonly Authly.Modules.Security.IAccountLockoutService _lockout;
+    private readonly Authly.Modules.Security.ISecurityScreeningService _screening;
+    private readonly Authly.Modules.Security.IBlockListService _blockList;
+    private readonly Authly.Web.Infrastructure.Security.SecurityViewState _securityView;
+    private readonly Hangfire.IBackgroundJobClient _jobs;
 
     public AccountController(IAuthService auth, ITenantContext tenant, IMfaService mfa, MfaPendingStore mfaPending,
         Authly.Modules.Social.ISocialLoginService social,
         Authly.Modules.AdvancedAuth.IMagicLinkService magic,
         Authly.Modules.AdvancedAuth.IContactChangeService contactChange,
-        Authly.Modules.AdvancedAuth.IRecoveryService recovery)
+        Authly.Modules.AdvancedAuth.IRecoveryService recovery,
+        Authly.Modules.Security.IAccountLockoutService lockout,
+        Authly.Modules.Security.ISecurityScreeningService screening,
+        Authly.Modules.Security.IBlockListService blockList,
+        Authly.Web.Infrastructure.Security.SecurityViewState securityView,
+        Hangfire.IBackgroundJobClient jobs)
     {
         _auth = auth;
         _tenant = tenant;
@@ -43,15 +54,21 @@ public sealed class AccountController : Controller
         _magic = magic;
         _contactChange = contactChange;
         _recovery = recovery;
+        _lockout = lockout;
+        _screening = screening;
+        _blockList = blockList;
+        _securityView = securityView;
+        _jobs = jobs;
     }
 
     // --- Registration ---
 
     [HttpGet("register")]
-    public IActionResult Register()
+    public async Task<IActionResult> Register(CancellationToken ct)
     {
         if (RequireTenant() is { } noTenant) return noTenant;
         ViewData["Title"] = "Create your account";
+        await PopulateCaptchaAsync(ct);
         return View(new RegisterViewModel());
     }
 
@@ -61,7 +78,21 @@ public sealed class AccountController : Controller
     {
         if (RequireTenant() is { } noTenant) return noTenant;
         ViewData["Title"] = "Create your account";
+        await PopulateCaptchaAsync(ct);
         if (!ModelState.IsValid) return View(model);
+
+        // Bot defence + block lists + breached-password screen before we create anything.
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var screen = await _screening.ScreenRegistrationAsync(_tenant.TenantId!.Value,
+            model.Email, model.Password, CaptchaToken(), ip, ct);
+        if (!screen.Passed)
+        {
+            if (screen.CaptchaFailed) ModelState.AddModelError(string.Empty, "Please complete the verification challenge.");
+            if (screen.IpBlocked) ModelState.AddModelError(string.Empty, "Sign-up isn't available from your network.");
+            if (screen.EmailBlocked) ModelState.AddModelError(nameof(model.Email), "Sign-ups from this email domain aren't allowed.");
+            if (screen.PasswordBreached) ModelState.AddModelError(nameof(model.Password), "This password has appeared in a data breach. Choose a different one.");
+            return View(model);
+        }
 
         try
         {
@@ -96,6 +127,7 @@ public sealed class AccountController : Controller
         if (RequireTenant() is { } noTenant) return noTenant;
         ViewData["Title"] = "Sign in";
         ViewData["SocialOptions"] = await _social.ListActiveOptionsAsync(_tenant.TenantId!.Value, ct);
+        await PopulateCaptchaAsync(ct);
         return View(new UserLoginViewModel { ReturnUrl = returnUrl });
     }
 
@@ -105,17 +137,46 @@ public sealed class AccountController : Controller
     {
         if (RequireTenant() is { } noTenant) return noTenant;
         ViewData["Title"] = "Sign in";
+        await PopulateCaptchaAsync(ct);
         if (!ModelState.IsValid) return View(model);
 
-        var result = await _auth.AuthenticateAsync(_tenant.TenantId!.Value, model.Email, model.Password,
-            CurrentRequest(), ct);
+        var tenantId = _tenant.TenantId!.Value;
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+        // Network allow/block list.
+        if (!await _blockList.IsIpAllowedAsync(tenantId, ip, ct) || await _blockList.IsIpBlockedAsync(tenantId, ip, ct))
+        {
+            ModelState.AddModelError(string.Empty, "Sign-in isn't available from your network.");
+            return View(model);
+        }
+
+        // Account lockout (brute-force defence).
+        if (await _lockout.IsLockedAsync(tenantId, model.Email, ct))
+        {
+            ModelState.AddModelError(string.Empty, "Too many failed attempts. Try again later or reset your password.");
+            return View(model);
+        }
+
+        // Bot defence.
+        if (!await _screening.VerifyCaptchaAsync(tenantId, CaptchaToken(), ip, ct))
+        {
+            ModelState.AddModelError(string.Empty, "Please complete the verification challenge.");
+            return View(model);
+        }
+
+        var result = await _auth.AuthenticateAsync(tenantId, model.Email, model.Password, CurrentRequest(), ct);
 
         if (!result.Succeeded || result.User is null || result.Session is null)
         {
+            await _lockout.RecordFailureAsync(tenantId, model.Email, ct);
             // Same message for bad credentials and suspended accounts (no account-state leak).
             ModelState.AddModelError(string.Empty, "Invalid email or password.");
             return View(model);
         }
+
+        // Successful credential check — clear lockout and analyse the login for anomalies.
+        await _lockout.ResetAsync(tenantId, model.Email, ct);
+        QueueSuspiciousLoginCheck(result.User.Id);
 
         var returnUrl = !string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl)
             ? model.ReturnUrl : null;
@@ -219,6 +280,12 @@ public sealed class AccountController : Controller
         ViewData["Title"] = "Reset password";
         if (!ModelState.IsValid) return View(model);
 
+        if (await _screening.IsPasswordBreachedAsync(_tenant.TenantId!.Value, model.NewPassword, ct))
+        {
+            ModelState.AddModelError(nameof(model.NewPassword), "This password has appeared in a data breach. Choose a different one.");
+            return View(model);
+        }
+
         var ok = await _auth.ResetPasswordAsync(_tenant.TenantId!.Value, model.Token, model.NewPassword, ct);
         if (!ok)
         {
@@ -270,6 +337,7 @@ public sealed class AccountController : Controller
         }
 
         var session = await _auth.StartSessionAsync(user, "magic_link", CurrentRequest(), ct);
+        QueueSuspiciousLoginCheck(user.Id);
         await UserSignIn.SignInAsync(HttpContext, user.Id, user.Email, user.TenantId, session.Id, user.EmailVerified);
         return Portal();
     }
@@ -320,6 +388,12 @@ public sealed class AccountController : Controller
         ViewData["Title"] = "Set a new password";
         if (!ModelState.IsValid) return View(model);
 
+        if (await _screening.IsPasswordBreachedAsync(_tenant.TenantId!.Value, model.NewPassword, ct))
+        {
+            ModelState.AddModelError(nameof(model.NewPassword), "This password has appeared in a data breach. Choose a different one.");
+            return View(model);
+        }
+
         var ok = await _auth.ResetPasswordAsync(_tenant.TenantId!.Value, model.Token, model.NewPassword, ct);
         if (!ok)
         {
@@ -364,4 +438,26 @@ public sealed class AccountController : Controller
         => new(
             HttpContext.Connection.RemoteIpAddress?.ToString(),
             Request.Headers.UserAgent.ToString() is { Length: > 0 } ua ? ua : null);
+
+    /// <summary>Reads the CAPTCHA token from whichever provider's form field is present.</summary>
+    private string? CaptchaToken()
+        => Request.Form["h-captcha-response"].FirstOrDefault()
+           ?? Request.Form["cf-turnstile-response"].FirstOrDefault()
+           ?? Request.Form["captcha-token"].FirstOrDefault();
+
+    /// <summary>Loads the CAPTCHA widget (if enabled) into ViewData for the auth views.</summary>
+    private async Task PopulateCaptchaAsync(CancellationToken ct)
+    {
+        if (_tenant.HasTenant)
+            ViewData["Captcha"] = await _securityView.GetCaptchaAsync(_tenant.TenantId!.Value, ct);
+    }
+
+    /// <summary>Fire-and-forget background analysis of a successful login for new device/location.</summary>
+    private void QueueSuspiciousLoginCheck(Guid userId)
+    {
+        var tenantId = _tenant.TenantId!.Value;
+        var info = CurrentRequest();
+        _jobs.Enqueue<Authly.Web.Infrastructure.Security.SuspiciousLoginJob>(
+            j => j.EvaluateAsync(tenantId, userId, info.IpAddress, info.UserAgent));
+    }
 }

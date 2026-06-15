@@ -33,6 +33,7 @@ public sealed class AccountController : Controller
     private readonly Authly.Modules.Security.ISecurityScreeningService _screening;
     private readonly Authly.Modules.Security.IBlockListService _blockList;
     private readonly Authly.Web.Infrastructure.Security.SecurityViewState _securityView;
+    private readonly Authly.Modules.Compliance.IConsentService _consent;
     private readonly Hangfire.IBackgroundJobClient _jobs;
 
     public AccountController(IAuthService auth, ITenantContext tenant, IMfaService mfa, MfaPendingStore mfaPending,
@@ -44,6 +45,7 @@ public sealed class AccountController : Controller
         Authly.Modules.Security.ISecurityScreeningService screening,
         Authly.Modules.Security.IBlockListService blockList,
         Authly.Web.Infrastructure.Security.SecurityViewState securityView,
+        Authly.Modules.Compliance.IConsentService consent,
         Hangfire.IBackgroundJobClient jobs)
     {
         _auth = auth;
@@ -58,6 +60,7 @@ public sealed class AccountController : Controller
         _screening = screening;
         _blockList = blockList;
         _securityView = securityView;
+        _consent = consent;
         _jobs = jobs;
     }
 
@@ -96,9 +99,14 @@ public sealed class AccountController : Controller
 
         try
         {
-            await _auth.RegisterAsync(_tenant.TenantId!.Value,
+            var user = await _auth.RegisterAsync(_tenant.TenantId!.Value,
                 new RegisterRequest(model.Email, model.Password, model.FirstName, model.LastName),
                 CurrentRequest(), ct);
+
+            // GDPR/DPDP: record the terms + privacy consent the user gave at signup.
+            await _consent.RecordSignupConsentAsync(_tenant.TenantId!.Value, user.Id, policyVersion: null,
+                new AuditContext(user.Id, "user", HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    Request.Headers.UserAgent.ToString() is { Length: > 0 } ua ? ua : null), ct);
         }
         catch (EmailAlreadyExistsException)
         {

@@ -42,6 +42,8 @@ public class AppDbContext : DbContext
     public DbSet<ClaimConfig> ClaimConfigs => Set<ClaimConfig>();
     public DbSet<RecoveryContact> RecoveryContacts => Set<RecoveryContact>();
     public DbSet<PendingContactChange> PendingContactChanges => Set<PendingContactChange>();
+    public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
+    public DbSet<SelfHostedInstance> SelfHostedInstances => Set<SelfHostedInstance>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -441,6 +443,47 @@ public class AppDbContext : DbContext
 
             e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ConsentRecord>(e =>
+        {
+            e.ToTable("consent_records");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
+            e.Property(x => x.Purpose).HasColumnName("purpose").IsRequired();
+            e.Property(x => x.Granted).HasColumnName("granted").HasDefaultValue(true);
+            e.Property(x => x.Version).HasColumnName("version");
+            e.Property(x => x.IpAddress).HasColumnName("ip_address");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.UserId }).HasDatabaseName("idx_consent_records_user");
+
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Platform-level (cloud control plane). NOT tenant-scoped — no RLS, like super_admins.
+        b.Entity<SelfHostedInstance>(e =>
+        {
+            e.ToTable("self_hosted_instances");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.OwnerTenantId).HasColumnName("owner_tenant_id");
+            e.Property(x => x.Name).HasColumnName("name");
+            e.Property(x => x.SyncKeyHash).HasColumnName("sync_key_hash").IsRequired();
+            e.Property(x => x.Version).HasColumnName("version");
+            e.Property(x => x.LastSeenAt).HasColumnName("last_seen_at");
+            e.Property(x => x.UserCount).HasColumnName("user_count").HasDefaultValue(0);
+            e.Property(x => x.AppCount).HasColumnName("app_count").HasDefaultValue(0);
+            e.Property(x => x.TenantCount).HasColumnName("tenant_count").HasDefaultValue(0);
+            e.Property(x => x.Health).HasColumnName("health").HasColumnType("jsonb").HasDefaultValueSql("'{}'");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => x.SyncKeyHash).IsUnique().HasDatabaseName("idx_self_hosted_instances_sync_key");
+
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.OwnerTenantId).OnDelete(DeleteBehavior.SetNull);
         });
 
         b.Entity<MfaBackupCode>(e =>

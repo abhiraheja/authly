@@ -63,6 +63,11 @@ public static class DependencyInjection
         services.AddScoped<IAccountLockoutService, AccountLockoutService>();
         services.AddScoped<ISecurityScreeningService, SecurityScreeningService>();
         services.AddScoped<ISuspiciousLoginService, SuspiciousLoginService>();
+
+        // Phase 13 — self-host telemetry + GDPR/DPDP compliance.
+        services.AddScoped<Compliance.IConsentService, Compliance.ConsentService>();
+        services.AddScoped<Compliance.IDataRightsService, Compliance.DataRightsService>();
+        services.AddScoped<Compliance.ISelfHostSyncService, Compliance.SelfHostSyncService>();
         return services;
     }
 }

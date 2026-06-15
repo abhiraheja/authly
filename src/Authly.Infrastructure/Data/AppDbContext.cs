@@ -15,6 +15,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<SuperAdmin> SuperAdmins => Set<SuperAdmin>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -75,6 +77,47 @@ public class AppDbContext : DbContext
 
             e.HasOne(x => x.Tenant).WithMany(t => t.Users).HasForeignKey(x => x.TenantId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<SuperAdmin>(e =>
+        {
+            e.ToTable("super_admins");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.Email).HasColumnName("email").IsRequired();
+            e.Property(x => x.PasswordHash).HasColumnName("password_hash").IsRequired();
+            e.Property(x => x.Role).HasColumnName("role").HasConversion<string>()
+                .HasDefaultValue(SuperAdminRole.Operator).IsRequired();
+            e.Property(x => x.MfaEnabled).HasColumnName("mfa_enabled").HasDefaultValue(true);
+            e.Property(x => x.MustChangePassword).HasColumnName("must_change_password").HasDefaultValue(false);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            e.Property(x => x.LastLoginAt).HasColumnName("last_login_at");
+
+            e.HasIndex(x => x.Email).IsUnique().HasDatabaseName("idx_super_admins_email");
+        });
+
+        b.Entity<AuditLog>(e =>
+        {
+            e.ToTable("audit_logs");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id");
+            e.Property(x => x.ActorId).HasColumnName("actor_id");
+            e.Property(x => x.ActorType).HasColumnName("actor_type");
+            e.Property(x => x.Event).HasColumnName("event").IsRequired();
+            e.Property(x => x.ResourceType).HasColumnName("resource_type");
+            e.Property(x => x.ResourceId).HasColumnName("resource_id");
+            e.Property(x => x.IpAddress).HasColumnName("ip_address");
+            e.Property(x => x.UserAgent).HasColumnName("user_agent");
+            e.Property(x => x.Result).HasColumnName("result").HasDefaultValue("success").IsRequired();
+            e.Property(x => x.Metadata).HasColumnName("metadata").HasColumnType("jsonb").HasDefaultValueSql("'{}'");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.CreatedAt }).HasDatabaseName("idx_audit_tenant");
+            e.HasIndex(x => new { x.ActorId, x.CreatedAt }).HasDatabaseName("idx_audit_actor");
+
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

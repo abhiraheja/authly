@@ -1,0 +1,91 @@
+@{
+    var providers = ViewData["Providers"] as IReadOnlyList<MessagingProvider> ?? new List<MessagingProvider>();
+    var logs = ViewData["Logs"] as IReadOnlyList<MessageLog> ?? new List<MessageLog>();
+    MessagingProvider? email = providers.FirstOrDefault(p => p.Channel == MessageChannel.Email);
+    MessagingProvider? whatsapp = providers.FirstOrDefault(p => p.Channel == MessageChannel.WhatsApp);
+}
+
+<div class="page-title-head d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0">Messaging</h4>
+    <a class="btn btn-soft-secondary btn-sm" asp-area="TenantAdmin" asp-controller="Messaging" asp-action="Templates">
+        <i data-lucide="file-text" class="me-1"></i> Templates
+    </a>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="d-flex align-items-center gap-2"><i data-lucide="mail"></i> Email provider</h6>
+                @if (email is not null)
+                {
+                    <p class="small mb-2">
+                        <code>@email.Provider</code>
+                        @if (email.IsActive) { <span class="badge bg-soft-success">active</span> } else { <span class="badge bg-soft-secondary">inactive</span> }
+                    </p>
+                }
+                else
+                {
+                    <p class="small text-muted mb-2">No provider configured — emails are logged locally.</p>
+                }
+                <a class="btn btn-sm btn-primary" asp-area="TenantAdmin" asp-controller="Messaging" asp-action="Provider"
+                   asp-route-channel="email" asp-route-id="@email?.Id">@(email is null ? "Configure" : "Edit")</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="d-flex align-items-center gap-2"><i data-lucide="message-circle"></i> WhatsApp provider</h6>
+                @if (whatsapp is not null)
+                {
+                    <p class="small mb-2">
+                        <code>@whatsapp.Provider</code>
+                        @if (whatsapp.IsActive) { <span class="badge bg-soft-success">active</span> } else { <span class="badge bg-soft-secondary">inactive</span> }
+                    </p>
+                }
+                else
+                {
+                    <p class="small text-muted mb-2">No provider configured — WhatsApp messages are logged locally.</p>
+                }
+                <a class="btn btn-sm btn-primary" asp-area="TenantAdmin" asp-controller="Messaging" asp-action="Provider"
+                   asp-route-channel="whatsapp" asp-route-id="@whatsapp?.Id">@(whatsapp is null ? "Configure" : "Edit")</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h6 class="mb-3">Recent deliveries</h6>
+        @if (logs.Count == 0)
+        {
+            <p class="text-muted mb-0">No messages sent yet.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead><tr><th>When</th><th>Channel</th><th>Recipient</th><th>Template</th><th>Status</th><th>Error</th></tr></thead>
+                    <tbody>
+                    @foreach (var l in logs)
+                    {
+                        <tr>
+                            <td class="small text-muted">@l.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td class="small">@l.Channel</td>
+                            <td class="small">@l.Recipient</td>
+                            <td class="small"><code>@l.TemplateKey</code></td>
+                            <td>
+                                @if (l.Status == "sent") { <span class="badge bg-soft-success">sent</span> }
+                                else if (l.Status == "failed") { <span class="badge bg-soft-danger">failed</span> }
+                                else { <span class="badge bg-soft-secondary">@l.Status</span> }
+                            </td>
+                            <td class="small text-danger">@l.Error</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

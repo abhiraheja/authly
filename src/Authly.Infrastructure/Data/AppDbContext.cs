@@ -31,6 +31,9 @@ public class AppDbContext : DbContext
     public DbSet<MfaFactor> MfaFactors => Set<MfaFactor>();
     public DbSet<MfaBackupCode> MfaBackupCodes => Set<MfaBackupCode>();
     public DbSet<OtpCode> OtpCodes => Set<OtpCode>();
+    public DbSet<MessagingProvider> MessagingProviders => Set<MessagingProvider>();
+    public DbSet<MessageTemplate> MessageTemplates => Set<MessageTemplate>();
+    public DbSet<MessageLog> MessageLogs => Set<MessageLog>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -418,7 +421,73 @@ public class AppDbContext : DbContext
             e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
         });
+
+        b.Entity<MessagingProvider>(e =>
+        {
+            e.ToTable("messaging_providers");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Channel).HasColumnName("channel").HasConversion(
+                v => v.ToString().ToLowerInvariant(), v => ParseMessageChannel(v)).IsRequired();
+            e.Property(x => x.Provider).HasColumnName("provider").IsRequired();
+            e.Property(x => x.Mode).HasColumnName("mode").HasDefaultValue("byok").IsRequired();
+            e.Property(x => x.Config).HasColumnName("config").HasColumnType("jsonb").HasDefaultValueSql("'{}'");
+            e.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.Channel }).HasDatabaseName("idx_messaging_providers_tenant_channel");
+
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<MessageTemplate>(e =>
+        {
+            e.ToTable("message_templates");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Key).HasColumnName("key").IsRequired();
+            e.Property(x => x.Channel).HasColumnName("channel").HasConversion(
+                v => v.ToString().ToLowerInvariant(), v => ParseMessageChannel(v)).IsRequired();
+            e.Property(x => x.Locale).HasColumnName("locale").HasDefaultValue("en").IsRequired();
+            e.Property(x => x.Subject).HasColumnName("subject");
+            e.Property(x => x.Body).HasColumnName("body").IsRequired();
+            e.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.Key, x.Channel, x.Locale }).IsUnique()
+                .HasDatabaseName("idx_message_templates_unique");
+
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<MessageLog>(e =>
+        {
+            e.ToTable("message_log");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Channel).HasColumnName("channel").HasConversion(
+                v => v.ToString().ToLowerInvariant(), v => ParseMessageChannel(v)).IsRequired();
+            e.Property(x => x.Recipient).HasColumnName("recipient").IsRequired();
+            e.Property(x => x.TemplateKey).HasColumnName("template_key");
+            e.Property(x => x.Status).HasColumnName("status").IsRequired();
+            e.Property(x => x.Error).HasColumnName("error");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.CreatedAt }).HasDatabaseName("idx_message_log_tenant_created");
+
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
     }
+
+    private static MessageChannel ParseMessageChannel(string v) => v switch
+    {
+        "email" => MessageChannel.Email,
+        "whatsapp" => MessageChannel.WhatsApp,
+        _ => throw new InvalidOperationException($"Unknown message channel '{v}'.")
+    };
 
     // MFA factor type maps to fixed snake_case text the schema (§4.4) specifies.
     private static string FactorTypeToString(MfaFactorType v) => v switch

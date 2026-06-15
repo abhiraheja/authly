@@ -27,7 +27,8 @@ public class AuthServiceTests
         Assert.NotNull(user.PasswordHash);
         Assert.NotEqual("Sup3rSecret!", user.PasswordHash);        // hashed, not plaintext
         Assert.Single(h.Verifications.Items);                       // a token was issued
-        Assert.Single(h.Emails);                                    // an email was queued
+        var queued = Assert.Single(h.Messages);                     // a message was queued
+        Assert.Equal("verify_email", queued.TemplateKey);
         Assert.Contains("user.registered", h.Audit.Events);
     }
 
@@ -122,7 +123,7 @@ public class AuthServiceTests
         await h.Service.RequestPasswordResetAsync(Tenant, "nobody@example.com", RequestInfo.Unknown);
 
         Assert.Empty(h.Resets.Items);
-        Assert.Empty(h.Emails);
+        Assert.Empty(h.Messages);
     }
 
     [Fact]
@@ -159,15 +160,15 @@ public class AuthServiceTests
         public readonly FakeResetRepository Resets = new();
         public readonly RecordingAuditLogger Audit = new();
         public readonly FakeUrlBuilder Urls = new();
-        public readonly List<EmailMessage> Emails = new();
+        public readonly List<MessageSendRequest> Messages = new();
         public readonly AuthService Service;
 
         public Harness()
         {
-            var emailQueue = new CapturingEmailQueue(Emails);
+            var queue = new CapturingMessageQueue(Messages);
             Service = new AuthService(Users, Sessions, Logins, Verifications, Resets,
                 new Argon2idPasswordHasher(), new Sha256TokenHasher(),
-                emailQueue, Urls, Audit, NullLogger<AuthService>.Instance);
+                queue, Urls, Audit, NullLogger<AuthService>.Instance);
         }
     }
 
@@ -313,10 +314,10 @@ public class AuthServiceTests
         }
     }
 
-    private sealed class CapturingEmailQueue : IEmailQueue
+    private sealed class CapturingMessageQueue : IMessageQueue
     {
-        private readonly List<EmailMessage> _sink;
-        public CapturingEmailQueue(List<EmailMessage> sink) => _sink = sink;
-        public void Queue(EmailMessage message) => _sink.Add(message);
+        private readonly List<MessageSendRequest> _sink;
+        public CapturingMessageQueue(List<MessageSendRequest> sink) => _sink = sink;
+        public void Enqueue(MessageSendRequest request) => _sink.Add(request);
     }
 }

@@ -260,8 +260,16 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 ## Future Work (post-Foundation — master-plan Phases 2–4)
 
-- **Phase 2 (Advanced):** ~~risk-based/conditional access~~ ✅, ABAC ⏳, anonymous/guest auth ⏳, ~~impersonation~~ ✅, ~~device management~~ ✅, anomaly detection (✅ via suspicious-login + conditional access; dedicated risk-scoring engine ⏳ Phase 4), ~~log streaming~~ ✅, ~~migration tools (Auth0/Firebase importers)~~ ✅, SDKs ⏳, CLI ⏳.
-  - ⏳ **Deferred with rationale:** **ABAC** — a full attribute-policy engine is a large subsystem; near-term needs are met by RBAC + custom claim configs + conditional access. **Anonymous/guest auth** — lower priority for the IDaaS core and would add churn to the central users table; revisit when a guest→account upgrade flow is actually required. **Dedicated risk-scoring/anomaly engine** — basic anomaly handling ships (new-device/new-IP detection + enforcement); advanced scoring is a master-plan Phase 4 item. **SDKs / CLI** — separate client projects; the plan defers these until the v1 API is stable.
+- **Phase 2 (Advanced):** ~~risk-based/conditional access~~ ✅, ~~ABAC~~ ✅, anonymous/guest auth ⏳, ~~impersonation~~ ✅, ~~device management~~ ✅, anomaly detection (✅ via suspicious-login + conditional access; dedicated risk-scoring engine ⏳ Phase 4), ~~log streaming~~ ✅, ~~migration tools (Auth0/Firebase importers)~~ ✅, SDKs ⏳, CLI ⏳.
+  - ⏳ **Deferred with rationale:** **Anonymous/guest auth** — lower priority for the IDaaS core and would add churn to the central users table; revisit when a guest→account upgrade flow is actually required. **Dedicated risk-scoring/anomaly engine** — basic anomaly handling ships (new-device/new-IP detection + enforcement); advanced scoring is a master-plan Phase 4 item. **SDKs / CLI** — separate client projects; the plan defers these until the v1 API is stable.
+
+### Phase 2 — ABAC (attribute-based access control)  *(done 2026-06-16, build + 13 tests, runtime-pending)*
+- [x] `AccessPolicy` entity (tenant-scoped, RLS; jsonb `conditions`) + repo + migration `AddAccessPolicies`.
+- [x] Pure `AbacEngine` PDP — glob action/resource match (`*`, `prefix*`, exact), conditions (equals/notEquals/contains/in/greaterThan/lessThan/exists over `subject.*`/`resource.*`/`environment.*`), **deny-overrides** combining with **default-deny**; `IAccessPolicyService` CRUD + `IAuthorizationDecisionService`.
+- [x] Tenant Admin → **Access policies** CRUD + a live **test-decision console**; management API `POST /api/v1/access/evaluate` (API-key/Bearer, tenant-scoped) returns `{allowed, policy, reason}`.
+- [~] **Acceptance:** build + 13 unit tests (default-deny; allow; deny-overrides-priority; priority pick; glob match; all-conditions-hold; operator semantics ×5; exists; decision-service enabled-only + condition parse). **240/240 total across the suite.** Runtime-pending: live evaluate endpoint + policy decisions against a running app.
+
+> **Runtime fix (2026-06-16):** the Hangfire recurring-job registration in `Program.cs` used the **static** `RecurringJob` API, which throws `JobStorage instance has not been initialized` under the service-based `AddHangfire` setup. Switched to the DI-resolved **`IRecurringJobManager`** (per Hangfire's own guidance). Surfaced on the first real startup.
 
 ### Phase 2 — Conditional / risk-based access  *(done 2026-06-16, build + 6 tests, runtime-pending)*
 - [x] Per-tenant conditional-access policy (`TenantSecuritySettings.ConditionalAccessEnabled` + `NewDeviceAction`/`UnverifiedEmailAction` as `ConditionalAction` Allow|RequireMfa|Block), edited on the Tenant Admin → Security page.

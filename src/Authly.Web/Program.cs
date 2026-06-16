@@ -157,27 +157,31 @@ using (var scope = app.Services.CreateScope())
 
 // Phase 13 — recurring maintenance + telemetry jobs. Retention runs in every deployment; the
 // self-host telemetry push only when self-hosted with a configured sync endpoint/key.
-RecurringJob.AddOrUpdate<Authly.Web.Infrastructure.Maintenance.MaintenanceJobs>(
-    "retention-expire-transient", j => j.ExpireTransientCredentialsAsync(CancellationToken.None), Cron.Hourly());
-RecurringJob.AddOrUpdate<Authly.Web.Infrastructure.Maintenance.MaintenanceJobs>(
-    "retention-purge-history", j => j.PurgeStaleHistoryAsync(CancellationToken.None), Cron.Daily());
-
+// Use the service-based IRecurringJobManager (resolved from DI) rather than the static RecurringJob
+// API, which requires JobStorage.Current and throws at startup under service-based Hangfire setup.
 using (var scope = app.Services.CreateScope())
 {
+    var recurringJobs = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+
+    recurringJobs.AddOrUpdate<Authly.Web.Infrastructure.Maintenance.MaintenanceJobs>(
+        "retention-expire-transient", j => j.ExpireTransientCredentialsAsync(CancellationToken.None), Cron.Hourly());
+    recurringJobs.AddOrUpdate<Authly.Web.Infrastructure.Maintenance.MaintenanceJobs>(
+        "retention-purge-history", j => j.PurgeStaleHistoryAsync(CancellationToken.None), Cron.Daily());
+
     var deployment = scope.ServiceProvider.GetRequiredService<Authly.Core.Deployment.IDeploymentContext>();
     if (deployment.SyncEnabled)
-        RecurringJob.AddOrUpdate<Authly.Web.Infrastructure.SelfHost.SelfHostSyncJob>(
+        recurringJobs.AddOrUpdate<Authly.Web.Infrastructure.SelfHost.SelfHostSyncJob>(
             "self-host-telemetry-sync", j => j.PushAsync(CancellationToken.None), "0 */6 * * *");
     else
-        RecurringJob.RemoveIfExists("self-host-telemetry-sync");
-}
+        recurringJobs.RemoveIfExists("self-host-telemetry-sync");
 
-// Phase 2 — audit log streaming to an external SIEM/webhook, only when an endpoint is configured.
-if (Authly.Web.Infrastructure.LogStreaming.LogStreamJob.IsConfigured(builder.Configuration))
-    RecurringJob.AddOrUpdate<Authly.Web.Infrastructure.LogStreaming.LogStreamJob>(
-        "audit-log-stream", j => j.FlushAsync(CancellationToken.None), "*/5 * * * *");
-else
-    RecurringJob.RemoveIfExists("audit-log-stream");
+    // Phase 2 — audit log streaming to an external SIEM/webhook, only when an endpoint is configured.
+    if (Authly.Web.Infrastructure.LogStreaming.LogStreamJob.IsConfigured(builder.Configuration))
+        recurringJobs.AddOrUpdate<Authly.Web.Infrastructure.LogStreaming.LogStreamJob>(
+            "audit-log-stream", j => j.FlushAsync(CancellationToken.None), "*/5 * * * *");
+    else
+        recurringJobs.RemoveIfExists("audit-log-stream");
+}
 
 if (!app.Environment.IsDevelopment())
 {

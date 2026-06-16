@@ -16,6 +16,10 @@ using OpenIddict.Validation.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Deploy flag: when shipping/wrapping the product to customers, the platform super-admin surface
+// is disabled so it is never exposed. Defaults to enabled for our own hosted deployment.
+var superAdminEnabled = builder.Configuration.GetValue("SUPERADMIN_ENABLED", true);
+
 // MVC + Razor (all panels, hosted login, end-user portal are server-rendered).
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
@@ -140,9 +144,11 @@ using (var scope = app.Services.CreateScope())
     var sp = scope.ServiceProvider;
     sp.GetRequiredService<AppDbContext>().Database.Migrate();
 
-    await sp.GetRequiredService<ISuperAdminService>().EnsureSeededAsync(
-        app.Configuration["SUPERADMIN_EMAIL"],
-        app.Configuration["SUPERADMIN_PASSWORD"]);
+    // Only seed (and later expose) the platform super admin when the surface is enabled.
+    if (superAdminEnabled)
+        await sp.GetRequiredService<ISuperAdminService>().EnsureSeededAsync(
+            app.Configuration["SUPERADMIN_EMAIL"],
+            app.Configuration["SUPERADMIN_PASSWORD"]);
 
     // Phase 13 — record the self-host disclosure acknowledgement at boot (evidence the operator
     // is running a copy that syncs aggregate telemetry; §9 hard rule 4).
@@ -195,6 +201,21 @@ app.UseHttpsRedirection();
 app.UseMiddleware<Authly.Web.Infrastructure.Security.SecurityHeadersMiddleware>();
 app.UseMiddleware<Authly.Web.Infrastructure.Security.SuperAdminIpAllowlistMiddleware>();
 app.UseMiddleware<Authly.Web.Infrastructure.Security.RateLimitingMiddleware>();
+
+// When the super-admin surface is disabled (customer-facing builds), hide it entirely: every
+// /superadmin route 404s as if it doesn't exist.
+if (!superAdminEnabled)
+{
+    app.Use(async (ctx, next) =>
+    {
+        if (ctx.Request.Path.StartsWithSegments("/superadmin"))
+        {
+            ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+        await next();
+    });
+}
 
 app.UseRouting();
 

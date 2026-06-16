@@ -77,6 +77,9 @@ public static class DependencyInjection
 
         // Phase 14 — platform ops announcements.
         services.AddScoped<Announcements.IAnnouncementService, Announcements.AnnouncementService>();
+
+        // Self-service tenant signup (Supabase-style: visitor provisions their own workspace).
+        services.AddScoped<Signup.ITenantSignupService, Signup.TenantSignupService>();
         return services;
     }
 }

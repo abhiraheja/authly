@@ -46,6 +46,7 @@ public class AppDbContext : DbContext
     public DbSet<SelfHostedInstance> SelfHostedInstances => Set<SelfHostedInstance>();
     public DbSet<Announcement> Announcements => Set<Announcement>();
     public DbSet<UserDevice> UserDevices => Set<UserDevice>();
+    public DbSet<PlatformState> PlatformState => Set<PlatformState>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -508,6 +509,16 @@ public class AppDbContext : DbContext
 
             e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Platform-level key/value control-plane state (log-stream cursor, etc). NOT tenant-scoped — no RLS.
+        b.Entity<PlatformState>(e =>
+        {
+            e.ToTable("platform_state");
+            e.HasKey(x => x.Key);
+            e.Property(x => x.Key).HasColumnName("key");
+            e.Property(x => x.Value).HasColumnName("value").IsRequired();
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
         });
 
         // Platform-level super-admin announcements. NOT tenant-scoped — no RLS, like super_admins.

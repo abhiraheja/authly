@@ -1,0 +1,57 @@
+@using Authly.Modules.Users
+@{
+    var result = ViewBag.Result as ImportResult;
+}
+
+<div class="page-title-head d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0">Import users</h4>
+    <a class="btn btn-soft-secondary btn-sm" asp-area="TenantAdmin" asp-controller="Users" asp-action="Index">Back</a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <p class="text-muted">
+                    Paste a user export from Auth0, Firebase, or a generic JSON array. Passwords are not migrated —
+                    imported users set a password via "forgot password" on first sign-in. Existing emails are skipped.
+                </p>
+                <form asp-area="TenantAdmin" asp-controller="Users" asp-action="Import" method="post">
+                    <div class="mb-3" style="max-width:16rem;">
+                        <label class="form-label">Source format</label>
+                        <select name="source" class="form-select">
+                            <option value="@ImportSource.Generic">Generic JSON array</option>
+                            <option value="@ImportSource.Auth0">Auth0 export</option>
+                            <option value="@ImportSource.Firebase">Firebase export</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Export JSON</label>
+                        <textarea name="json" class="form-control font-monospace" rows="10"
+                                  placeholder='[{ "email": "a@x.com", "firstName": "Ada", "emailVerified": true }]'></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary"><i data-lucide="upload" class="me-1"></i> Import</button>
+                </form>
+
+                @if (result is not null)
+                {
+                    <hr />
+                    <h6>Result</h6>
+                    <ul class="mb-2">
+                        <li><strong>@result.Created</strong> created</li>
+                        <li><strong>@result.Skipped</strong> skipped (already exist)</li>
+                        <li><strong>@result.Errors.Count</strong> error(s)</li>
+                    </ul>
+                    @if (result.Errors.Count > 0)
+                    {
+                        <div class="alert alert-warning py-2">
+                            <ul class="mb-0 small">
+                                @foreach (var e in result.Errors.Take(20)) { <li>@e</li> }
+                            </ul>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>

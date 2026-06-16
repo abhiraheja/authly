@@ -15,13 +15,15 @@ public sealed class UsersController : TenantAdminControllerBase
     private readonly IUserRepository _users;
     private readonly IRbacService _rbac;
     private readonly IImpersonationService _impersonation;
+    private readonly IUserImportService _import;
 
     public UsersController(IUserRepository users, IRbacService rbac, IImpersonationService impersonation,
-        ITenantContext tenant) : base(tenant)
+        IUserImportService import, ITenantContext tenant) : base(tenant)
     {
         _users = users;
         _rbac = rbac;
         _impersonation = impersonation;
+        _import = import;
     }
 
     [HttpGet("")]
@@ -110,5 +112,29 @@ public sealed class UsersController : TenantAdminControllerBase
             TempData["Error"] = ex.Message;
             return RedirectToAction(nameof(Details), new { id });
         }
+    }
+
+    [HttpGet("import")]
+    public IActionResult Import()
+    {
+        ViewData["Title"] = "Import users";
+        return View();
+    }
+
+    [HttpPost("import")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Import(ImportSource source, string? json, CancellationToken ct)
+    {
+        ViewData["Title"] = "Import users";
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            TempData["Error"] = "Paste the export JSON to import.";
+            return View();
+        }
+
+        var result = await _import.ImportAsync(TenantId, source, json, CurrentAudit(), ct);
+        ViewBag.Result = result;
+        TempData["Success"] = $"Imported {result.Created} user(s); {result.Skipped} skipped.";
+        return View();
     }
 }

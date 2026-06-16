@@ -47,6 +47,7 @@ public class AppDbContext : DbContext
     public DbSet<Announcement> Announcements => Set<Announcement>();
     public DbSet<UserDevice> UserDevices => Set<UserDevice>();
     public DbSet<PlatformState> PlatformState => Set<PlatformState>();
+    public DbSet<AccessPolicy> AccessPolicies => Set<AccessPolicy>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -487,6 +488,28 @@ public class AppDbContext : DbContext
             e.HasIndex(x => x.SyncKeyHash).IsUnique().HasDatabaseName("idx_self_hosted_instances_sync_key");
 
             e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.OwnerTenantId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Tenant-scoped ABAC access policies (RLS like users). Conditions stored as jsonb.
+        b.Entity<AccessPolicy>(e =>
+        {
+            e.ToTable("access_policies");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Name).HasColumnName("name").IsRequired();
+            e.Property(x => x.Description).HasColumnName("description");
+            e.Property(x => x.Effect).HasColumnName("effect").HasDefaultValue("allow").IsRequired();
+            e.Property(x => x.Action).HasColumnName("action").HasDefaultValue("*").IsRequired();
+            e.Property(x => x.ResourceType).HasColumnName("resource_type").HasDefaultValue("*").IsRequired();
+            e.Property(x => x.Conditions).HasColumnName("conditions").HasColumnType("jsonb").HasDefaultValueSql("'[]'");
+            e.Property(x => x.Priority).HasColumnName("priority").HasDefaultValue(0);
+            e.Property(x => x.Enabled).HasColumnName("enabled").HasDefaultValue(true);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.Enabled }).HasDatabaseName("idx_access_policies_tenant");
+
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // Tenant-scoped known devices (RLS like users).

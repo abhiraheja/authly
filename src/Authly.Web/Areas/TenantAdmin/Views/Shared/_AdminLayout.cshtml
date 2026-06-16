@@ -80,6 +80,13 @@
                 </a>
             </li>
             <li class="side-nav-item">
+                <a class="side-nav-link @(IsActive("AccessPolicies") ? "active" : "")"
+                   asp-area="TenantAdmin" asp-controller="AccessPolicies" asp-action="Index">
+                    <span class="menu-icon"><i data-lucide="scale"></i></span>
+                    <span class="menu-text">Access policies</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
                 <a class="side-nav-link @(IsActive("Security") ? "active" : "")"
                    asp-area="TenantAdmin" asp-controller="Security" asp-action="Index">
                     <span class="menu-icon"><i data-lucide="shield-alert"></i></span>

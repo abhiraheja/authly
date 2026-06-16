@@ -6,7 +6,12 @@
     <h1 class="display-5 fw-bold">Authly</h1>
     <p class="lead text-muted">Free, open-source, multi-tenant Identity-as-a-Service.</p>
     <div class="d-flex gap-2 justify-content-center mt-4">
-        <a class="btn btn-primary" href="/superadmin/account/login">Super Admin Console</a>
+        <a class="btn btn-primary" asp-controller="Signup" asp-action="Index">Create your workspace</a>
+        <a class="btn btn-outline-secondary" asp-area="TenantAdmin" asp-controller="Account" asp-action="Login">Admin sign in</a>
         <a class="btn btn-outline-secondary" href="/docs">Developer Docs</a>
     </div>
+    @if (ViewBag.SuperAdminEnabled is true)
+    {
+        <p class="mt-4 mb-0"><a class="text-muted small" href="/superadmin/account/login">Platform super-admin console</a></p>
+    }
 </div>

@@ -258,6 +258,16 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 ---
 
+### Self-service tenant signup + super-admin deploy gate  *(done 2026-06-16, build + 4 tests, runtime-pending)*
+Replaces the super-admin-only tenant-creation model with the Supabase / Google-Console pattern: a visitor signs up and provisions their own workspace, and the platform super-admin surface becomes a deploy-time toggle so it can be hidden from customer-facing builds.
+- [x] `ITenantSignupService`/`TenantSignupService` (`src/Authly.Modules/Signup/`) — one-step provision: create tenant (with slug de-duplication `acme`→`acme-2`…), bind `ITenantContext.SetTenant(newTenant)` so the RLS-protected user insert is permitted, `IAuthService.RegisterAsync` the first user, promote to `IsTenantAdmin`, `EnsureSystemRolesAsync` + grant the `tenant_admin` role; audits `tenant.signup`. Registered in Modules DI.
+- [x] Public `SignupController` at `/signup` (anonymous, tenant-less) + `SignupViewModel` + `Views/Signup/Index.cshtml` (reuses `_AuthLayout`). On success signs the new admin straight into the `TenantAdmin` cookie scheme and redirects to the onboarding wizard.
+- [x] **Tenant-resolution fix for domain-less workspaces:** `TenantResolutionMiddleware` excludes `/signup`, and for `/tenantadmin` paths where host resolution finds nothing it falls back to the signed-in admin's own `TenantAdminClaims.TenantId` cookie claim (the base controller still cross-checks cookie==resolved). Without this, a self-serve tenant (no custom domain) could never reach its admin panel in production.
+- [x] **Super-admin deploy gate:** `SUPERADMIN_ENABLED` config (default `true`). When `false`: super-admin seeding is skipped and every `/superadmin` route 404s (middleware short-circuit) so the surface is absent from shipped/wrapped builds. Home page CTAs updated (Create your workspace / Admin sign in; super-admin link shown only when enabled); tenant-admin login links to `/signup`.
+- [~] **Acceptance:** build (0 warn) + 4 unit tests (provision+promote+seed+grant+audit; tenant-in-scope-before-user-insert; slug disambiguation; give-up error). **244/244 total across the suite.** Runtime-pending: a real `/signup` → workspace → land in `/tenantadmin` flow, and a `SUPERADMIN_ENABLED=false` build hiding `/superadmin`, against a running app.
+
+> **Architecture note:** decided to keep one app + one database. Super admin stays an *area* gated by `SUPERADMIN_ENABLED` rather than a separate app/DB — a separate DB would sever super admin's cross-tenant visibility and require a telemetry/sync channel (a master-plan Phase 4 effort; the `self_hosted_instances` + `SelfHostSyncJob` telemetry is the seed of that). The deploy flag delivers the "customers never get super admin" outcome at low cost.
+
 ## Future Work (post-Foundation — master-plan Phases 2–4)
 
 - **Phase 2 (Advanced):** ~~risk-based/conditional access~~ ✅, ~~ABAC~~ ✅, anonymous/guest auth ⏳, ~~impersonation~~ ✅, ~~device management~~ ✅, anomaly detection (✅ via suspicious-login + conditional access; dedicated risk-scoring engine ⏳ Phase 4), ~~log streaming~~ ✅, ~~migration tools (Auth0/Firebase importers)~~ ✅, SDKs ⏳, CLI ⏳.

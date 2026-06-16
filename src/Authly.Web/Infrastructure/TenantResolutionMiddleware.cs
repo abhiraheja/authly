@@ -1,4 +1,5 @@
 using Authly.Core.Interfaces;
+using Microsoft.AspNetCore.Authentication;
 
 namespace Authly.Web.Infrastructure;
 
@@ -33,6 +34,7 @@ public sealed class TenantResolutionMiddleware
         // not the host, so it is excluded from host/dev-cookie resolution here.
         if (!path.StartsWithSegments("/superadmin")
             && !path.StartsWithSegments("/hangfire")
+            && !path.StartsWithSegments("/signup")
             && !path.StartsWithSegments("/api"))
         {
             var host = context.Request.Host.Host;
@@ -62,6 +64,17 @@ public sealed class TenantResolutionMiddleware
 
             if (tenant is not null)
                 tenantContext.SetTenant(tenant.Id);
+
+            // Self-serve workspaces have no custom domain, so host resolution finds nothing. For the
+            // tenant-admin surface, fall back to the signed-in admin's own cookie claim so their
+            // workspace still resolves. TenantAdminControllerBase re-checks cookie == resolved tenant,
+            // so this can only ever resolve the admin's own tenant.
+            if (!tenantContext.HasTenant && path.StartsWithSegments("/tenantadmin"))
+            {
+                var auth = await context.AuthenticateAsync(AuthSchemes.TenantAdmin);
+                if (Guid.TryParse(auth.Principal?.FindFirst(TenantAdminClaims.TenantId)?.Value, out var adminTenant))
+                    tenantContext.SetTenant(adminTenant);
+            }
         }
 
         await _next(context);

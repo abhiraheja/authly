@@ -37,6 +37,7 @@ public static class DependencyInjection
         services.AddScoped<IApiKeyService, ApiKeyService>();
         services.AddScoped<IUserAdminService, UserAdminService>();
         services.AddScoped<IImpersonationService, ImpersonationService>();
+        services.AddScoped<IUserImportService, UserImportService>();
         services.AddScoped<IMfaService, MfaService>();
         services.AddScoped<IMessagingService, MessagingService>();
         services.AddScoped<ISocialLoginService, SocialLoginService>();

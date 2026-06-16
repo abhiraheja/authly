@@ -260,13 +260,36 @@ Phases 0–14 = master-plan **Phase 1 (Foundation)**. Master-plan Phases 2–4 a
 
 ## Future Work (post-Foundation — master-plan Phases 2–4)
 
-- **Phase 2 (Advanced):** ~~risk-based/conditional access~~ ✅, ABAC, anonymous/guest auth, ~~impersonation~~ ✅, ~~device management~~ ✅, anomaly detection, log streaming, migration tools (Auth0/Firebase importers), more SDKs, CLI.
+- **Phase 2 (Advanced):** ~~risk-based/conditional access~~ ✅, ABAC ⏳, anonymous/guest auth ⏳, ~~impersonation~~ ✅, ~~device management~~ ✅, anomaly detection (✅ via suspicious-login + conditional access; dedicated risk-scoring engine ⏳ Phase 4), ~~log streaming~~ ✅, ~~migration tools (Auth0/Firebase importers)~~ ✅, SDKs ⏳, CLI ⏳.
+  - ⏳ **Deferred with rationale:** **ABAC** — a full attribute-policy engine is a large subsystem; near-term needs are met by RBAC + custom claim configs + conditional access. **Anonymous/guest auth** — lower priority for the IDaaS core and would add churn to the central users table; revisit when a guest→account upgrade flow is actually required. **Dedicated risk-scoring/anomaly engine** — basic anomaly handling ships (new-device/new-IP detection + enforcement); advanced scoring is a master-plan Phase 4 item. **SDKs / CLI** — separate client projects; the plan defers these until the v1 API is stable.
 
 ### Phase 2 — Conditional / risk-based access  *(done 2026-06-16, build + 6 tests, runtime-pending)*
 - [x] Per-tenant conditional-access policy (`TenantSecuritySettings.ConditionalAccessEnabled` + `NewDeviceAction`/`UnverifiedEmailAction` as `ConditionalAction` Allow|RequireMfa|Block), edited on the Tenant Admin → Security page.
 - [x] `IConditionalAccessService` evaluates the login context (reuses the Phase 12 `SuspiciousLoginDetector` for new-device/IP; checks unverified email); most-restrictive signal wins.
 - [x] Enforced in the end-user login path **before the session cookie is issued**: Block → revoke the just-created session + audit `user.login_blocked` + generic message; RequireMfa → step up (challenge if the user has a factor, else force enrollment) by elevating the existing MFA gate.
-- [~] **Acceptance:** verified by build + 6 unit tests (disabled-allows; new-device triggers action; known-device no-trigger; unverified-email triggers; most-restrictive-wins; verified+known allowed) — 209/209 total. **Runtime-pending:** a real new-device sign-in stepping up to MFA, and a Block denial, against a running app.
+- [~] **Acceptance:** verified by build + 6 unit tests (disabled-allows; new-device triggers action; known-device no-trigger; unverified-email triggers; most-restrictive-wins; verified+known allowed) + trusted-device suppression — total below. **Runtime-pending:** a real new-device sign-in stepping up to MFA, and a Block denial, against a running app.
+
+### Phase 2 — User impersonation  *(done 2026-06-16, build + 5 tests, runtime-pending)*
+- [x] `IImpersonationService` — tenant-scoped "log in as user": validates the target is in the admin's tenant + Active (rejects self/missing/suspended), mints a session via `IAuthService.StartSessionAsync(method:"impersonation")`, audits `user.impersonation_started`/`_stopped`.
+- [x] Tenant Admin → Users → **Impersonate** issues the end-user cookie carrying `impersonator_id`/`impersonator_email` claims (session-scoped, non-persistent); the portal shows a warning banner with **Stop impersonating** → revokes the session + signs out, returning to the admin panel (TenantAdmin cookie untouched).
+- [~] **Acceptance:** build + 5 unit tests (start creates session+audits; can't self/missing/suspended; stop revokes+audits). Runtime-pending: full browser round-trip + banner.
+
+### Phase 2 — Device management  *(done 2026-06-16, build + 7 tests, runtime-pending)*
+- [x] `UserDevice` entity (tenant-scoped, RLS; unique per tenant+user+fingerprint) + repo + migration `AddUserDevices`; fingerprint = SHA-256 of the user-agent, with a friendly "Browser on OS" label.
+- [x] `IDeviceService` — records the device on each login (new vs returning), and lets the user **trust / rename / forget** devices (ownership-checked); login wiring records the device before risk evaluation.
+- [x] Portal **Devices** page (trust toggle, rename, forget); a **trusted** device suppresses the conditional-access new-device step-up.
+- [~] **Acceptance:** build + 7 unit tests (fingerprint stable/distinct; first-login new+untrusted; repeat-login updates; trust→IsTrusted; forget removes; cross-user rejected; trusted-device suppresses step-up). Runtime-pending: real multi-device sign-ins + trust affecting a live login.
+
+### Phase 2 — Log streaming (audit → external SIEM/webhook)  *(done 2026-06-16, build-verified, runtime-pending)*
+- [x] `IAuditLogStreamSource` (forward read over audit_logs by timestamp) + `IPlatformStateStore` (platform key/value, `platform_state` table, migration `AddPlatformState`, no RLS) for a persisted cursor.
+- [x] `LogStreamJob` (Hangfire, every 5 min, scheduled only when `LOG_STREAM_ENDPOINT` is configured): reads new entries since the cursor, POSTs a batch (with optional `X-Log-Stream-Key`), advances the cursor only on success (at-least-once); best-effort, never affects auth.
+- [~] **Acceptance:** build-verified (HTTP/DB job, not unit-tested, like the other Hangfire jobs). Runtime-pending: a real sink receiving batches + cursor advancement.
+
+### Phase 2 — Migration importers (Auth0 / Firebase / generic)  *(done 2026-06-16, build + 6 tests, runtime-pending)*
+- [x] `UserImportParser` (pure) normalizes Auth0 (`given_name`/`family_name`, `name` split), Firebase (`users[]`, `displayName` split), and generic JSON arrays into `ImportedUser` rows.
+- [x] `IUserImportService` bulk-creates via `IUserAdminService.CreateAsync` (tenant-scoped, audited); **passwords are not migrated** (foreign hashes aren't verifiable) — imported users set a password via forgot-password; duplicates skipped, errors collected; audits `users.imported` with counts.
+- [x] Tenant Admin → Users → **Import users** page (source select + JSON paste + result summary).
+- [~] **Acceptance:** build + 6 unit tests (generic/Auth0/Firebase parse, name-split, blank-email skip; service created/skipped-dup/errors + invalid-JSON). **227/227 total across the suite.** Runtime-pending: a real export imported end-to-end.
 - **Phase 3 (Enterprise):** SAML 2.0, SCIM 2.0, enterprise IdP federation, workload identity federation, DPoP/mTLS, `private_key_jwt`, full data residency, sub-organizations, B2B onboarding, SOC 2/ISO.
 - **Phase 4 (Future):** identity analytics, SAML IdP, B2C self-registration, federation hub, advanced risk scoring.
 - **SDKs** (Next.js/React, Node, .NET) — after the v1 API is stable.

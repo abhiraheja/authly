@@ -43,6 +43,7 @@ builder.Services.AddScoped<Authly.Web.Infrastructure.Security.SecurityViewState>
 // Self-host & compliance (Phase 13): telemetry push job + retention/cleanup jobs (run via Hangfire).
 builder.Services.AddScoped<Authly.Web.Infrastructure.SelfHost.SelfHostSyncJob>();
 builder.Services.AddScoped<Authly.Web.Infrastructure.Maintenance.MaintenanceJobs>();
+builder.Services.AddScoped<Authly.Web.Infrastructure.LogStreaming.LogStreamJob>();
 
 // Infrastructure (EF Core, Redis, Argon2id, AES) + business modules.
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -170,6 +171,13 @@ using (var scope = app.Services.CreateScope())
     else
         RecurringJob.RemoveIfExists("self-host-telemetry-sync");
 }
+
+// Phase 2 — audit log streaming to an external SIEM/webhook, only when an endpoint is configured.
+if (Authly.Web.Infrastructure.LogStreaming.LogStreamJob.IsConfigured(builder.Configuration))
+    RecurringJob.AddOrUpdate<Authly.Web.Infrastructure.LogStreaming.LogStreamJob>(
+        "audit-log-stream", j => j.FlushAsync(CancellationToken.None), "*/5 * * * *");
+else
+    RecurringJob.RemoveIfExists("audit-log-stream");
 
 if (!app.Environment.IsDevelopment())
 {

@@ -26,8 +26,20 @@
                     <label class="form-label small mb-1">UserInfo</label>
                     <input class="form-control form-control-sm" value="@ViewBag.UserInfo" readonly onclick="this.select()" />
                 </div>
+                <div class="col-md-4">
+                    <label class="form-label small mb-1">End session (logout)</label>
+                    <input class="form-control form-control-sm" value="@ViewBag.Logout" readonly onclick="this.select()" />
+                </div>
             </div>
         </div>
+    </div>
+
+    <div class="alert alert-info small">
+        <strong>Choosing a client type.</strong>
+        <strong>Web</strong> apps are confidential (issued a <code>client_secret</code>).
+        <strong>SPA / Native</strong> apps are public — no secret, PKCE only. A browser app must be a
+        <strong>SPA</strong> client: it cannot hold a secret, so a Web/confidential client fails at the
+        token exchange.
     </div>
 
     <h4>Quickstart</h4>
@@ -59,6 +71,39 @@
   client_id=YOUR_CLIENT_ID
   client_secret=YOUR_SECRET   (confidential clients only)
   code_verifier=THE_VERIFIER</code></pre>
+
+    <h4 class="mt-4">Logout (RP-initiated end-session)</h4>
+    <p>
+        Clearing tokens in your app alone is <em>not</em> a full logout — Authly keeps its own SSO
+        session cookie, so the next visit to <code>/connect/authorize</code> silently re-authenticates
+        (no login page). Send the user to the end-session endpoint to log them out of Authly too:
+    </p>
+    <pre class="bg-light p-3 rounded small"><code>GET /connect/logout
+  ?id_token_hint=THE_ID_TOKEN
+  &amp;post_logout_redirect_uri=https://myapp.com/</code></pre>
+    <p class="small text-muted">
+        Your app's <strong>origin root</strong> (<code>scheme://host[:port]/</code>) is allowed
+        automatically — it's derived from the redirect URIs you registered (registering
+        <code>https://myapp.com/callback</code> permits <code>post_logout_redirect_uri=https://myapp.com/</code>).
+        Send <code>id_token_hint</code> so Authly can validate the request and skip a confirm prompt.
+    </p>
+
+    <h4 class="mt-4">Browser (SPA) apps &amp; CORS</h4>
+    <p class="small text-muted">
+        The <code>/connect/authorize</code> redirect is a top-level navigation, but the discovery,
+        token, and userinfo calls are XHRs subject to CORS. Authly allows these automatically for the
+        <strong>origin of any registered redirect URI</strong> — so a browser app whose redirect URI
+        is registered just works, with no CORS configuration.
+    </p>
+
+    <h4 class="mt-4">Troubleshooting</h4>
+    <ul class="small">
+        <li><code>invalid_redirect_uri</code> — the <code>redirect_uri</code> isn't registered (exact match required).</li>
+        <li><code>invalid_client</code> — wrong credentials, or a public client sending a secret.</li>
+        <li>Re-login skips the login page — app-only logout left Authly's SSO cookie; use the end-session endpoint.</li>
+        <li>CORS / status&nbsp;0 on token or userinfo — the browser origin isn't a registered redirect-URI origin, or you're using a Web/confidential client instead of a SPA.</li>
+        <li><code>invalid_request</code> "different workspace" — the <code>tenant</code>/host resolves to a different tenant than the one that owns the <code>client_id</code>.</li>
+    </ul>
 
     <p class="text-muted mt-4">
         Full guide with framework examples and troubleshooting: <code>docs/developer/Quickstart.md</code> in the repository.

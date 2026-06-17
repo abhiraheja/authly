@@ -63,7 +63,7 @@
     </div>
 
     <div class="flex justify-end">
-        <a asp-controller="Account" asp-action="ForgotPassword" class="text-sm font-medium text-primary hover:underline">Forgot password?</a>
+        <a asp-controller="Account" asp-action="ForgotPassword" asp-route-returnUrl="@Model.ReturnUrl" class="text-sm font-medium text-primary hover:underline">Forgot password?</a>
     </div>
 
     <partial name="_Captcha" />
@@ -78,17 +78,17 @@
     <button type="button" id="passkeyBtn" class="btn btn-outline w-full">
         <i data-lucide="key-round" class="size-4"></i> Sign in with a passkey
     </button>
-    <a class="btn btn-outline w-full" asp-controller="Account" asp-action="MagicLink">
+    <a class="btn btn-outline w-full" asp-controller="Account" asp-action="MagicLink" asp-route-returnUrl="@Model.ReturnUrl">
         <i data-lucide="mail" class="size-4"></i> Email me a sign-in link
     </a>
 </div>
 <div id="passkeyError" class="text-danger text-xs text-center mt-2 hidden"></div>
 
 <p class="text-center text-sm text-muted-foreground mt-6">
-    Don't have an account? <a class="text-primary hover:underline" asp-controller="Account" asp-action="Register">Create one</a>
+    Don't have an account? <a class="text-primary hover:underline" asp-controller="Account" asp-action="Register" asp-route-returnUrl="@Model.ReturnUrl">Create one</a>
 </p>
 <p class="text-center text-sm text-muted-foreground">
-    <a class="text-primary hover:underline" asp-controller="Account" asp-action="RecoverRequest">Can't access your account?</a>
+    <a class="text-primary hover:underline" asp-controller="Account" asp-action="RecoverRequest" asp-route-returnUrl="@Model.ReturnUrl">Can't access your account?</a>
 </p>
 
 @section Scripts {
@@ -109,7 +109,8 @@
         err.classList.add('hidden');
         if (!email) { err.textContent = 'Enter your email first, then use your passkey.'; err.classList.remove('hidden'); return; }
         const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-        authlyPasskeyLogin(email, token, function (msg) { err.textContent = msg; err.classList.remove('hidden'); });
+        const returnUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ReturnUrl));
+        authlyPasskeyLogin(email, token, function (msg) { err.textContent = msg; err.classList.remove('hidden'); }, returnUrl);
     });
 </script>
 }

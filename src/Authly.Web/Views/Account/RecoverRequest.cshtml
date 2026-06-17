@@ -9,6 +9,7 @@
 </p>
 
 <form asp-controller="Account" asp-action="RecoverRequest" method="post" class="space-y-4">
+    <input type="hidden" asp-for="ReturnUrl" />
     <div>
         <label asp-for="Email" class="label">Email</label>
         <input asp-for="Email" class="input" autocomplete="email" placeholder="you@example.com" />
@@ -19,5 +20,5 @@
 </form>
 
 <p class="text-center text-sm text-muted-foreground mt-6">
-    <a class="text-primary hover:underline" asp-controller="Account" asp-action="Login">Back to sign in</a>
+    <a class="text-primary hover:underline" asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Model.ReturnUrl">Back to sign in</a>
 </p>

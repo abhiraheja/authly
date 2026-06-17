@@ -27,6 +27,7 @@ public sealed class BrandingController : TenantAdminControllerBase
         return View(new BrandingViewModel
         {
             LogoUrl = b.LogoUrl,
+            BrandName = b.BrandName,
             PrimaryColor = b.PrimaryColor,
             ButtonTextColor = b.ButtonTextColor,
             FontFamily = b.FontFamily,
@@ -65,6 +66,7 @@ public sealed class BrandingController : TenantAdminControllerBase
             await _branding.SaveAsync(TenantId, new BrandingInput
             {
                 LogoUrl = model.LogoUrl,
+                BrandName = model.BrandName,
                 PrimaryColor = model.PrimaryColor,
                 ButtonTextColor = model.ButtonTextColor,
                 FontFamily = model.FontFamily,

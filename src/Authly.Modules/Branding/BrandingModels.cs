@@ -8,6 +8,7 @@ public sealed class BrandingInput
 {
     // identity
     public string? LogoUrl { get; set; }
+    public string? BrandName { get; set; }
     public string PrimaryColor { get; set; } = "#5b6df5";
     public string ButtonTextColor { get; set; } = "#ffffff";
     public string? FontFamily { get; set; }
@@ -42,6 +43,7 @@ public sealed class BrandingInput
     public static BrandingInput From(TenantBranding b) => new()
     {
         LogoUrl = b.LogoUrl,
+        BrandName = b.BrandName,
         PrimaryColor = b.PrimaryColor,
         ButtonTextColor = b.ButtonTextColor,
         FontFamily = b.FontFamily,

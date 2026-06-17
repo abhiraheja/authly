@@ -61,7 +61,8 @@
     }
 
     // Passwordless sign-in. emailInputId + token (antiforgery) come from the page.
-    window.authlyPasskeyLogin = async function (email, token, onError) {
+    // returnUrl (optional) carries the original post-login destination (e.g. an OAuth request).
+    window.authlyPasskeyLogin = async function (email, token, onError, returnUrl) {
         try {
             const form = new URLSearchParams();
             form.append('email', email);
@@ -74,7 +75,10 @@
             const options = toGetOptions(await optResp.json());
 
             const assertion = await navigator.credentials.get(options);
-            const loginResp = await fetch('/account/passkey/login', {
+            const loginUrl = returnUrl
+                ? '/account/passkey/login?returnUrl=' + encodeURIComponent(returnUrl)
+                : '/account/passkey/login';
+            const loginResp = await fetch(loginUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
                 body: assertionToJson(assertion)

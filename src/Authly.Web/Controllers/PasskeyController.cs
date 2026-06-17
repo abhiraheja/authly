@@ -54,7 +54,7 @@ public sealed class PasskeyController : Controller
 
     [HttpPost("login")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Login(CancellationToken ct)
+    public async Task<IActionResult> Login(string? returnUrl, CancellationToken ct)
     {
         if (!_tenant.HasTenant) return BadRequest(new { error = "no_tenant" });
 
@@ -72,7 +72,13 @@ public sealed class PasskeyController : Controller
 
         var session = await _auth.StartSessionAsync(user, "passkey", CurrentRequest(), ct);
         await UserSignIn.SignInAsync(HttpContext, user.Id, user.Email, user.TenantId, session.Id, user.EmailVerified);
-        return Ok(new { redirect = Url.Action("Index", "Profile", new { area = "Portal" }) });
+
+        // Resume the original flow (e.g. the OAuth /connect/authorize request) when it's a safe
+        // local URL; otherwise land on the portal.
+        var redirect = !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)
+            ? returnUrl
+            : Url.Action("Index", "Profile", new { area = "Portal" });
+        return Ok(new { redirect });
     }
 
     private RequestInfo CurrentRequest()

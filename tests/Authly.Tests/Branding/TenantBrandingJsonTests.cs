@@ -23,6 +23,7 @@ public class TenantBrandingJsonTests
         var original = new TenantBranding
         {
             LogoUrl = "https://cdn.acme.com/logo.svg",
+            BrandName = "Acme Inc.",
             PrimaryColor = "#112233",
             ButtonTextColor = "#fafafa",
             FontFamily = "Roboto, sans-serif",
@@ -49,6 +50,7 @@ public class TenantBrandingJsonTests
         var parsed = TenantBrandingJson.Parse(TenantBrandingJson.Serialize(original));
 
         Assert.Equal(original.LogoUrl, parsed.LogoUrl);
+        Assert.Equal(original.BrandName, parsed.BrandName);
         Assert.Equal(original.PrimaryColor, parsed.PrimaryColor);
         Assert.Equal(original.ButtonTextColor, parsed.ButtonTextColor);
         Assert.Equal(original.FontFamily, parsed.FontFamily);

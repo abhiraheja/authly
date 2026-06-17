@@ -9,5 +9,5 @@
         We've sent a verification link@(ViewData["Email"] is string e ? $" to {e}" : "").
         Open it to confirm your address and finish setting up your account.
     </p>
-    <a asp-controller="Account" asp-action="Login" class="btn btn-outline w-full">Back to sign in</a>
+    <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@(ViewData["ReturnUrl"] as string)" class="btn btn-outline w-full">Back to sign in</a>
 </div>

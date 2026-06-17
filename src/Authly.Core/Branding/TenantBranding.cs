@@ -18,6 +18,13 @@ public sealed class TenantBranding
     /// <summary>Absolute https(s) URL of the tenant's logo. Null falls back to the shield mark + name.</summary>
     public string? LogoUrl { get; set; }
 
+    /// <summary>
+    /// Brand name shown beside/instead of the shield on the hosted pages. When null/blank the pages
+    /// fall back to the workspace (tenant) name. Lets a tenant show a display name without renaming
+    /// the workspace or setting a logo.
+    /// </summary>
+    public string? BrandName { get; set; }
+
     /// <summary>Primary brand color as a CSS hex (e.g. <c>#5b6df5</c>). Drives buttons, links, accents.</summary>
     public string PrimaryColor { get; set; } = "#5b6df5";
 
@@ -118,6 +125,7 @@ public sealed class TenantBranding
         {
             var d = Default;
             return LogoUrl is null
+                && string.IsNullOrEmpty(BrandName)
                 && PrimaryColor == d.PrimaryColor
                 && ButtonTextColor == d.ButtonTextColor
                 && FontFamily == d.FontFamily

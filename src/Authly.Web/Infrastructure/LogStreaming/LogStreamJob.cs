@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net.Http.Json;
 using Authly.Core.Interfaces;
 using Authly.Core.Logging;
+using Authly.Modules.Observability;
 
 namespace Authly.Web.Infrastructure.LogStreaming;
 
@@ -9,7 +10,8 @@ namespace Authly.Web.Infrastructure.LogStreaming;
 /// Streams audit-log entries to an external sink (SIEM / webhook) for the operator. Runs as a
 /// Hangfire recurring job: reads new entries since a persisted cursor and POSTs them in batches,
 /// advancing the cursor only on a successful delivery (at-least-once). Best-effort — failures are
-/// logged and retried next cycle; streaming never affects authentication.
+/// logged and retried next cycle; streaming never affects authentication. The target is sourced from
+/// the stored observability config (Phase 7), falling back to the LOG_STREAM_* env vars.
 /// </summary>
 public sealed class LogStreamJob
 {
@@ -17,30 +19,30 @@ public sealed class LogStreamJob
     private const int BatchSize = 200;
 
     private readonly IConfiguration _config;
+    private readonly IObservabilityConfigService _observability;
     private readonly IAuditLogStreamSource _source;
     private readonly IPlatformStateStore _state;
     private readonly IHttpClientFactory _httpFactory;
     private readonly ILogger<LogStreamJob> _logger;
 
-    public LogStreamJob(IConfiguration config, IAuditLogStreamSource source, IPlatformStateStore state,
-        IHttpClientFactory httpFactory, ILogger<LogStreamJob> logger)
+    public LogStreamJob(IConfiguration config, IObservabilityConfigService observability, IAuditLogStreamSource source,
+        IPlatformStateStore state, IHttpClientFactory httpFactory, ILogger<LogStreamJob> logger)
     {
         _config = config;
+        _observability = observability;
         _source = source;
         _state = state;
         _httpFactory = httpFactory;
         _logger = logger;
     }
 
-    /// <summary>True when an endpoint is configured; used by Program.cs to decide whether to schedule.</summary>
-    public static bool IsConfigured(IConfiguration config)
-        => !string.IsNullOrWhiteSpace(config["LOG_STREAM_ENDPOINT"]);
-
     public async Task FlushAsync(CancellationToken ct = default)
     {
-        var endpoint = _config["LOG_STREAM_ENDPOINT"];
+        // Stored config wins; env vars are the fallback for headless/bootstrap deployments.
+        var settings = await _observability.GetSettingsAsync(ct);
+        var endpoint = settings.LogStreamEndpoint ?? _config["LOG_STREAM_ENDPOINT"];
         if (string.IsNullOrWhiteSpace(endpoint)) return;
-        var apiKey = _config["LOG_STREAM_KEY"];
+        var apiKey = settings.LogStreamKey ?? _config["LOG_STREAM_KEY"];
 
         try
         {

@@ -20,7 +20,7 @@
         switch (brand.Background)
         {
             case BrandingBackground.Solid:
-                return $"background:{brand.PrimaryColor};";
+                return $"background:{brand.BackgroundColor};";
             case BrandingBackground.Image when !string.IsNullOrEmpty(brand.BackgroundImageUrl):
                 var size = brand.BackgroundFit switch
                 {

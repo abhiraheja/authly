@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Authly.Core.Branding;
+using Authly.Core.Entities;
 using Authly.Core.Interfaces;
 using Authly.Modules.Audit;
 using Authly.Modules.Common;
@@ -10,11 +11,19 @@ namespace Authly.Modules.Branding;
 public sealed partial class BrandingService : IBrandingService
 {
     private readonly ITenantRepository _tenants;
+    private readonly IBrandingAssetRepository _assets;
     private readonly IAuditLogger _audit;
 
-    public BrandingService(ITenantRepository tenants, IAuditLogger audit)
+    /// <summary>Image MIME types we accept for uploaded logo/background assets.</summary>
+    private static readonly HashSet<string> AllowedImageTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml", "image/x-icon", "image/vnd.microsoft.icon"
+    };
+
+    public BrandingService(ITenantRepository tenants, IBrandingAssetRepository assets, IAuditLogger audit)
     {
         _tenants = tenants;
+        _assets = assets;
         _audit = audit;
     }
 
@@ -49,6 +58,7 @@ public sealed partial class BrandingService : IBrandingService
 
             // background
             Background = input.Background,
+            BackgroundColor = ValidateColor(input.BackgroundColor, "background color"),
             GradientFrom = ValidateColor(input.GradientFrom, "gradient start color"),
             GradientTo = ValidateColor(input.GradientTo, "gradient end color"),
             BackgroundImageUrl = NormalizeOptional(input.BackgroundImageUrl),
@@ -70,11 +80,11 @@ public sealed partial class BrandingService : IBrandingService
             CornerRadius = Math.Clamp(input.CornerRadius, 0, 16)
         };
 
-        if (branding.LogoUrl is not null && !IsHttpUrl(branding.LogoUrl))
-            throw new BrandingConfigInvalidException("The logo URL must be an absolute http(s) URL.");
+        if (branding.LogoUrl is not null && !IsAllowedImageRef(branding.LogoUrl))
+            throw new BrandingConfigInvalidException("The logo must be an absolute http(s) URL or an uploaded image.");
 
-        if (branding.BackgroundImageUrl is not null && !IsHttpUrl(branding.BackgroundImageUrl))
-            throw new BrandingConfigInvalidException("The background image URL must be an absolute http(s) URL.");
+        if (branding.BackgroundImageUrl is not null && !IsAllowedImageRef(branding.BackgroundImageUrl))
+            throw new BrandingConfigInvalidException("The background image must be an absolute http(s) URL or an uploaded image.");
 
         if (branding.Background == Core.Enums.BrandingBackground.Image
             && branding.Layout != Core.Enums.BrandingLayout.CenteredPlain
@@ -88,6 +98,42 @@ public sealed partial class BrandingService : IBrandingService
         await _audit.LogAsync("tenant.branding_updated", actor, tenantId: tenant.Id,
             resourceType: "tenant", resourceId: tenant.Id,
             metadata: new { branding.Layout, branding.DarkMode, hasLogo = branding.LogoUrl is not null }, ct: ct);
+    }
+
+    public async Task<string> SaveImageAsync(Guid tenantId, string kind, byte[] data, string contentType,
+        AuditContext actor, CancellationToken ct = default)
+    {
+        var normalizedKind = kind?.Trim().ToLowerInvariant();
+        if (normalizedKind is not ("logo" or "background"))
+            throw new BrandingConfigInvalidException("Unsupported image kind.");
+
+        if (data is null || data.Length == 0)
+            throw new BrandingConfigInvalidException("The uploaded file is empty.");
+
+        var type = contentType?.Trim().ToLowerInvariant() ?? "";
+        if (!AllowedImageTypes.Contains(type))
+            throw new BrandingConfigInvalidException("Use a PNG, JPEG, GIF, WebP, SVG or ICO image.");
+
+        _ = await _tenants.GetByIdAsync(tenantId, ct)
+            ?? throw new KeyNotFoundException($"Tenant {tenantId} not found.");
+
+        // One current asset per kind — drop the previous upload so bytes don't accumulate.
+        await _assets.DeleteByKindAsync(tenantId, normalizedKind, ct);
+
+        var asset = new BrandingAsset
+        {
+            TenantId = tenantId,
+            Kind = normalizedKind,
+            ContentType = type,
+            Data = data
+        };
+        await _assets.AddAsync(asset, ct);
+
+        await _audit.LogAsync("tenant.branding_image_uploaded", actor, tenantId: tenantId,
+            resourceType: "tenant", resourceId: tenantId,
+            metadata: new { kind = normalizedKind, contentType = type, bytes = data.Length }, ct: ct);
+
+        return $"/branding/asset/{asset.Id}";
     }
 
     public async Task SetCustomDomainAsync(Guid tenantId, string? domain, AuditContext actor, CancellationToken ct = default)
@@ -166,6 +212,10 @@ public sealed partial class BrandingService : IBrandingService
     private static bool IsHttpUrl(string url)
         => Uri.TryCreate(url, UriKind.Absolute, out var uri)
            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    /// <summary>Accepts an absolute http(s) URL or an app-relative uploaded-asset ref (/branding/asset/{id}).</summary>
+    private static bool IsAllowedImageRef(string url)
+        => IsHttpUrl(url) || url.StartsWith("/branding/asset/", StringComparison.Ordinal);
 
     private static bool IsValidHost(string host) => Host().IsMatch(host);
 

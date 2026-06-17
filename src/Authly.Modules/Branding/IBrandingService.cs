@@ -19,6 +19,14 @@ public interface IBrandingService
     Task SaveAsync(Guid tenantId, BrandingInput input, AuditContext actor, CancellationToken ct = default);
 
     /// <summary>
+    /// Stores an uploaded image (kind <c>logo</c> or <c>background</c>) as bytes, replacing any
+    /// previous asset of that kind, and returns the app-relative URL to reference it
+    /// (<c>/branding/asset/{id}</c>). Throws <see cref="BrandingConfigInvalidException"/> for an
+    /// unsupported type or empty content.
+    /// </summary>
+    Task<string> SaveImageAsync(Guid tenantId, string kind, byte[] data, string contentType, AuditContext actor, CancellationToken ct = default);
+
+    /// <summary>
     /// Sets (or clears with null/blank) the tenant's custom domain. Validates the host shape and
     /// rejects a domain already claimed by another tenant. Throws <see cref="BrandingConfigInvalidException"/>.
     /// </summary>

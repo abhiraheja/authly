@@ -38,9 +38,17 @@
 
                     <div>
                         <label asp-for="LogoUrl" class="label"></label>
-                        <input asp-for="LogoUrl" class="input" placeholder="https://cdn.yourcompany.com/logo.svg" />
+                        <div class="flex gap-2">
+                            <input asp-for="LogoUrl" class="input" placeholder="https://cdn.yourcompany.com/logo.svg" />
+                            <label class="btn btn-outline shrink-0 cursor-pointer whitespace-nowrap">
+                                <i data-lucide="upload" class="size-4"></i> Upload
+                                <input type="file" class="hidden" data-upload="logo" data-target="LogoUrl"
+                                       accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/x-icon" />
+                            </label>
+                        </div>
                         <span asp-validation-for="LogoUrl" class="text-danger text-xs"></span>
-                        <p class="mt-1 text-xs text-muted-foreground">Shown instead of the brand name on the hosted pages.</p>
+                        <span class="text-xs text-muted-foreground block mt-1" data-upload-status="logo"></span>
+                        <p class="mt-1 text-xs text-muted-foreground">Paste a URL or upload an image (PNG/JPG/SVG/WebP, ≤3&nbsp;MB). Shown instead of the brand name.</p>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -85,7 +93,16 @@
                     <p class="text-xs text-muted-foreground -mt-1">Fills the branded panel (split layouts) or the whole page (centered over background).</p>
                     <div>
                         <label asp-for="Background" class="label"></label>
-                        <select asp-for="Background" asp-items="@Html.GetEnumSelectList<BrandingBackground>()" class="input"></select>
+                        <select asp-for="Background" asp-items="@NameOptions<BrandingBackground>()" class="input"></select>
+                    </div>
+
+                    <div data-bg="Solid">
+                        <label asp-for="BackgroundColor" class="label"></label>
+                        <div class="flex gap-2">
+                            <input type="color" class="input h-10 w-16 p-1" value="@Model.BackgroundColor" data-color-for="BackgroundColor" />
+                            <input asp-for="BackgroundColor" class="input" />
+                        </div>
+                        <span asp-validation-for="BackgroundColor" class="text-danger text-xs"></span>
                     </div>
 
                     <div data-bg="Gradient" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -110,13 +127,22 @@
                     <div data-bg="Image" class="space-y-4">
                         <div>
                             <label asp-for="BackgroundImageUrl" class="label"></label>
-                            <input asp-for="BackgroundImageUrl" class="input" placeholder="https://cdn.yourcompany.com/login-bg.jpg" />
+                            <div class="flex gap-2">
+                                <input asp-for="BackgroundImageUrl" class="input" placeholder="https://cdn.yourcompany.com/login-bg.jpg" />
+                                <label class="btn btn-outline shrink-0 cursor-pointer whitespace-nowrap">
+                                    <i data-lucide="upload" class="size-4"></i> Upload
+                                    <input type="file" class="hidden" data-upload="background" data-target="BackgroundImageUrl"
+                                           accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" />
+                                </label>
+                            </div>
                             <span asp-validation-for="BackgroundImageUrl" class="text-danger text-xs"></span>
+                            <span class="text-xs text-muted-foreground block mt-1" data-upload-status="background"></span>
+                            <p class="mt-1 text-xs text-muted-foreground">Paste a URL or upload an image (≤3&nbsp;MB).</p>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label asp-for="BackgroundFit" class="label"></label>
-                                <select asp-for="BackgroundFit" asp-items="@Html.GetEnumSelectList<BackgroundFit>()" class="input"></select>
+                                <select asp-for="BackgroundFit" asp-items="@NameOptions<BackgroundFit>()" class="input"></select>
                             </div>
                             <div>
                                 <label asp-for="BackgroundPosition" class="label"></label>
@@ -144,7 +170,7 @@
                         </div>
                         <div>
                             <label asp-for="HeadingSize" class="label"></label>
-                            <select asp-for="HeadingSize" asp-items="@Html.GetEnumSelectList<HeadingSize>()" class="input"></select>
+                            <select asp-for="HeadingSize" asp-items="@NameOptions<HeadingSize>()" class="input"></select>
                         </div>
                     </div>
                     <div>
@@ -176,11 +202,11 @@
                 <div class="card-body grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label asp-for="CardStyle" class="label"></label>
-                        <select asp-for="CardStyle" asp-items="@Html.GetEnumSelectList<CardStyle>()" class="input"></select>
+                        <select asp-for="CardStyle" asp-items="@NameOptions<CardStyle>()" class="input"></select>
                     </div>
                     <div>
                         <label asp-for="CardShadow" class="label"></label>
-                        <select asp-for="CardShadow" asp-items="@Html.GetEnumSelectList<CardShadow>()" class="input"></select>
+                        <select asp-for="CardShadow" asp-items="@NameOptions<CardShadow>()" class="input"></select>
                     </div>
                     <div>
                         <label asp-for="CornerRadius" class="label">Corner radius — <span id="radiusVal">@Model.CornerRadius</span>px</label>
@@ -246,6 +272,11 @@
         new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem("Form left, panel right", nameof(BrandingLayout.FormLeft)),
         new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem("Form right, panel left", nameof(BrandingLayout.FormRight))
     };
+
+    // Enum options whose VALUE is the enum name (not the numeric value Html.GetEnumSelectList emits).
+    // The preview JS and the data-bg show/hide compare against names, so the values must be names.
+    private static IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> NameOptions<TEnum>() where TEnum : struct, Enum
+        => Enum.GetNames<TEnum>().Select(n => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem(n, n));
 }
 
 @section Scripts {
@@ -267,7 +298,7 @@
 
     function panelFill() {
         const bg = val('Background');
-        if (bg === 'Solid') return { css: val('PrimaryColor'), image: false };
+        if (bg === 'Solid') return { css: val('BackgroundColor') || val('PrimaryColor'), image: false };
         if (bg === 'Image') {
             const url = val('BackgroundImageUrl');
             if (url) {
@@ -361,6 +392,38 @@
         el.addEventListener('input', render);
         el.addEventListener('change', render);
     });
+
+    // Image upload: POST the file to the branding controller, drop the returned URL into the field.
+    const uploadUrl = '@Url.Action("Upload")';
+    const token = () => { const t = document.querySelector('input[name="__RequestVerificationToken"]'); return t ? t.value : ''; };
+    document.querySelectorAll('[data-upload]').forEach(input => {
+        input.addEventListener('change', async () => {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            const kind = input.getAttribute('data-upload');
+            const target = document.querySelector(`[name="${input.getAttribute('data-target')}"]`);
+            const status = document.querySelector(`[data-upload-status="${kind}"]`);
+            if (status) { status.textContent = 'Uploading…'; status.classList.remove('text-danger'); }
+
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('kind', kind);
+            fd.append('__RequestVerificationToken', token());
+            try {
+                const resp = await fetch(uploadUrl, { method: 'POST', body: fd });
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok) throw new Error(data.error || 'Upload failed.');
+                if (target) { target.value = data.url; }
+                if (status) { status.textContent = 'Uploaded ✓'; }
+                render();
+            } catch (e) {
+                if (status) { status.textContent = e.message; status.classList.add('text-danger'); }
+            } finally {
+                input.value = '';
+            }
+        });
+    });
+
     render();
 })();
 </script>

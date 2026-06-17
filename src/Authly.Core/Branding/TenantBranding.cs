@@ -47,6 +47,9 @@ public sealed class TenantBranding
     /// <summary>What fills the branded panel / full-page background.</summary>
     public BrandingBackground Background { get; set; } = BrandingBackground.Gradient;
 
+    /// <summary>Fill color when <see cref="Background"/> is Solid. Hex. Defaults to the primary color.</summary>
+    public string BackgroundColor { get; set; } = "#5b6df5";
+
     /// <summary>Start color of the gradient background. Hex. Defaults to the primary color at render time when blank.</summary>
     public string GradientFrom { get; set; } = "#5b6df5";
 
@@ -132,6 +135,7 @@ public sealed class TenantBranding
                 && !DarkMode
                 && Layout == d.Layout
                 && Background == d.Background
+                && BackgroundColor == d.BackgroundColor
                 && GradientFrom == d.GradientFrom
                 && GradientTo == d.GradientTo
                 && BackgroundImageUrl is null

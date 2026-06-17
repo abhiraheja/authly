@@ -10,8 +10,9 @@ public sealed class BrandingViewModel
 
     // --- identity -----------------------------------------------------------
 
+    // No [Url] — the value may be an absolute http(s) URL or an uploaded-asset ref (/branding/asset/{id}).
+    // The service validates the allowed shapes.
     [Display(Name = "Logo URL")]
-    [Url(ErrorMessage = "Enter an absolute http(s) URL.")]
     public string? LogoUrl { get; set; }
 
     [Display(Name = "Brand name")]
@@ -42,6 +43,10 @@ public sealed class BrandingViewModel
     [Display(Name = "Background")]
     public BrandingBackground Background { get; set; } = BrandingBackground.Gradient;
 
+    [Display(Name = "Background color")]
+    [RegularExpression(HexPattern, ErrorMessage = "Use a hex color like #5b6df5.")]
+    public string BackgroundColor { get; set; } = "#5b6df5";
+
     [Display(Name = "Gradient start")]
     [RegularExpression(HexPattern, ErrorMessage = "Use a hex color like #5b6df5.")]
     public string GradientFrom { get; set; } = "#5b6df5";
@@ -50,8 +55,8 @@ public sealed class BrandingViewModel
     [RegularExpression(HexPattern, ErrorMessage = "Use a hex color like #1b9bc0.")]
     public string GradientTo { get; set; } = "#1b9bc0";
 
+    // No [Url] — may be an absolute http(s) URL or an uploaded-asset ref; validated in the service.
     [Display(Name = "Background image URL")]
-    [Url(ErrorMessage = "Enter an absolute http(s) URL.")]
     public string? BackgroundImageUrl { get; set; }
 
     [Display(Name = "Image fit")]

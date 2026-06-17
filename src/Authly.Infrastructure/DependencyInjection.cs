@@ -84,6 +84,7 @@ public static class DependencyInjection
 
         // --- Repositories ---
         services.AddScoped<ITenantRepository, TenantRepository>();
+        services.AddScoped<IBrandingAssetRepository, BrandingAssetRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IOrganizationMembershipRepository, OrganizationMembershipRepository>();

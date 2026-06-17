@@ -1,5 +1,6 @@
 using Authly.Core.Interfaces;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace Authly.Web.Infrastructure;
 
@@ -50,6 +51,11 @@ public sealed class TenantResolutionMiddleware
                     slug = header.ToString();
                 else if (context.Request.Query.TryGetValue("tenant", out var query))
                     slug = query.ToString();
+                // On the hosted login (and other interstitials), the OAuth request — including its
+                // tenant — is carried in the ReturnUrl, not as a top-level query param. Read it from
+                // there so a directly-opened login link (or a cleared cookie) still resolves.
+                else if (TryGetTenantFromReturnUrl(context.Request, out var nested))
+                    slug = nested;
                 else if (context.Request.Cookies.TryGetValue(DevTenantCookie, out var cookie))
                     slug = cookie;
 
@@ -78,5 +84,29 @@ public sealed class TenantResolutionMiddleware
         }
 
         await _next(context);
+    }
+
+    /// <summary>
+    /// Extracts a <c>tenant</c> slug nested inside a <c>ReturnUrl</c> query parameter (e.g. the
+    /// hosted login's <c>ReturnUrl=/connect/authorize?...&amp;tenant=aura</c>). Dev convenience only.
+    /// </summary>
+    private static bool TryGetTenantFromReturnUrl(HttpRequest request, out string? slug)
+    {
+        slug = null;
+        if (!request.Query.TryGetValue("ReturnUrl", out var returnUrl))
+            return false;
+
+        var value = returnUrl.ToString();
+        var queryStart = value.IndexOf('?');
+        if (queryStart < 0)
+            return false;
+
+        var parsed = QueryHelpers.ParseQuery(value[queryStart..]);
+        if (parsed.TryGetValue("tenant", out var t) && !string.IsNullOrWhiteSpace(t))
+        {
+            slug = t.ToString();
+            return true;
+        }
+        return false;
     }
 }

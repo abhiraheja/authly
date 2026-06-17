@@ -1,0 +1,87 @@
+@model MonitoringViewModel
+@{
+    var maxDay = Model.Analytics.Count == 0 ? 1 : Math.Max(1, Model.Analytics.Max(d => d.Successes + d.Failures));
+    var cards = new (string Label, int Value, string Icon)[]
+    {
+        ("Projects", Model.Metrics.TenantCount, "building-2"),
+        ("Users", Model.Metrics.UserCount, "users"),
+        ("Applications", Model.Metrics.AppCount, "app-window"),
+        ("Active sessions", Model.Metrics.ActiveSessionCount, "activity"),
+    };
+}
+
+<div>
+    <h1 class="font-display text-xl font-bold">Monitoring</h1>
+    <p class="text-sm text-muted-foreground mt-0.5">Dependency health, instance totals, and login activity for this deployment.</p>
+</div>
+
+<!-- Health -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+    @foreach (var dep in Model.Health.Dependencies)
+    {
+        <div class="card card-body flex items-center justify-between">
+            <div>
+                <div class="text-xs text-muted-foreground">@dep.Name</div>
+                <span class="badge @(dep.Healthy ? "badge-success" : "badge-danger") mt-1">@(dep.Healthy ? "Healthy" : "Down")</span>
+                <div class="text-xs text-muted-foreground mt-1">@dep.LatencyMs ms@(dep.Detail is null ? "" : $" · {dep.Detail}")</div>
+            </div>
+            <i data-lucide="@(dep.Healthy ? "heart-pulse" : "alert-octagon")" class="size-5 @(dep.Healthy ? "text-success" : "text-danger")"></i>
+        </div>
+    }
+    <div class="card card-body">
+        <div class="text-xs text-muted-foreground">Version</div>
+        <div class="font-display text-lg font-bold mt-1">@Model.Version</div>
+    </div>
+</div>
+
+<!-- Aggregate metrics -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+    @foreach (var c in cards)
+    {
+        <div class="card card-body flex items-center justify-between">
+            <div>
+                <div class="text-xs text-muted-foreground">@c.Label</div>
+                <div class="font-display text-2xl font-bold">@c.Value</div>
+            </div>
+            <span class="grid place-items-center size-10 rounded-xl bg-primary/10 text-primary"><i data-lucide="@c.Icon" class="size-5"></i></span>
+        </div>
+    }
+</div>
+
+<!-- Login analytics -->
+<div class="card mt-4">
+    <div class="card-header flex items-center justify-between">
+        <h2 class="card-title">Login analytics (last 14 days)</h2>
+        <span class="text-xs text-muted-foreground">success / failed</span>
+    </div>
+    <div class="card-body">
+        @if (Model.Analytics.Sum(a => a.Successes + a.Failures) == 0)
+        {
+            <p class="text-sm text-muted-foreground">No login activity in the window.</p>
+        }
+        else
+        {
+            <table class="table">
+                <tbody>
+                @foreach (var d in Model.Analytics)
+                {
+                    var okPct = (int)Math.Round(100.0 * d.Successes / maxDay);
+                    var failPct = (int)Math.Round(100.0 * d.Failures / maxDay);
+                    <tr>
+                        <td class="text-muted-foreground text-xs" style="width:6rem;">@d.Day.ToString("MMM dd")</td>
+                        <td>
+                            <div class="flex h-3.5 w-full overflow-hidden rounded-full bg-muted">
+                                <div class="bg-success" style="width:@okPct%"></div>
+                                <div class="bg-danger" style="width:@failPct%"></div>
+                            </div>
+                        </td>
+                        <td class="text-right text-xs" style="width:6rem;">
+                            <span class="text-success">@d.Successes</span> / <span class="text-danger">@d.Failures</span>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>

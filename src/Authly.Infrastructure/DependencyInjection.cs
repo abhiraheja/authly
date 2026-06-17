@@ -70,9 +70,6 @@ public static class DependencyInjection
         services.AddScoped<IWebhookSender, HttpWebhookSender>();
         services.AddScoped<IPipelineHookClient, HttpPipelineHookClient>();
 
-        // --- Deployment / self-host (Phase 13): mode + version + sync config from env (§10). ---
-        services.AddSingleton<Authly.Core.Deployment.IDeploymentContext, Deployment.DeploymentContext>();
-
         // --- Compliance & retention (Phase 13): GDPR/DPDP export+erasure, telemetry, cleanup. ---
         services.AddScoped<Authly.Core.Compliance.IComplianceDataStore, Compliance.ComplianceDataStore>();
         services.AddScoped<Authly.Core.Compliance.IInstanceMetricsCollector, Compliance.InstanceMetricsCollector>();
@@ -87,7 +84,6 @@ public static class DependencyInjection
 
         // --- Repositories ---
         services.AddScoped<ITenantRepository, TenantRepository>();
-        services.AddScoped<ISuperAdminRepository, SuperAdminRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IOrganizationMembershipRepository, OrganizationMembershipRepository>();
@@ -119,8 +115,6 @@ public static class DependencyInjection
         services.AddScoped<IRecoveryContactRepository, RecoveryContactRepository>();
         services.AddScoped<IPendingContactChangeRepository, PendingContactChangeRepository>();
         services.AddScoped<IConsentRecordRepository, ConsentRecordRepository>();
-        services.AddScoped<ISelfHostedInstanceRepository, SelfHostedInstanceRepository>();
-        services.AddScoped<IAnnouncementRepository, AnnouncementRepository>();
         services.AddScoped<IUserDeviceRepository, UserDeviceRepository>();
         services.AddScoped<IPlatformStateStore, PlatformStateStore>();
         services.AddScoped<IAccessPolicyRepository, AccessPolicyRepository>();

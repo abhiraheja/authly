@@ -1,14 +1,13 @@
 using System.Text.Json;
 using Authly.Core.Entities;
 using Authly.Core.Interfaces;
-using Authly.Modules.Announcements;
 using Authly.Modules.Audit;
 using Authly.Modules.Common;
 using Authly.Modules.Tenants;
 
 namespace Authly.Tests.Phase14;
 
-public class OnboardingAndAnnouncementTests
+public class OnboardingTests
 {
     // --- TenantService onboarding flag ------------------------------------
 
@@ -60,47 +59,6 @@ public class OnboardingAndAnnouncementTests
         await repo.AddAsync(t);
         return t;
     }
-
-    // --- AnnouncementService ----------------------------------------------
-
-    [Fact]
-    public async Task Create_normalizes_unknown_severity_to_info_and_audits()
-    {
-        var repo = new FakeAnnouncementRepo();
-        var audit = new RecordingAudit();
-        var svc = new AnnouncementService(repo, audit);
-
-        var a = await svc.CreateAsync(new AnnouncementInput("  Heads up ", " body ", "explode", true, null), AuditContext.System);
-
-        Assert.Equal("Heads up", a.Title);
-        Assert.Equal("body", a.Body);
-        Assert.Equal("info", a.Severity);          // unknown severity falls back
-        Assert.Contains("announcement.created", audit.Events);
-    }
-
-    [Fact]
-    public async Task Create_keeps_a_valid_severity()
-    {
-        var svc = new AnnouncementService(new FakeAnnouncementRepo(), new RecordingAudit());
-        var a = await svc.CreateAsync(new AnnouncementInput("t", "b", "WARNING", true, null), AuditContext.System);
-        Assert.Equal("warning", a.Severity);
-    }
-
-    [Fact]
-    public async Task Visible_filters_inactive_and_expired()
-    {
-        var repo = new FakeAnnouncementRepo();
-        var now = DateTimeOffset.UtcNow;
-        repo.Items.Add(new Announcement { Id = Guid.NewGuid(), Title = "live", Body = "b", IsActive = true, ExpiresAt = now.AddDays(1) });
-        repo.Items.Add(new Announcement { Id = Guid.NewGuid(), Title = "off", Body = "b", IsActive = false, ExpiresAt = null });
-        repo.Items.Add(new Announcement { Id = Guid.NewGuid(), Title = "old", Body = "b", IsActive = true, ExpiresAt = now.AddDays(-1) });
-        var svc = new AnnouncementService(repo, new RecordingAudit());
-
-        var visible = await svc.ListVisibleAsync();
-
-        Assert.Single(visible);
-        Assert.Equal("live", visible[0].Title);
-    }
 }
 
 // --- fakes ----------------------------------------------------------------
@@ -116,19 +74,6 @@ internal sealed class FakeTenantRepo : ITenantRepository
     public Task<bool> SlugExistsAsync(string slug, CancellationToken ct = default) => Task.FromResult(Items.Any(t => t.Slug == slug));
     public Task AddAsync(Tenant tenant, CancellationToken ct = default) { Items.Add(tenant); return Task.CompletedTask; }
     public Task UpdateAsync(Tenant tenant, CancellationToken ct = default) => Task.CompletedTask; // entity mutated in place
-}
-
-internal sealed class FakeAnnouncementRepo : IAnnouncementRepository
-{
-    public readonly List<Announcement> Items = new();
-    public Task<IReadOnlyList<Announcement>> ListAsync(CancellationToken ct = default)
-        => Task.FromResult<IReadOnlyList<Announcement>>(Items.OrderByDescending(a => a.CreatedAt).ToList());
-    public Task<IReadOnlyList<Announcement>> ListVisibleAsync(DateTimeOffset now, CancellationToken ct = default)
-        => Task.FromResult<IReadOnlyList<Announcement>>(Items.Where(a => a.IsVisible(now)).ToList());
-    public Task<Announcement?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult(Items.FirstOrDefault(a => a.Id == id));
-    public Task AddAsync(Announcement a, CancellationToken ct = default) { if (a.Id == Guid.Empty) a.Id = Guid.NewGuid(); Items.Add(a); return Task.CompletedTask; }
-    public Task UpdateAsync(Announcement a, CancellationToken ct = default) => Task.CompletedTask;
-    public Task DeleteAsync(Announcement a, CancellationToken ct = default) { Items.Remove(a); return Task.CompletedTask; }
 }
 
 internal sealed class RecordingAudit : IAuditLogger

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Page — SAARVIX</title>
+  <script>try{if(localStorage.getItem("saarvix-theme")==="dark")document.documentElement.classList.add("dark")}catch(e){}</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/theme.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="assets/tw-config.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- chart pages only:
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script> -->
+</head>
+<body>
+<template id="page-content">
+  <div class="space-y-5">
+    <!-- Page header -->
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h2 class="font-display text-xl font-semibold">Page title</h2>
+        <p class="text-sm text-muted-foreground mt-0.5">Short description of this screen.</p>
+      </div>
+      <button class="btn btn-primary"><i data-lucide="plus" class="size-4"></i>Primary action</button>
+    </div>
+
+    <!-- Content -->
+    <div class="card card-body">
+      Replace with your content. Reuse component classes from theme.css.
+    </div>
+  </div>
+</template>
+
+<script src="assets/shell.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  mountShell({ active: "KEY", title: "Page title" }); // KEY must match a NAV item key in shell.js
+  // page-specific JS here
+  lucide.createIcons();
+</script>
+</body>
+</html>

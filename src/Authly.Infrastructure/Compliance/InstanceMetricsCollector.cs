@@ -6,9 +6,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Authly.Infrastructure.Compliance;
 
 /// <summary>
-/// Sums platform-wide aggregate counts for the self-host telemetry push. Iterates tenants and
-/// counts within each tenant scope (RLS-protected tables can't be counted globally without a
-/// tenant bound), then totals. Emits numbers only — never any identifying data.
+/// Aggregate counts for the currently-bound project (the active tenant scope). Counts only within the
+/// request's resolved tenant — RLS-protected tables are read under that existing binding, never
+/// rebinding the set-once tenant context. Emits numbers only — never any identifying data. The
+/// org-wide project count is supplied by the caller (the tenants table is not RLS-protected).
 /// </summary>
 public sealed class InstanceMetricsCollector : IInstanceMetricsCollector
 {
@@ -23,22 +24,16 @@ public sealed class InstanceMetricsCollector : IInstanceMetricsCollector
 
     public async Task<InstanceMetrics> CollectAsync(CancellationToken ct = default)
     {
-        // Tenants table is not RLS-protected.
-        var tenantIds = await _db.Tenants.AsNoTracking().Select(t => t.Id).ToListAsync(ct);
+        if (_tenant.TenantId is not { } tid)
+            return new InstanceMetrics(0, 0, 0, 0);
 
         var now = DateTimeOffset.UtcNow;
-        int users = 0, apps = 0, sessions = 0;
+        // The request's tenant is already bound (RLS active); count within it, filtering explicitly too.
+        var users = await _db.Users.AsNoTracking().CountAsync(u => u.TenantId == tid, ct);
+        var apps = await _db.Applications.AsNoTracking().CountAsync(a => a.TenantId == tid, ct);
+        var sessions = await _db.Sessions.AsNoTracking()
+            .CountAsync(s => s.TenantId == tid && !s.Revoked && s.ExpiresAt > now, ct);
 
-        foreach (var tid in tenantIds)
-        {
-            // Bind the tenant so RLS lets these counts through; also filter explicitly (hard rule).
-            _tenant.SetTenant(tid);
-            users += await _db.Users.AsNoTracking().CountAsync(u => u.TenantId == tid, ct);
-            apps += await _db.Applications.AsNoTracking().CountAsync(a => a.TenantId == tid, ct);
-            sessions += await _db.Sessions.AsNoTracking()
-                .CountAsync(s => s.TenantId == tid && !s.Revoked && s.ExpiresAt > now, ct);
-        }
-
-        return new InstanceMetrics(tenantIds.Count, users, apps, sessions);
+        return new InstanceMetrics(1, users, apps, sessions);
     }
 }

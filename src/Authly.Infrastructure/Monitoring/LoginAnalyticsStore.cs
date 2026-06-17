@@ -6,9 +6,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Authly.Infrastructure.Monitoring;
 
 /// <summary>
-/// Aggregates login outcomes across every tenant for the platform analytics chart. login_history
-/// is RLS-protected, so each tenant scope is bound before counting (same pattern as the metrics
-/// collector). Emits per-day success/failure totals only — no users, IPs, or other identifiers.
+/// Aggregates login outcomes for the active project's analytics chart. login_history is RLS-protected
+/// and read under the request's already-bound tenant scope (never rebinding the set-once tenant
+/// context). Emits per-day success/failure totals only — no users, IPs, or other identifiers.
 /// </summary>
 public sealed class LoginAnalyticsStore : ILoginAnalyticsStore
 {
@@ -32,10 +32,9 @@ public sealed class LoginAnalyticsStore : ILoginAnalyticsStore
         for (var d = 0; d < days; d++)
             buckets[DateOnly.FromDateTime(since.AddDays(d))] = (0, 0);
 
-        var tenantIds = await _db.Tenants.AsNoTracking().Select(t => t.Id).ToListAsync(ct);
-        foreach (var tid in tenantIds)
+        // The request's tenant is already bound (RLS active); read within it, filtering explicitly too.
+        if (_tenant.TenantId is { } tid)
         {
-            _tenant.SetTenant(tid);
             var rows = await _db.LoginHistory.AsNoTracking()
                 .Where(h => h.TenantId == tid && h.CreatedAt >= sinceOffset)
                 .Select(h => new { h.CreatedAt, h.Result })

@@ -201,7 +201,7 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 **Tasks**
 - [x] Deleted `Areas/SuperAdmin/**`, `SuperAdmin` entity/enum/repo/service, `AuthSchemes.SuperAdmin`/`AuthPolicies.SuperAdmin`/`SuperAdminClaims`, `SuperAdminIpAllowlistMiddleware`; `Program.cs` super-admin cookie scheme + policy + `EnsureSeededAsync` bootstrap + `SUPERADMIN_ENABLED` gate + `/superadmin` 404 + IP-allowlist wiring (default auth scheme now `User`); Home page super-admin link. Migration `RemoveSuperAdminAndCloudTables` (drops `super_admins`, `announcements`, `self_hosted_instances`).
 - [x] Dropped cloud-only: **Announcements** (entity/repo/service + tenant-admin banner — `TenantBanners` now onboarding-only), **SelfHostedInstance** + `SelfHostSyncService` + `/api` sync ingest (`SyncController`) + `SelfHostSyncJob` (Hangfire job removed), `IDeploymentContext`/`DeploymentContext` (+ `DEPLOYMENT_MODE`/`SYNC_*` reads + boot disclosure audit), tenant **suspend/reactivate** (`ITenantService`/`TenantService`). `SyncPayload`/`InstanceRegistration` contracts removed.
-- [x] **Moved** monitoring to the console: `TenantAdmin/MonitoringController` (`observability.read`) reuses `IPlatformHealthProbe` + `IInstanceMetricsCollector` + `ILoginAnalyticsStore`; SAARVIX page (health, instance totals, 14-day login analytics; version from entry assembly). Sidebar "Monitoring" entry.
+- [x] **Moved** monitoring to the console: `TenantAdmin/MonitoringController` (`observability.read`) reuses `IPlatformHealthProbe` + `IInstanceMetricsCollector` + `ILoginAnalyticsStore`; SAARVIX page (health, project-scoped totals + org project count, 14-day login analytics; version from entry assembly). Sidebar "Monitoring" entry. *(Runtime fix: the metrics collector + login-analytics store no longer rebind the set-once tenant context — they read under the request's already-bound project, RLS-safe — since the page now runs in a tenant-bound `/tenantadmin` request, not the old tenant-less SuperAdmin scope.)*
 - [x] **Folded** tenant **Delete** → `TenantAdmin/SettingsController` (`project.delete`, slug-confirm) → `TenantService.DeleteAsync`; auto-switches to another project in the org or signs out. Sidebar "Project settings" entry.
 - [x] Audit logging kept (only `super_admin` actor paths removed with the surface). `SystemRbac.SuperAdmin` end-user role retained (unrelated to the deleted platform surface).
 
@@ -227,7 +227,7 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 
 **Tests:** ✅ `ObservabilityConfigService` (encrypt-on-write, blank-keeps-secret, signal normalize/clamp, secret-presence view, decrypt for runtime, disabled-when-no-row). Build + 262 green.
 
-**Verify (pending):** `docker compose -f docker-compose.yml -f docker-compose.observability.yml up` → enable OTLP in the Observability page (or env) → generate activity → traces/metrics/logs in Grafana, filterable by `project.id`.
+**Verify:** ✅ Runtime acceptance (docker compose, current `main`): all migrations applied (account_invite_tokens + observability_config present; super_admins/announcements/self_hosted_instances dropped; users.is_tenant_admin gone); deleted `/superadmin/**` routes 404; signup → console cookie; all six new console pages render 200 authenticated (members, operator-roles, organization, settings, monitoring, observability); observability save persists with **encrypted** OTLP header (no plaintext leak) + `observability.config_saved` audit. Grafana trace/metric/log visualization via the compose overlay still to be eyeballed.
 
 ---
 

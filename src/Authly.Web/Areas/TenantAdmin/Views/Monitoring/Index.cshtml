@@ -3,10 +3,10 @@
     var maxDay = Model.Analytics.Count == 0 ? 1 : Math.Max(1, Model.Analytics.Max(d => d.Successes + d.Failures));
     var cards = new (string Label, int Value, string Icon)[]
     {
-        ("Projects", Model.Metrics.TenantCount, "building-2"),
-        ("Users", Model.Metrics.UserCount, "users"),
-        ("Applications", Model.Metrics.AppCount, "app-window"),
-        ("Active sessions", Model.Metrics.ActiveSessionCount, "activity"),
+        ("Projects (org)", Model.ProjectCount, "building-2"),
+        ("Users (project)", Model.Metrics.UserCount, "users"),
+        ("Applications (project)", Model.Metrics.AppCount, "app-window"),
+        ("Active sessions (project)", Model.Metrics.ActiveSessionCount, "activity"),
     };
 }
 

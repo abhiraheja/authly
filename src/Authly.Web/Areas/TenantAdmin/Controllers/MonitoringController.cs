@@ -19,16 +19,19 @@ public sealed class MonitoringController : TenantAdminControllerBase
     private readonly IPlatformHealthProbe _health;
     private readonly IInstanceMetricsCollector _metrics;
     private readonly ILoginAnalyticsStore _analytics;
+    private readonly ITenantRepository _tenants;
 
     public MonitoringController(
         IPlatformHealthProbe health,
         IInstanceMetricsCollector metrics,
         ILoginAnalyticsStore analytics,
+        ITenantRepository tenants,
         ITenantContext tenant) : base(tenant)
     {
         _health = health;
         _metrics = metrics;
         _analytics = analytics;
+        _tenants = tenants;
     }
 
     [RequireOperatorPermission("observability.read")]
@@ -39,7 +42,8 @@ public sealed class MonitoringController : TenantAdminControllerBase
         return View(new MonitoringViewModel
         {
             Health = await _health.CheckAsync(ct),
-            Metrics = await _metrics.CollectAsync(ct),
+            Metrics = await _metrics.CollectAsync(ct),                       // counts for the active project
+            ProjectCount = (await _tenants.ListByOrganizationAsync(OrgId, ct)).Count,
             Analytics = await _analytics.DailyOutcomesAsync(14, ct),
             Version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "—"
         });

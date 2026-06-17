@@ -7,7 +7,6 @@ using Authly.Infrastructure;
 using Authly.Infrastructure.Data;
 using Authly.Modules;
 using Authly.Modules.Auth;
-using Authly.Modules.SuperAdmins;
 using Authly.Web.Infrastructure;
 using Authly.Web.Infrastructure.Api;
 using Authly.Web.Infrastructure.Messaging;
@@ -17,10 +16,6 @@ using Microsoft.Extensions.Options;
 using OpenIddict.Validation.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Deploy flag: when shipping/wrapping the product to customers, the platform super-admin surface
-// is disabled so it is never exposed. Defaults to enabled for our own hosted deployment.
-var superAdminEnabled = builder.Configuration.GetValue("SUPERADMIN_ENABLED", true);
 
 // MVC + Razor (all panels, hosted login, end-user portal are server-rendered).
 builder.Services.AddControllersWithViews();
@@ -68,8 +63,7 @@ builder.Services.AddSingleton<Authly.Web.Infrastructure.WebAuthn.WebAuthnChallen
 builder.Services.AddScoped<Authly.Web.Infrastructure.Security.SuspiciousLoginJob>();
 builder.Services.AddScoped<Authly.Web.Infrastructure.Security.SecurityViewState>();
 
-// Self-host & compliance (Phase 13): telemetry push job + retention/cleanup jobs (run via Hangfire).
-builder.Services.AddScoped<Authly.Web.Infrastructure.SelfHost.SelfHostSyncJob>();
+// Compliance & maintenance (Phase 13): retention/cleanup jobs (run via Hangfire).
 builder.Services.AddScoped<Authly.Web.Infrastructure.Maintenance.MaintenanceJobs>();
 builder.Services.AddScoped<Authly.Web.Infrastructure.LogStreaming.LogStreamJob>();
 
@@ -88,19 +82,8 @@ builder.Services.AddScoped<Authly.Web.Infrastructure.Webhooks.WebhookDispatchJob
 builder.Services.AddAuthlyOpenIddict(builder.Environment.IsDevelopment());
 builder.Services.AddScoped<IOAuthClientStore, OpenIddictClientStore>();
 
-// Two fully isolated cookie schemes: platform super-admin and tenant end-users.
-builder.Services.AddAuthentication(AuthSchemes.SuperAdmin)
-    .AddCookie(AuthSchemes.SuperAdmin, options =>
-    {
-        options.Cookie.Name = "authly.superadmin";
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.LoginPath = "/superadmin/account/login";
-        options.LogoutPath = "/superadmin/account/logout";
-        options.AccessDeniedPath = "/superadmin/account/login";
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
-        options.SlidingExpiration = true;
-    })
+// Isolated cookie schemes for tenant end-users and tenant administrators (console operators).
+builder.Services.AddAuthentication(AuthSchemes.User)
     .AddCookie(AuthSchemes.User, options =>
     {
         options.Cookie.Name = "authly.user";
@@ -137,9 +120,6 @@ builder.Services.AddAuthentication(AuthSchemes.SuperAdmin)
     });
 
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy(AuthPolicies.SuperAdmin, policy => policy
-        .AddAuthenticationSchemes(AuthSchemes.SuperAdmin)
-        .RequireAuthenticatedUser())
     .AddPolicy(AuthPolicies.User, policy => policy
         .AddAuthenticationSchemes(AuthSchemes.User)
         .RequireAuthenticatedUser())
@@ -162,33 +142,16 @@ builder.Services.AddHangfireServer();
 
 var app = builder.Build();
 
-// Apply pending EF Core migrations and bootstrap the first super admin on startup.
+// Apply pending EF Core migrations on startup.
 using (var scope = app.Services.CreateScope())
 {
     var sp = scope.ServiceProvider;
     sp.GetRequiredService<AppDbContext>().Database.Migrate();
-
-    // Only seed (and later expose) the platform super admin when the surface is enabled.
-    if (superAdminEnabled)
-        await sp.GetRequiredService<ISuperAdminService>().EnsureSeededAsync(
-            app.Configuration["SUPERADMIN_EMAIL"],
-            app.Configuration["SUPERADMIN_PASSWORD"]);
-
-    // Phase 13 — record the self-host disclosure acknowledgement at boot (evidence the operator
-    // is running a copy that syncs aggregate telemetry; §9 hard rule 4).
-    var deployment = sp.GetRequiredService<Authly.Core.Deployment.IDeploymentContext>();
-    if (deployment.Mode == Authly.Core.Deployment.DeploymentMode.SelfHosted)
-    {
-        await sp.GetRequiredService<Authly.Modules.Audit.IAuditLogger>().LogAsync(
-            "self_host.disclosure_acknowledged", Authly.Modules.Common.AuditContext.System,
-            metadata: new { version = deployment.Version, sync_enabled = deployment.SyncEnabled });
-    }
 }
 
-// Phase 13 — recurring maintenance + telemetry jobs. Retention runs in every deployment; the
-// self-host telemetry push only when self-hosted with a configured sync endpoint/key.
-// Use the service-based IRecurringJobManager (resolved from DI) rather than the static RecurringJob
-// API, which requires JobStorage.Current and throws at startup under service-based Hangfire setup.
+// Recurring maintenance jobs (retention/cleanup). Use the service-based IRecurringJobManager
+// (resolved from DI) rather than the static RecurringJob API, which requires JobStorage.Current
+// and throws at startup under service-based Hangfire setup.
 using (var scope = app.Services.CreateScope())
 {
     var recurringJobs = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
@@ -197,13 +160,6 @@ using (var scope = app.Services.CreateScope())
         "retention-expire-transient", j => j.ExpireTransientCredentialsAsync(CancellationToken.None), Cron.Hourly());
     recurringJobs.AddOrUpdate<Authly.Web.Infrastructure.Maintenance.MaintenanceJobs>(
         "retention-purge-history", j => j.PurgeStaleHistoryAsync(CancellationToken.None), Cron.Daily());
-
-    var deployment = scope.ServiceProvider.GetRequiredService<Authly.Core.Deployment.IDeploymentContext>();
-    if (deployment.SyncEnabled)
-        recurringJobs.AddOrUpdate<Authly.Web.Infrastructure.SelfHost.SelfHostSyncJob>(
-            "self-host-telemetry-sync", j => j.PushAsync(CancellationToken.None), "0 */6 * * *");
-    else
-        recurringJobs.RemoveIfExists("self-host-telemetry-sync");
 
     // Phase 2 — audit log streaming to an external SIEM/webhook, only when an endpoint is configured.
     if (Authly.Web.Infrastructure.LogStreaming.LogStreamJob.IsConfigured(builder.Configuration))
@@ -221,25 +177,9 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Security headers on every response; super-admin IP allowlist + sensitive-endpoint rate limiting.
+// Security headers on every response; sensitive-endpoint rate limiting.
 app.UseMiddleware<Authly.Web.Infrastructure.Security.SecurityHeadersMiddleware>();
-app.UseMiddleware<Authly.Web.Infrastructure.Security.SuperAdminIpAllowlistMiddleware>();
 app.UseMiddleware<Authly.Web.Infrastructure.Security.RateLimitingMiddleware>();
-
-// When the super-admin surface is disabled (customer-facing builds), hide it entirely: every
-// /superadmin route 404s as if it doesn't exist.
-if (!superAdminEnabled)
-{
-    app.Use(async (ctx, next) =>
-    {
-        if (ctx.Request.Path.StartsWithSegments("/superadmin"))
-        {
-            ctx.Response.StatusCode = StatusCodes.Status404NotFound;
-            return;
-        }
-        await next();
-    });
-}
 
 app.UseRouting();
 

@@ -5,9 +5,8 @@ using AccountEntity = Authly.Core.Entities.Account;
 namespace Authly.Modules.Accounts;
 
 /// <summary>
-/// Console account (operator/employee) credential + lifecycle operations. The console-login
-/// counterpart of <c>SuperAdminService</c>; operates on the global Account layer,
-/// never on tenant end-users (User).
+/// Console account (operator/employee) credential + lifecycle operations. Operates on the global
+/// Account layer (console login), never on tenant end-users (User).
 /// </summary>
 public interface IAccountService
 {

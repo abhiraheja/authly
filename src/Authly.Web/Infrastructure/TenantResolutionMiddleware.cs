@@ -33,8 +33,7 @@ public sealed class TenantResolutionMiddleware
         var path = context.Request.Path;
         // Platform surfaces are tenant-less; the Management API binds its tenant from the token,
         // not the host, so it is excluded from host/dev-cookie resolution here.
-        if (!path.StartsWithSegments("/superadmin")
-            && !path.StartsWithSegments("/hangfire")
+        if (!path.StartsWithSegments("/hangfire")
             && !path.StartsWithSegments("/signup")
             && !path.StartsWithSegments("/invite")
             && !path.StartsWithSegments("/api"))

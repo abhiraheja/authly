@@ -48,7 +48,7 @@ public class TenantServiceTests
     }
 
     [Fact]
-    public async Task SuspendAsync_sets_status_and_audits()
+    public async Task DeleteAsync_soft_deletes_and_audits()
     {
         var repo = new FakeTenantRepository();
         var existing = new Tenant { Id = Guid.NewGuid(), Name = "Acme", Slug = "acme", Status = TenantStatus.Active };
@@ -56,10 +56,10 @@ public class TenantServiceTests
         var audit = new RecordingAuditLogger();
         var service = new TenantService(repo, audit);
 
-        await service.SuspendAsync(existing.Id, AuditContext.System);
+        await service.DeleteAsync(existing.Id, AuditContext.System);
 
-        Assert.Equal(TenantStatus.Suspended, existing.Status);
-        Assert.Equal("tenant.suspended", audit.Events.Single());
+        Assert.Equal(TenantStatus.Deleted, existing.Status);
+        Assert.Equal("tenant.deleted", audit.Events.Single());
     }
 
     private sealed class FakeTenantRepository : ITenantRepository

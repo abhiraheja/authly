@@ -1,6 +1,7 @@
 using Authly.Core.Interfaces;
 using Authly.Modules.Applications;
 using Authly.Modules.Claims;
+using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Authly.Web.Areas.TenantAdmin.Controllers;
@@ -22,6 +23,7 @@ public sealed class ClaimConfigsController : TenantAdminControllerBase
         _applications = applications;
     }
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -31,6 +33,7 @@ public sealed class ClaimConfigsController : TenantAdminControllerBase
         return View(new ClaimConfigInput());
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Add(ClaimConfigInput input, CancellationToken ct)
@@ -47,6 +50,7 @@ public sealed class ClaimConfigsController : TenantAdminControllerBase
         return RedirectToAction(nameof(Index));
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("{id:guid}/delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)

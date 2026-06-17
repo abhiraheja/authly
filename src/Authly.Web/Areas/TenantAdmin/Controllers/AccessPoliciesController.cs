@@ -2,6 +2,7 @@ using System.Text.Json;
 using Authly.Core.Interfaces;
 using Authly.Modules.Abac;
 using Authly.Web.Areas.TenantAdmin.Models;
+using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Authly.Web.Areas.TenantAdmin.Controllers;
@@ -20,6 +21,7 @@ public sealed class AccessPoliciesController : TenantAdminControllerBase
         _decisions = decisions;
     }
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -27,9 +29,11 @@ public sealed class AccessPoliciesController : TenantAdminControllerBase
         return View(await _policies.ListAsync(TenantId, ct));
     }
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("create")]
     public IActionResult Create() => View("Edit", new AccessPolicyViewModel());
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
     {
@@ -44,6 +48,7 @@ public sealed class AccessPoliciesController : TenantAdminControllerBase
         });
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("save")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(AccessPolicyViewModel model, CancellationToken ct)
@@ -70,6 +75,7 @@ public sealed class AccessPoliciesController : TenantAdminControllerBase
         }
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("{id:guid}/delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
@@ -83,6 +89,7 @@ public sealed class AccessPoliciesController : TenantAdminControllerBase
         return RedirectToAction(nameof(Index));
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("test")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Test(AccessPolicyTestViewModel test, CancellationToken ct)

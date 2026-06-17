@@ -1,6 +1,7 @@
 using Authly.Core.Interfaces;
 using Authly.Modules.Branding;
 using Authly.Web.Areas.TenantAdmin.Models;
+using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Authly.Web.Areas.TenantAdmin.Controllers;
@@ -17,6 +18,7 @@ public sealed class BrandingController : TenantAdminControllerBase
     public BrandingController(IBrandingService branding, ITenantContext tenant) : base(tenant)
         => _branding = branding;
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -35,6 +37,7 @@ public sealed class BrandingController : TenantAdminControllerBase
         });
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(BrandingViewModel model, CancellationToken ct)

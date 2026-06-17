@@ -4,6 +4,7 @@ using Authly.Modules.Applications;
 using Authly.Modules.Branding;
 using Authly.Modules.Tenants;
 using Authly.Web.Areas.TenantAdmin.Models;
+using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Authly.Web.Areas.TenantAdmin.Controllers;
@@ -32,6 +33,7 @@ public sealed class OnboardingController : TenantAdminControllerBase
     }
 
     // Step 1 — create the first application.
+    [RequireOperatorPermission("project.read")]
     [HttpGet("")]
     public IActionResult Index()
     {
@@ -40,6 +42,7 @@ public sealed class OnboardingController : TenantAdminControllerBase
         return View(new CreateApplicationViewModel());
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("app")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateApp(CreateApplicationViewModel model, CancellationToken ct)
@@ -66,6 +69,7 @@ public sealed class OnboardingController : TenantAdminControllerBase
     }
 
     // Step 2 — show credentials and optionally mint a backend API key.
+    [RequireOperatorPermission("project.read")]
     [HttpGet("keys")]
     public async Task<IActionResult> Keys(Guid appId, CancellationToken ct)
     {
@@ -77,6 +81,7 @@ public sealed class OnboardingController : TenantAdminControllerBase
         return View(app);
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("api-key")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateApiKey(Guid appId, string name, CancellationToken ct)
@@ -90,6 +95,7 @@ public sealed class OnboardingController : TenantAdminControllerBase
     }
 
     // Step 3 — branding.
+    [RequireOperatorPermission("project.read")]
     [HttpGet("branding")]
     public async Task<IActionResult> Branding(CancellationToken ct)
     {
@@ -103,6 +109,7 @@ public sealed class OnboardingController : TenantAdminControllerBase
         });
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("branding")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Branding(OnboardingBrandingViewModel model, CancellationToken ct)
@@ -127,6 +134,7 @@ public sealed class OnboardingController : TenantAdminControllerBase
     }
 
     // Step 4 — test login pointer + finish.
+    [RequireOperatorPermission("project.read")]
     [HttpGet("test")]
     public IActionResult TestLogin()
     {
@@ -135,6 +143,7 @@ public sealed class OnboardingController : TenantAdminControllerBase
         return View();
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("finish")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Finish(CancellationToken ct)

@@ -1,6 +1,7 @@
 using Authly.Core.Enums;
 using Authly.Core.Interfaces;
 using Authly.Modules.Messaging;
+using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Authly.Web.Areas.TenantAdmin.Controllers;
@@ -19,6 +20,7 @@ public sealed class MessagingController : TenantAdminControllerBase
 
     // --- Providers + log overview ------------------------------------------
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -28,6 +30,7 @@ public sealed class MessagingController : TenantAdminControllerBase
         return View();
     }
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("providers/{channel}")]
     public async Task<IActionResult> Provider(string channel, Guid? id, CancellationToken ct)
     {
@@ -47,6 +50,7 @@ public sealed class MessagingController : TenantAdminControllerBase
         return View(input);
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("providers")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveProvider(ProviderConfigInput input, CancellationToken ct)
@@ -56,6 +60,7 @@ public sealed class MessagingController : TenantAdminControllerBase
         return RedirectToAction(nameof(Index));
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("providers/{id:guid}/delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteProvider(Guid id, CancellationToken ct)
@@ -67,6 +72,7 @@ public sealed class MessagingController : TenantAdminControllerBase
 
     // --- Templates ----------------------------------------------------------
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("templates")]
     public async Task<IActionResult> Templates(CancellationToken ct)
     {
@@ -74,6 +80,7 @@ public sealed class MessagingController : TenantAdminControllerBase
         return View(await _messaging.ListTemplatesAsync(TenantId, ct));
     }
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("templates/edit")]
     public async Task<IActionResult> EditTemplate(string key, string channel, string locale, CancellationToken ct)
     {
@@ -89,6 +96,7 @@ public sealed class MessagingController : TenantAdminControllerBase
         }
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("templates")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveTemplate(TemplateInput input, string? action, CancellationToken ct)
@@ -118,6 +126,7 @@ public sealed class MessagingController : TenantAdminControllerBase
         }
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("templates/{id:guid}/delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteTemplate(Guid id, CancellationToken ct)
@@ -127,6 +136,7 @@ public sealed class MessagingController : TenantAdminControllerBase
         return RedirectToAction(nameof(Templates));
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("templates/send-test")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SendTest(string key, string channel, string recipient, CancellationToken ct)

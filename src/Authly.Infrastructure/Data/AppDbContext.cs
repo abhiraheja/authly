@@ -51,6 +51,10 @@ public class AppDbContext : DbContext
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<OrganizationMembership> OrganizationMemberships => Set<OrganizationMembership>();
+    public DbSet<OperatorRole> OperatorRoles => Set<OperatorRole>();
+    public DbSet<OperatorPermission> OperatorPermissions => Set<OperatorPermission>();
+    public DbSet<OperatorRolePermission> OperatorRolePermissions => Set<OperatorRolePermission>();
+    public DbSet<MemberRole> MemberRoles => Set<MemberRole>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -196,6 +200,68 @@ public class AppDbContext : DbContext
             e.HasOne(x => x.Account).WithMany(a => a.Memberships).HasForeignKey(x => x.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Organization).WithMany(o => o.Memberships).HasForeignKey(x => x.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // --- Operator RBAC (org-scoped; global / NO RLS; separate from end-user RBAC) ---
+
+        b.Entity<OperatorRole>(e =>
+        {
+            e.ToTable("operator_roles");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.OrganizationId).HasColumnName("organization_id").IsRequired();
+            e.Property(x => x.Name).HasColumnName("name").IsRequired();
+            e.Property(x => x.Description).HasColumnName("description");
+            e.Property(x => x.IsSystem).HasColumnName("is_system").HasDefaultValue(false);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.OrganizationId, x.Name }).IsUnique().HasDatabaseName("idx_operator_roles_org_name");
+        });
+
+        b.Entity<OperatorPermission>(e =>
+        {
+            e.ToTable("operator_permissions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.OrganizationId).HasColumnName("organization_id").IsRequired();
+            e.Property(x => x.Resource).HasColumnName("resource").IsRequired();
+            e.Property(x => x.Action).HasColumnName("action").IsRequired();
+            e.Property(x => x.Description).HasColumnName("description");
+            e.Ignore(x => x.Name);
+
+            e.HasIndex(x => new { x.OrganizationId, x.Resource, x.Action }).IsUnique().HasDatabaseName("idx_operator_permissions_org_res_act");
+        });
+
+        b.Entity<OperatorRolePermission>(e =>
+        {
+            e.ToTable("operator_role_permissions");
+            e.HasKey(x => new { x.OperatorRoleId, x.OperatorPermissionId });
+            e.Property(x => x.OperatorRoleId).HasColumnName("operator_role_id");
+            e.Property(x => x.OperatorPermissionId).HasColumnName("operator_permission_id");
+
+            e.HasOne(x => x.OperatorRole).WithMany(r => r.RolePermissions).HasForeignKey(x => x.OperatorRoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.OperatorPermission).WithMany().HasForeignKey(x => x.OperatorPermissionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<MemberRole>(e =>
+        {
+            e.ToTable("member_roles");
+            e.HasKey(x => new { x.OrganizationMembershipId, x.OperatorRoleId });
+            e.Property(x => x.OrganizationMembershipId).HasColumnName("organization_membership_id");
+            e.Property(x => x.OperatorRoleId).HasColumnName("operator_role_id");
+            e.Property(x => x.OrganizationId).HasColumnName("organization_id").IsRequired();
+            e.Property(x => x.GrantedByAccountId).HasColumnName("granted_by_account_id");
+            e.Property(x => x.GrantedAt).HasColumnName("granted_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => x.OrganizationId).HasDatabaseName("idx_member_roles_org");
+
+            e.HasOne(x => x.OperatorRole).WithMany().HasForeignKey(x => x.OperatorRoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // Removing a membership cascades its role grants.
+            e.HasOne<OrganizationMembership>().WithMany().HasForeignKey(x => x.OrganizationMembershipId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

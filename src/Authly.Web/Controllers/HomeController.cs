@@ -11,12 +11,15 @@ public class HomeController : Controller
     public IActionResult Index() => View();
 
     [AllowAnonymous]
+    [Route("features")]
     public IActionResult Features() => View();
 
     [AllowAnonymous]
+    [Route("self-host")]
     public IActionResult SelfHost() => View();
 
     [AllowAnonymous]
+    [Route("privacy")]
     public IActionResult Privacy()
     {
         return View();

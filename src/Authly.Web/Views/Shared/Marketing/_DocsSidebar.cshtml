@@ -1,0 +1,40 @@
+@{
+    var activeKey = (ViewData["DocsActive"] as string) ?? "";
+    var sections = new[]
+    {
+        ("Getting started", new[]
+        {
+            new Authly.Web.Models.DocsNavItem("Overview", "/docs", "index"),
+            new Authly.Web.Models.DocsNavItem("Quickstart — integrate an app", "/docs/quickstart", "quickstart"),
+            new Authly.Web.Models.DocsNavItem("Self-host with Docker", "/docs/self-host", "self-host"),
+        }),
+        ("Protocol & API", new[]
+        {
+            new Authly.Web.Models.DocsNavItem("OAuth 2.0 & OIDC", "/docs/oauth", "oauth"),
+            new Authly.Web.Models.DocsNavItem("Management REST API", "/docs/api", "api"),
+            new Authly.Web.Models.DocsNavItem("Webhooks & events", "/docs/webhooks", "webhooks"),
+        }),
+        ("Product guides", new[]
+        {
+            new Authly.Web.Models.DocsNavItem("Admin console", "/docs/admin", "admin"),
+            new Authly.Web.Models.DocsNavItem("End-user portal", "/docs/portal", "portal"),
+        }),
+    };
+}
+<nav class="text-sm">
+    @foreach (var (group, items) in sections)
+    {
+        <div class="mb-5">
+            <div class="px-2 mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">@group</div>
+            <ul class="space-y-0.5">
+                @foreach (var item in items)
+                {
+                    var on = item.Key == activeKey;
+                    <li>
+                        <a href="@item.Href" class="block rounded-md px-2 py-1.5 @(on ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted")">@item.Title</a>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+</nav>

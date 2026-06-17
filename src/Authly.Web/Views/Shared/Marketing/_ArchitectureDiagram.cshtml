@@ -1,0 +1,43 @@
+@*
+    Two identity layers, one OAuth/OIDC core. Token-driven colours via currentColor + theme classes.
+    Operators (global Accounts) manage the console; end-users authenticate against tenant apps.
+*@
+<div class="card card-body">
+    <div class="grid gap-4 md:grid-cols-2">
+        <div class="rounded-lg border border-border bg-muted/30 p-4">
+            <div class="flex items-center gap-2 text-sm font-semibold"><i data-lucide="users-round" class="size-4 text-primary"></i> Operators (your team)</div>
+            <p class="mt-1 text-xs text-muted-foreground">Global <strong>Accounts</strong> · Organizations · Projects · operator RBAC. Console login only — never issued an OAuth token.</p>
+            <div class="mt-3 flex flex-wrap gap-1.5">
+                <span class="badge badge-primary">Organizations</span>
+                <span class="badge badge-primary">Projects</span>
+                <span class="badge badge-primary">Operator roles</span>
+            </div>
+        </div>
+        <div class="rounded-lg border border-border bg-muted/30 p-4">
+            <div class="flex items-center gap-2 text-sm font-semibold"><i data-lucide="user" class="size-4 text-teal"></i> End-users (your customers)</div>
+            <p class="mt-1 text-xs text-muted-foreground">Tenant-scoped <strong>Users</strong>, isolated per project by Postgres RLS. Sign in on branded hosted pages → receive OAuth tokens for your apps.</p>
+            <div class="mt-3 flex flex-wrap gap-1.5">
+                <span class="badge badge-info">Hosted login</span>
+                <span class="badge badge-info">MFA / passkeys</span>
+                <span class="badge badge-info">End-user portal</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="my-4 flex items-center gap-3 text-muted-foreground">
+        <span class="h-px flex-1 bg-border"></span>
+        <i data-lucide="arrow-down-up" class="size-4"></i>
+        <span class="text-xs uppercase tracking-wider">never share a credential surface</span>
+        <span class="h-px flex-1 bg-border"></span>
+    </div>
+
+    <div class="rounded-lg border border-primary/30 bg-primary/5 p-4 text-center">
+        <div class="flex items-center justify-center gap-2 text-sm font-semibold"><i data-lucide="key-round" class="size-4 text-primary"></i> OAuth 2.0 / OpenID Connect core</div>
+        <p class="mt-1 text-xs text-muted-foreground">OpenIddict — discovery · authorize · token · userinfo · introspect · revoke · JWKS</p>
+        <div class="mt-3 flex flex-wrap justify-center gap-1.5">
+            <span class="badge badge-neutral">Auth Code + PKCE</span>
+            <span class="badge badge-neutral">Refresh + rotation</span>
+            <span class="badge badge-neutral">Client Credentials</span>
+        </div>
+    </div>
+</div>

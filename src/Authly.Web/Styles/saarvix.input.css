@@ -278,6 +278,46 @@
   /* ---- Misc helpers ---- */
   .divide-rows > * + * { border-top: 1px solid rgb(var(--border)); }
   .glass { background: rgb(var(--background) / .8); backdrop-filter: blur(8px); }
+
+  /* ---- Marketing / public site helpers ---- */
+  /* Subtle grid backdrop for hero sections (fades out toward edges) */
+  .grid-bg {
+    background-image:
+      linear-gradient(to right, rgb(var(--border) / .55) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(var(--border) / .55) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+            mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+  }
+  /* Gradient brand text */
+  .text-gradient {
+    background-image: linear-gradient(120deg, rgb(var(--primary)), rgb(var(--teal)) 60%, rgb(var(--mint)));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+  }
+  /* Soft brand glow blob behind heroes/CTAs */
+  .glow-blob { background: rgb(var(--primary) / .22); filter: blur(80px); border-radius: 9999px; }
+  /* Code block (marketing/docs) — dark surface in both themes for contrast */
+  .code-surface {
+    background: rgb(var(--ink)); color: #e8e8f5; border: 1px solid rgb(var(--border));
+    border-radius: var(--radius); font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: .8125rem; line-height: 1.6;
+  }
+  .dark .code-surface { background: #05052e; }
+  .code-surface .tok-key { color: #c4b5fd; }
+  .code-surface .tok-str { color: #80ede8; }
+  .code-surface .tok-com { color: #8a8ab0; }
+  .code-surface .tok-fn  { color: #f4b740; }
+  /* Mono eyebrow label */
+  .eyebrow { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: .6875rem; text-transform: uppercase; letter-spacing: .18em; color: rgb(var(--primary)); }
+  /* Screenshot placeholder frame */
+  .shot {
+    border: 1px dashed rgb(var(--border)); border-radius: var(--radius);
+    background:
+      linear-gradient(rgb(var(--muted) / .5), rgb(var(--muted) / .5)),
+      repeating-linear-gradient(45deg, transparent, transparent 11px, rgb(var(--border) / .25) 11px, rgb(var(--border) / .25) 12px);
+    display: grid; place-items: center; text-align: center;
+  }
 }
 
 @keyframes sk-pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }

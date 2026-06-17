@@ -1,0 +1,14 @@
+@{
+    Layout = "_PublicLayout";
+    ViewData["NavActive"] = "docs";
+}
+<div class="mx-auto max-w-7xl w-full px-4 sm:px-6 py-8">
+    <div class="grid gap-8 lg:grid-cols-[220px_1fr]">
+        <aside class="lg:sticky lg:top-20 lg:self-start">
+            @await Html.PartialAsync("Marketing/_DocsSidebar")
+        </aside>
+        <article class="min-w-0 max-w-3xl">
+            @RenderBody()
+        </article>
+    </div>
+</div>

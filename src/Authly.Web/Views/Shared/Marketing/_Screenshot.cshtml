@@ -1,0 +1,25 @@
+@model Authly.Web.Models.ScreenshotVM
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
+@{
+    var imgPath = $"/img/screenshots/{Model.FileName}";
+    var physical = System.IO.Path.Combine(Env.WebRootPath ?? "", "img", "screenshots", Model.FileName);
+    var exists = !string.IsNullOrEmpty(Env.WebRootPath) && System.IO.File.Exists(physical);
+}
+<figure class="w-full">
+    @if (exists)
+    {
+        <img src="@imgPath" alt="@Model.Caption" class="w-full rounded-lg border border-border shadow-md" loading="lazy" />
+        <figcaption class="mt-2 text-center text-xs text-muted-foreground">@Model.Caption</figcaption>
+    }
+    else
+    {
+        <div class="shot w-full" style="aspect-ratio: @Model.Aspect">
+            <div class="p-6">
+                <i data-lucide="image" class="size-7 text-muted-foreground mx-auto"></i>
+                <div class="mt-2 text-sm font-medium">@Model.Caption</div>
+                <div class="mt-1 text-xs text-muted-foreground font-mono">screenshots/@Model.FileName</div>
+            </div>
+        </div>
+        <figcaption class="mt-2 text-center text-xs text-muted-foreground">Screenshot placeholder · @Model.Caption</figcaption>
+    }
+</figure>

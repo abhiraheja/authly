@@ -1,0 +1,25 @@
+@model Authly.Web.Models.CodeTabs
+@{
+    var tabs = Model.Tabs;
+}
+<div data-tabs-root class="code-surface overflow-hidden">
+    <div class="flex items-center justify-between border-b border-white/10 px-3">
+        <div class="tabs !border-0" data-tabs>
+            @for (var i = 0; i < tabs.Count; i++)
+            {
+                <button type="button" class="tab !text-white/55 hover:!text-white @(i == 0 ? "active !text-white !border-primary" : "")" data-target="@(Model.Id)-@i">@tabs[i].Label</button>
+            }
+        </div>
+        <span class="flex items-center gap-1.5 pr-1 opacity-50">
+            <span class="size-2.5 rounded-full bg-[#ff7e6b]"></span>
+            <span class="size-2.5 rounded-full bg-[#f4b740]"></span>
+            <span class="size-2.5 rounded-full bg-[#34c29a]"></span>
+        </span>
+    </div>
+    <div class="p-4 overflow-x-auto scroll-thin">
+        @for (var i = 0; i < tabs.Count; i++)
+        {
+            <pre data-panel="@(Model.Id)-@i" class="@(i == 0 ? "" : "hidden") whitespace-pre"><code>@Html.Raw(tabs[i].Html)</code></pre>
+        }
+    </div>
+</div>

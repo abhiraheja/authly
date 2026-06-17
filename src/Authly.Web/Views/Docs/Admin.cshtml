@@ -1,0 +1,55 @@
+@{
+    Layout = "_DocsLayout";
+    ViewData["Title"] = "Admin console";
+    ViewData["DocsActive"] = "admin";
+    ViewData["Description"] = "Guide to the Authly tenant admin console — the org→project model, onboarding wizard, and every configuration surface.";
+}
+
+<p class="eyebrow">Product guide</p>
+<h1 class="mt-2 font-display text-3xl font-bold tracking-tight">The admin console.</h1>
+<p class="mt-3 text-muted-foreground">Your team operates Authly from <code>/tenantadmin</code> using global <strong>operator accounts</strong> — separate from the end-users who log into your apps. Sign in at <code class="text-primary">/tenantadmin/account/login</code>.</p>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">Organizations &amp; projects</h2>
+<p class="text-sm text-muted-foreground">An <strong>Organization</strong> groups your <strong>Projects</strong>. Each project is an isolated tenant — use sibling projects as environments (<code>acme-dev</code>, <code>acme-prod</code>). Switch with the org → project selector in the top bar; create new projects self-serve (with the <code>project.create</code> permission).</p>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">Operator roles</h2>
+<p class="text-sm text-muted-foreground">Invite employees as console operators with org-scoped roles — <code>org_owner</code>, <code>org_admin</code>, <code>project_admin</code>, <code>viewer</code> — or define custom ones. Operator permissions (e.g. <code>client.manage</code>, <code>member.invite</code>) gate console actions, and are <strong>completely separate</strong> from end-user RBAC.</p>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">Onboarding wizard</h2>
+<ol class="list-decimal pl-5 space-y-1.5 text-sm">
+    <li><strong>Create your first application</strong> — name, type, redirect URI(s), scopes → Client ID (+ secret).</li>
+    <li><strong>Grab credentials</strong> — secret shown once; optionally mint a Management API key.</li>
+    <li><strong>Set branding</strong> — logo + primary color for the hosted login page.</li>
+    <li><strong>Test login + finish</strong> — verify a working login; the banner disappears.</li>
+</ol>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-3">Configuration surfaces</h2>
+<div class="card overflow-hidden">
+    <div class="overflow-x-auto scroll-thin">
+        <table class="table">
+            <thead><tr><th>Area</th><th>Path</th><th>Purpose</th></tr></thead>
+            <tbody>
+                <tr><td>Applications</td><td><code>/applications</code></td><td>OAuth clients, redirect URIs, scopes, secret rotation.</td></tr>
+                <tr><td>Users</td><td><code>/users</code></td><td>Manage end-users; impersonate for support (audited).</td></tr>
+                <tr><td>Roles</td><td><code>/roles</code></td><td>End-user RBAC — roles &amp; permissions in tokens.</td></tr>
+                <tr><td>API keys</td><td><code>/apikeys</code></td><td>Server-to-server keys for the Management API.</td></tr>
+                <tr><td>MFA policy</td><td><code>/mfapolicy</code></td><td>Require/offer TOTP, OTP and passkeys per role.</td></tr>
+                <tr><td>Social providers</td><td><code>/socialproviders</code></td><td>Google/etc. + custom OAuth (BYOK, encrypted).</td></tr>
+                <tr><td>Messaging</td><td><code>/messaging</code></td><td>BYOK email &amp; WhatsApp; templates; test send.</td></tr>
+                <tr><td>Branding</td><td><code>/branding</code></td><td>White-label login + custom domain.</td></tr>
+                <tr><td>Webhooks</td><td><code>/webhooks</code></td><td>Endpoints, events, signed delivery, retries.</td></tr>
+                <tr><td>Pipeline hooks</td><td><code>/pipelinehooks</code></td><td>Custom logic at auth stages.</td></tr>
+                <tr><td>Claim configs</td><td><code>/claimconfigs</code></td><td>Custom token claims.</td></tr>
+                <tr><td>Security</td><td><code>/security</code></td><td>Lockout, HIBP, CAPTCHA, block lists, conditional access.</td></tr>
+                <tr><td>Access policies</td><td><code>/accesspolicies</code></td><td>ABAC rules + test console.</td></tr>
+                <tr><td>Sandbox</td><td><code>/sandbox</code></td><td>Test login; copy discovery endpoints.</td></tr>
+                <tr><td>Monitoring</td><td><code>/monitoring</code></td><td>Health, metrics, login analytics, observability config.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="mt-8 flex items-center justify-between border-t border-border pt-5 text-sm">
+    <a class="text-muted-foreground hover:text-foreground" href="/docs/webhooks">← Webhooks</a>
+    <a class="text-primary hover:underline" href="/docs/portal">End-user portal →</a>
+</div>

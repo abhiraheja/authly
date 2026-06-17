@@ -25,6 +25,11 @@ public sealed class MemberRoleRepository : IMemberRoleRepository
             .Where(mr => mr.OrganizationMembershipId == organizationMembershipId && mr.OperatorRoleId == operatorRoleId)
             .ExecuteDeleteAsync(ct);
 
+    public async Task RemoveAllForMembershipAsync(Guid organizationMembershipId, CancellationToken ct = default)
+        => await _db.MemberRoles
+            .Where(mr => mr.OrganizationMembershipId == organizationMembershipId)
+            .ExecuteDeleteAsync(ct);
+
     public async Task<IReadOnlyList<OperatorRole>> ListRolesForMembershipAsync(Guid organizationMembershipId, CancellationToken ct = default)
         => await _db.MemberRoles
             .Where(mr => mr.OrganizationMembershipId == organizationMembershipId)

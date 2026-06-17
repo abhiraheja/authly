@@ -40,6 +40,12 @@
                 <a class="@NavLink("Sandbox")" asp-area="TenantAdmin" asp-controller="Sandbox" asp-action="Index"><i data-lucide="flask-conical" class="size-4"></i><span>Sandbox</span></a>
             </div>
             <div class="space-y-1">
+                <p class="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Organization</p>
+                <a class="@NavLink("Members")" asp-area="TenantAdmin" asp-controller="Members" asp-action="Index"><i data-lucide="users-round" class="size-4"></i><span>Members</span></a>
+                <a class="@NavLink("OperatorRoles")" asp-area="TenantAdmin" asp-controller="OperatorRoles" asp-action="Index"><i data-lucide="user-cog" class="size-4"></i><span>Operator roles</span></a>
+                <a class="@NavLink("Organization")" asp-area="TenantAdmin" asp-controller="Organization" asp-action="Index"><i data-lucide="building-2" class="size-4"></i><span>Organization</span></a>
+            </div>
+            <div class="space-y-1">
                 <p class="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Access control</p>
                 <a class="@NavLink("Roles")" asp-area="TenantAdmin" asp-controller="Roles" asp-action="Index"><i data-lucide="shield" class="size-4"></i><span>Roles &amp; permissions</span></a>
                 <a class="@NavLink("Users")" asp-area="TenantAdmin" asp-controller="Users" asp-action="Index"><i data-lucide="users" class="size-4"></i><span>Users</span></a>

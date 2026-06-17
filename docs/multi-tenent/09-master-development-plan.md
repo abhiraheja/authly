@@ -47,8 +47,8 @@ Phase 0  UI Foundation (SAARVIX)         ✅ DONE (main 2c952a9)
 Phase 1  Identity: Org + Account         ✅ DONE (feat/identity-org-account 01dfc2c)
 Phase 2  Operator RBAC + guard           ✅ DONE (feat/operator-rbac)
 Phase 3  Org→Project selector + new-project   ✅ DONE (feat/console-selector)
-Phase 4  Members UI + employee invite    ← NEXT
-Phase 5  Cleanup (IsTenantAdmin / legacy admin)
+Phase 4  Members UI + employee invite    ✅ DONE (feat/members-invite)
+Phase 5  Cleanup (IsTenantAdmin / legacy admin)   ← NEXT
 Phase 6  Remove SuperAdmin + self-host cleanup (monitoring → account surface)
 Phase 7  Pluggable observability (OpenTelemetry)
 ```
@@ -162,16 +162,20 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 ## Phase 4 — Members UI + employee invite
 **Goal:** invite employees as operators with roles. **Source:** doc 06 §7 (invite), §8 (UI).
 
-**Tasks**
-- [ ] `AccountInviteToken` entity (FK `accounts.id`; SHA-256 hash) + migration. Mirror `PasswordResetToken` pattern.
-- [ ] `IInvitationService.InviteAsync(orgId, projectIdForEmail, email, operatorRoleIds, actor)` / `AcceptAsync(rawToken, newPassword)`:
-      find-or-create Account → `OrganizationMembership(Invited)` + `MemberRole`s → single-use token → email via existing `IMessagingService` (`operator_invite` template; sent through org's active project provider).
-- [ ] Public `InviteController` (`/invite/accept`, `[AllowAnonymous]`, tenant-less; add `/invite` to `TenantResolutionMiddleware` exclusions). `AcceptAsync` sets PasswordHash, EmailVerified, membership→Active.
-- [ ] `operator_invite` built-in template (`BuiltInTemplates`).
-- [ ] UI (SAARVIX): `MembersController` (list/invite/role-assign/remove; mirror `UsersController` + Users views; "last owner can't be removed" guard); `OperatorRolesController` (near-copy of `RolesController`/Views, drives `IOperatorRbacService`; system roles protected); `OrganizationController` (rename/delete org; `org.manage`).
-- [ ] Keep distinct from end-user invite (`POST /api/v1/users` → `IUserAdminService`).
+**Status: ✅ DONE** (branch `feat/members-invite`; 266 tests green; build clean. Runtime acceptance pending.)
 
-**Tests:** invite+accept (token single-use, membership flips Active); member/role CRUD; operator-role permission management.
+**Tasks**
+- [x] `AccountInviteToken` entity (FK `accounts.id`, + `organization_id`; SHA-256 hash, single-use) + migration `AddAccountInviteTokens` + `IAccountInviteTokenRepository`. Mirrors `PasswordResetToken`.
+- [x] `IInvitationService.InviteAsync(orgId, projectIdForEmail, email, operatorRoleIds, actor)` / `AcceptAsync(rawToken, newPassword)` (+ `FindPendingAsync`):
+      find-or-create Account → `OrganizationMembership(Invited)` + `MemberRole`s → single-use token (7-day) → email via `IMessageQueue` (`operator_invite` template; sent through org's active project provider). Accept consumes token, sets PasswordHash (when none), EmailVerified, membership→Active; returns workspace for sign-in. New invite URL `IAuthUrlBuilder.BuildInviteAcceptUrl`.
+- [x] Public `InviteController` (`/invite/accept`, `[AllowAnonymous]`, tenant-less; `/invite` added to `TenantResolutionMiddleware` exclusions) → signs the operator into the console (same claim shape as signup). `Accept`/`Invalid` views on `_AuthLayout`.
+- [x] `operator_invite` built-in template (`BuiltInTemplates` + `MessageTemplateKeys.OperatorInvite`; `action_url` required-variable guard).
+- [x] UI (SAARVIX): `MembersController` (list/invite/role-assign/remove + remove-member; mirrors `UsersController`; "last owner can't be removed" guard via `IMemberDirectoryService` + `IOperatorRbacService`); `OperatorRolesController` (near-copy of `RolesController`/Views, drives extended `IOperatorRbacService` role CRUD; system roles protected); `OrganizationController` (rename always; delete guarded — refused while projects exist due to Restrict FK; `org.read`/`org.manage`). New "Organization" sidebar group.
+- [x] Distinct from end-user invite (`IUserAdminService`); operates only on the global Account/Org layer.
+
+**Tests:** ✅ invite creates account+membership(Invited)+role+token+email; accept sets password/verifies/activates + token single-use; re-invite active member rejected; invalid token → null; operator-role CRUD (create/dedup/set-perms-filtering/system-protected-delete); member-role assign/remove + last-owner guard (role strip + member removal); member directory listing. Build + 266 green.
+
+> Org **delete** only succeeds for an org with zero projects (projects use a Restrict FK; project-delete lands in Phase 6) — surfaced as a clear guard, not a DB error. Removing a member sets membership→Disabled and clears role grants (ConsoleAccess already gates on Active), keeping the unique (account, org) row for clean re-invite + audit history.
 
 ---
 
@@ -219,7 +223,7 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 ## 3. Migrations (sequence, pre-prod)
 1. `AddOrganizationsAndAccounts` (+ `tenants.organization_id`) — P1
 2. `AddOperatorRbac` — P2
-3. `AddAccountInviteTokens` — P4
+3. `AddAccountInviteTokens` — P4 ✅
 4. `DropIsTenantAdmin` — P5
 5. `RemoveSuperAdminAndCloudTables` (drop `super_admins`, `announcements`, `self_hosted_instances`) — P6
 6. `AddObservabilityConfig` — P7
@@ -240,11 +244,11 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 ## 5. Definition of Done (whole effort)
 - [x] Signup → Account+Organization+first Project; login account-based, tenant-agnostic. *(Phase 1)*
 - [x] Console: org→project selector switches; "New project" self-serve; non-member access rejected. *(Phase 3)*
-- [~] Employees invited as operators with custom operator roles; **permissions gate console actions ✅ (Phase 2)**; end-user `User`/RBAC untouched ✅. Invite flow + role-CRUD UI = Phase 4.
+- [x] Employees invited as operators with custom operator roles; **permissions gate console actions ✅ (Phase 2)**; end-user `User`/RBAC untouched ✅; invite flow + member/role-CRUD UI ✅ *(Phase 4)*.
 - [ ] SuperAdmin gone; monitoring on account surface; tenant delete in project settings; cloud-only features removed.
 - [ ] Observability opt-in (OpenTelemetry); nothing ships unconfigured; local Grafana stack works.
 - [x] Entire UI on SAARVIX (compiled Tailwind), light+dark, responsive; no Bootstrap residue *(except SuperAdmin, deleted P6)*. *(Phase 0)*
-- [ ] All tests green *(247 green now)*; docs 02/03 noted as superseded by 06/04.
+- [ ] All tests green *(266 green now)*; docs 02/03 noted as superseded by 06/04.
 
 ---
 

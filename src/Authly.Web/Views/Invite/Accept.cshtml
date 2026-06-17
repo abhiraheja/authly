@@ -1,0 +1,44 @@
+@model AcceptInviteViewModel
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Accept your invite";
+}
+
+<h2 class="font-display text-2xl font-bold text-center">Accept your invite</h2>
+<p class="text-center text-muted-foreground mt-1 mb-6">
+    @if (!string.IsNullOrEmpty(Model.Email))
+    {
+        <text>You were invited as <strong>@Model.Email</strong>.</text>
+    }
+    @(Model.RequiresPassword ? "Choose a password to finish setting up your account." : "Confirm to join the workspace.")
+</p>
+
+<form asp-controller="Invite" asp-action="Accept" method="post" class="space-y-4">
+    <input type="hidden" asp-for="Token" />
+    <input type="hidden" asp-for="Email" />
+    <input type="hidden" asp-for="RequiresPassword" />
+    <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
+
+    @if (Model.RequiresPassword)
+    {
+        <div>
+            <label asp-for="Password" class="label">Password</label>
+            <input asp-for="Password" class="input" autocomplete="new-password" placeholder="At least 8 characters" autofocus />
+            <span asp-validation-for="Password" class="text-danger text-xs"></span>
+        </div>
+
+        <div>
+            <label asp-for="ConfirmPassword" class="label"></label>
+            <input asp-for="ConfirmPassword" class="input" autocomplete="new-password" />
+            <span asp-validation-for="ConfirmPassword" class="text-danger text-xs"></span>
+        </div>
+    }
+    else
+    {
+        <p class="text-sm text-muted-foreground">You already have an account — accepting will sign you in with your existing password.</p>
+    }
+
+    <button type="submit" class="btn btn-primary w-full">Accept invite</button>
+</form>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

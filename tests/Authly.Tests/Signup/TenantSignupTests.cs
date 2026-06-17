@@ -201,6 +201,7 @@ internal sealed class FakeOrgRepo : IOrganizationRepository
     public Task<Organization?> GetByIdAsync(Guid id, CancellationToken ct = default) => throw new NotImplementedException();
     public Task<Organization?> GetBySlugAsync(string slug, CancellationToken ct = default) => throw new NotImplementedException();
     public Task UpdateAsync(Organization organization, CancellationToken ct = default) => throw new NotImplementedException();
+    public Task DeleteAsync(Organization organization, CancellationToken ct = default) => throw new NotImplementedException();
 }
 
 internal sealed class FakeMembershipRepo : IOrganizationMembershipRepository
@@ -218,6 +219,7 @@ internal sealed class FakeMembershipRepo : IOrganizationMembershipRepository
     public Task<OrganizationMembership?> GetAsync(Guid accountId, Guid organizationId, CancellationToken ct = default) => throw new NotImplementedException();
     public Task<IReadOnlyList<OrganizationMembership>> ListByAccountAsync(Guid accountId, CancellationToken ct = default) => throw new NotImplementedException();
     public Task<IReadOnlyList<OrganizationMembership>> ListByOrganizationAsync(Guid organizationId, CancellationToken ct = default) => throw new NotImplementedException();
+    public Task<IReadOnlyList<OrganizationMembership>> ListByOrganizationWithAccountsAsync(Guid organizationId, CancellationToken ct = default) => throw new NotImplementedException();
     public Task UpdateAsync(OrganizationMembership membership, CancellationToken ct = default) => throw new NotImplementedException();
 }
 
@@ -274,6 +276,16 @@ internal sealed class FakeOperatorRbac : Authly.Modules.Operators.IOperatorRbacS
     public Task EnsureSystemRolesAsync(Guid organizationId, CancellationToken ct = default) { SeededOrgs.Add(organizationId); return Task.CompletedTask; }
     public Task AssignSystemRoleAsync(Guid organizationId, Guid membershipId, string roleName, Guid? grantedByAccountId, CancellationToken ct = default)
     { Assignments.Add((membershipId, roleName)); return Task.CompletedTask; }
+
+    public Task<IReadOnlyList<Authly.Core.Entities.OperatorRole>> ListRolesAsync(Guid organizationId, CancellationToken ct = default) => throw new NotImplementedException();
+    public Task<Authly.Modules.Operators.OperatorRoleWithPermissions?> GetRoleAsync(Guid organizationId, Guid id, CancellationToken ct = default) => throw new NotImplementedException();
+    public Task<Authly.Core.Entities.OperatorRole> CreateRoleAsync(Guid organizationId, Authly.Modules.Authorization.CreateRoleRequest request, AuditContext actor, CancellationToken ct = default) => throw new NotImplementedException();
+    public Task SetRolePermissionsAsync(Guid organizationId, Guid roleId, IReadOnlyCollection<Guid> permissionIds, AuditContext actor, CancellationToken ct = default) => throw new NotImplementedException();
+    public Task DeleteRoleAsync(Guid organizationId, Guid roleId, AuditContext actor, CancellationToken ct = default) => throw new NotImplementedException();
+    public Task<IReadOnlyList<Authly.Core.Entities.OperatorPermission>> ListPermissionsAsync(Guid organizationId, CancellationToken ct = default) => throw new NotImplementedException();
+    public Task<IReadOnlyList<Authly.Core.Entities.OperatorRole>> ListMemberRolesAsync(Guid membershipId, CancellationToken ct = default) => throw new NotImplementedException();
+    public Task AssignRoleToMemberAsync(Guid organizationId, Guid membershipId, Guid roleId, AuditContext actor, CancellationToken ct = default) => throw new NotImplementedException();
+    public Task RemoveRoleFromMemberAsync(Guid organizationId, Guid membershipId, Guid roleId, AuditContext actor, CancellationToken ct = default) => throw new NotImplementedException();
 }
 
 internal sealed class FakeSignupAudit : IAuditLogger

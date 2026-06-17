@@ -32,6 +32,9 @@ public sealed class AuthUrlBuilder : IAuthUrlBuilder
     public string BuildRecoveryUrl(Guid tenantId, string rawToken)
         => Absolute("/account/recover", rawToken);
 
+    public string BuildInviteAcceptUrl(string rawToken)
+        => Absolute("/invite/accept", rawToken);
+
     private string Absolute(string path, string rawToken)
     {
         var request = _http.HttpContext?.Request;

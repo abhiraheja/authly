@@ -22,6 +22,13 @@ public sealed class OrganizationMembershipRepository : IOrganizationMembershipRe
     public async Task<IReadOnlyList<OrganizationMembership>> ListByOrganizationAsync(Guid organizationId, CancellationToken ct = default)
         => await _db.OrganizationMemberships.Where(m => m.OrganizationId == organizationId).ToListAsync(ct);
 
+    public async Task<IReadOnlyList<OrganizationMembership>> ListByOrganizationWithAccountsAsync(Guid organizationId, CancellationToken ct = default)
+        => await _db.OrganizationMemberships
+            .Where(m => m.OrganizationId == organizationId)
+            .Include(m => m.Account)
+            .OrderBy(m => m.CreatedAt)
+            .ToListAsync(ct);
+
     public async Task AddAsync(OrganizationMembership membership, CancellationToken ct = default)
     {
         _db.OrganizationMemberships.Add(membership);

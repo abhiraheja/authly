@@ -1,0 +1,32 @@
+@model CreateRoleViewModel
+
+<div class="flex items-center gap-3">
+    <a class="btn btn-ghost btn-icon btn-sm" asp-area="TenantAdmin" asp-controller="OperatorRoles" asp-action="Index" aria-label="Back"><i data-lucide="arrow-left" class="size-4"></i></a>
+    <h1 class="font-display text-xl font-bold">New operator role</h1>
+</div>
+
+<div class="card max-w-2xl">
+    <div class="card-body">
+        <form asp-area="TenantAdmin" asp-controller="OperatorRoles" asp-action="Create" method="post" class="space-y-4">
+            <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
+
+            <div>
+                <label asp-for="Name" class="label"></label>
+                <input asp-for="Name" class="input" placeholder="e.g. support_operator" autofocus />
+                <span asp-validation-for="Name" class="text-danger text-xs"></span>
+                <p class="mt-1 text-xs text-muted-foreground">Lower-case letters, digits and underscores.</p>
+            </div>
+
+            <div>
+                <label asp-for="Description" class="label"></label>
+                <input asp-for="Description" class="input" placeholder="What this role is for" />
+                <span asp-validation-for="Description" class="text-danger text-xs"></span>
+            </div>
+
+            <div class="flex gap-2 pt-1">
+                <button type="submit" class="btn btn-primary">Create role</button>
+                <a class="btn btn-outline" asp-area="TenantAdmin" asp-controller="OperatorRoles" asp-action="Index">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>

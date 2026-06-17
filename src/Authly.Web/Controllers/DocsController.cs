@@ -16,6 +16,7 @@ public sealed class DocsController : Controller
         ViewBag.Authorize = $"{baseUrl}/connect/authorize";
         ViewBag.Token = $"{baseUrl}/connect/token";
         ViewBag.UserInfo = $"{baseUrl}/connect/userinfo";
+        ViewBag.Logout = $"{baseUrl}/connect/logout";
         return View();
     }
 }

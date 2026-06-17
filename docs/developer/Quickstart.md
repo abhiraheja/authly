@@ -84,6 +84,13 @@ Access tokens live 1 hour; refresh tokens 14 days (rotated on every use — reus
 
 > PKCE is **required** for the authorization-code flow — for both public and confidential clients.
 
+> **Browser (SPA) apps:** the `/connect/authorize` redirect is a top-level navigation, but the
+> discovery, token, and userinfo calls are XHRs subject to CORS. Authly allows these automatically
+> for the **origin of any registered redirect URI** — so a browser app at `https://myapp.com` whose
+> redirect URI is registered just works, with no CORS configuration. Use a **SPA (public)** client,
+> not Web/confidential: a browser cannot hold a `client_secret`, so a confidential client fails at
+> the token exchange.
+
 ### Refresh
 
 ```
@@ -105,6 +112,26 @@ POST /connect/token
   client_secret=YOUR_SECRET
   scope=...
 ```
+
+### Logout (RP-initiated end-session)
+
+Clearing tokens **in your app only** is not a full logout: Authly keeps its own SSO session
+cookie, so the next trip to `/connect/authorize` silently re-authenticates (no login page). To log
+the user out of Authly too, send them to the end-session endpoint:
+
+```
+GET /connect/logout
+  ?id_token_hint=THE_ID_TOKEN
+  &post_logout_redirect_uri=https://myapp.com/
+```
+
+Authly clears the SSO cookie and redirects back to your `post_logout_redirect_uri`.
+
+> **Allowed post-logout target:** your app's **origin root** (`scheme://host[:port]/`) is allowed
+> automatically — it's derived from the redirect URIs you registered (e.g. registering
+> `https://myapp.com/callback` permits `post_logout_redirect_uri=https://myapp.com/`). No separate
+> configuration. Send `id_token_hint` — it's how Authly validates the request and skips a confirm
+> prompt.
 
 ---
 
@@ -163,5 +190,9 @@ curl -X POST https://<your-authly-host>/connect/token \
 | `invalid_client` | Wrong `client_id`/`client_secret`, or a public client sending a secret. |
 | `invalid_grant` on refresh | The refresh token was already used (rotation) or expired. |
 | PKCE error | Missing/incorrect `code_verifier` for the `code_challenge` you sent. |
+| Re-login skips the login page (silent auto-login) | App-only logout left Authly's SSO cookie. Use the [end-session endpoint](#logout-rp-initiated-end-session) to log out of Authly too. |
+| `invalid_request` on logout (post-logout redirect) | `post_logout_redirect_uri` must be your app's origin root (`scheme://host[:port]/`) and an origin you registered a redirect URI for. |
+| CORS / status 0 on token or userinfo | The browser origin isn't a registered redirect-URI origin, or you're calling from a Web/confidential client instead of a SPA (public) one. |
+| `invalid_request` "different workspace" on authorize | The `tenant` (or host) resolves to a different tenant than the one that owns the `client_id`. Use the client's own tenant. |
 
 Use the **Sandbox** page to confirm credentials resolve and to copy the exact endpoint URLs for your host.

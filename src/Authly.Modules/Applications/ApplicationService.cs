@@ -86,6 +86,29 @@ public sealed class ApplicationService : IApplicationService
     public Task<Application?> GetAsync(Guid tenantId, Guid id, CancellationToken ct = default)
         => _repo.GetByIdAsync(tenantId, id, ct);
 
+    public async Task<Application> UpdateAsync(Guid tenantId, Guid id, UpdateApplicationRequest request, AuditContext actor, CancellationToken ct = default)
+    {
+        var app = await _repo.GetByIdAsync(tenantId, id, ct) ?? throw new ApplicationNotFoundException(id);
+
+        var scopes = NormalizeScopes(app.Type, request.Scopes);
+
+        // 1) Update the protocol registration (name, redirect URIs, scope permissions). The secret
+        //    is preserved — the descriptor carries no secret on update.
+        await _clients.UpdateClientAsync(new OAuthClientDescriptor(
+            app.ClientId, request.Name, null, app.IsConfidential,
+            app.GrantTypes, request.RedirectUris, scopes), ct);
+
+        // 2) Update the tenant-facing mirror.
+        app.Name = request.Name;
+        app.RedirectUris = request.RedirectUris.ToList();
+        app.AllowedScopes = scopes.ToList();
+        app.UpdatedAt = DateTimeOffset.UtcNow;
+        await _repo.UpdateAsync(app, ct);
+
+        await _audit.LogAsync("application.updated", actor, tenantId, "application", app.Id, ct: ct);
+        return app;
+    }
+
     public async Task<IReadOnlyList<ApplicationSecret>> ListSecretsAsync(Guid tenantId, Guid id, CancellationToken ct = default)
     {
         var app = await _repo.GetByIdAsync(tenantId, id, ct) ?? throw new ApplicationNotFoundException(id);

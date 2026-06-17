@@ -31,6 +31,19 @@ public sealed class CreateApplicationViewModel
     public string Scopes { get; set; } = "openid profile email";
 }
 
+/// <summary>Edit-application form. Type and credentials are fixed; only these fields are editable.</summary>
+public sealed class EditApplicationViewModel
+{
+    [Required, Display(Name = "Application name")]
+    public string Name { get; set; } = string.Empty;
+
+    [Display(Name = "Redirect URIs (one per line)")]
+    public string? RedirectUris { get; set; }
+
+    [Display(Name = "Scopes (space-separated)")]
+    public string Scopes { get; set; } = string.Empty;
+}
+
 /// <summary>Create-role form.</summary>
 public sealed class CreateRoleViewModel
 {

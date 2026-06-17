@@ -98,6 +98,45 @@ public class ApplicationServiceTests
     }
 
     [Fact]
+    public async Task Update_changes_redirect_uris_scopes_and_name_on_client_and_mirror()
+    {
+        var h = new Harness();
+        var created = await h.Service.CreateAsync(Tenant,
+            new CreateApplicationRequest("Web App", ApplicationType.Web,
+                new[] { "https://app.example.com/cb" }, new[] { "openid" }),
+            AuditContext.System);
+
+        var updated = await h.Service.UpdateAsync(Tenant, created.Application.Id,
+            new UpdateApplicationRequest("Renamed App",
+                new[] { "https://app.example.com/cb", "https://staging.example.com/cb" },
+                new[] { "email" }),
+            AuditContext.System);
+
+        Assert.Equal("Renamed App", updated.Name);
+        Assert.Equal(2, updated.RedirectUris.Count);
+        Assert.Contains("https://staging.example.com/cb", updated.RedirectUris);
+        Assert.Contains("email", updated.AllowedScopes);
+        Assert.Contains("openid", updated.AllowedScopes);          // re-added for interactive clients
+        Assert.Contains("offline_access", updated.AllowedScopes);
+
+        var sentToClient = Assert.Single(h.Clients.Updated);        // protocol registration updated
+        Assert.Equal(created.Application.ClientId, sentToClient.ClientId);
+        Assert.Null(sentToClient.ClientSecret);                     // secret left untouched on update
+        Assert.Contains("https://staging.example.com/cb", sentToClient.RedirectUris);
+        Assert.Contains("application.updated", h.Audit.Events);
+    }
+
+    [Fact]
+    public async Task Update_unknown_application_throws()
+    {
+        var h = new Harness();
+        await Assert.ThrowsAsync<ApplicationNotFoundException>(() =>
+            h.Service.UpdateAsync(Tenant, Guid.NewGuid(),
+                new UpdateApplicationRequest("X", Array.Empty<string>(), Array.Empty<string>()),
+                AuditContext.System));
+    }
+
+    [Fact]
     public async Task Delete_removes_client_and_mirror()
     {
         var h = new Harness();
@@ -166,6 +205,7 @@ public class ApplicationServiceTests
     private sealed class FakeClientStore : IOAuthClientStore
     {
         public readonly List<OAuthClientDescriptor> Created = new();
+        public readonly List<OAuthClientDescriptor> Updated = new();
         public readonly List<string> Deleted = new();
         public string? LastSecretClientId;
 
@@ -174,7 +214,11 @@ public class ApplicationServiceTests
             Created.Add(descriptor);
             return Task.CompletedTask;
         }
-        public Task UpdateClientAsync(OAuthClientDescriptor descriptor, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UpdateClientAsync(OAuthClientDescriptor descriptor, CancellationToken ct = default)
+        {
+            Updated.Add(descriptor);
+            return Task.CompletedTask;
+        }
         public Task DeleteClientAsync(string clientId, CancellationToken ct = default)
         {
             Deleted.Add(clientId);

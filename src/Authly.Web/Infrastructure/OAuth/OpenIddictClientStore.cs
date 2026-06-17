@@ -28,7 +28,36 @@ public sealed class OpenIddictClientStore : IOAuthClientStore
     {
         var app = await _manager.FindByClientIdAsync(descriptor.ClientId, ct)
             ?? throw new InvalidOperationException($"OAuth client '{descriptor.ClientId}' not found.");
-        await _manager.UpdateAsync(app, BuildDescriptor(descriptor), ct);
+
+        // Populate from the existing registration so the (hashed) secret, grant/endpoint
+        // permissions and requirements are preserved — then overwrite only the editable fields.
+        // OpenIddict's UpdateAsync re-hashes the secret only if it changed, so leaving the
+        // populated value untouched keeps the secret intact.
+        var d = new OpenIddictApplicationDescriptor();
+        await _manager.PopulateAsync(d, app, ct);
+
+        d.DisplayName = descriptor.DisplayName;
+
+        // Replace scope permissions, leaving endpoint/grant/response permissions in place.
+        foreach (var p in d.Permissions
+                     .Where(p => p.StartsWith(Permissions.Prefixes.Scope, StringComparison.Ordinal))
+                     .ToList())
+            d.Permissions.Remove(p);
+        foreach (var scope in descriptor.Scopes)
+        {
+            if (scope.Equals(Scopes.OpenId, StringComparison.OrdinalIgnoreCase) ||
+                scope.Equals(Scopes.OfflineAccess, StringComparison.OrdinalIgnoreCase))
+                continue;
+            d.Permissions.Add(Permissions.Prefixes.Scope + scope);
+        }
+
+        // Replace redirect URIs.
+        d.RedirectUris.Clear();
+        foreach (var uri in descriptor.RedirectUris)
+            if (Uri.TryCreate(uri, UriKind.Absolute, out var parsed))
+                d.RedirectUris.Add(parsed);
+
+        await _manager.UpdateAsync(app, d, ct);
     }
 
     public async Task DeleteClientAsync(string clientId, CancellationToken ct = default)

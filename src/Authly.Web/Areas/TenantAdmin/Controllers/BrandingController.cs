@@ -34,6 +34,7 @@ public sealed class BrandingController : TenantAdminControllerBase
             DarkMode = b.DarkMode,
             Layout = b.Layout,
             Background = b.Background,
+            BackgroundColor = b.BackgroundColor,
             GradientFrom = b.GradientFrom,
             GradientTo = b.GradientTo,
             BackgroundImageUrl = b.BackgroundImageUrl,
@@ -73,6 +74,7 @@ public sealed class BrandingController : TenantAdminControllerBase
                 DarkMode = model.DarkMode,
                 Layout = model.Layout,
                 Background = model.Background,
+                BackgroundColor = model.BackgroundColor,
                 GradientFrom = model.GradientFrom,
                 GradientTo = model.GradientTo,
                 BackgroundImageUrl = model.BackgroundImageUrl,
@@ -102,5 +104,32 @@ public sealed class BrandingController : TenantAdminControllerBase
 
         TempData["Success"] = "Branding saved.";
         return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>
+    /// Receives an uploaded logo/background image, stores it in PostgreSQL, and returns the
+    /// app-relative URL to drop into the matching URL field. Called by the branding form via fetch.
+    /// </summary>
+    [RequireOperatorPermission("project.write")]
+    [HttpPost("upload")]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(3 * 1024 * 1024)] // 3 MB
+    public async Task<IActionResult> Upload(IFormFile? file, string kind, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { error = "Choose a file to upload." });
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+
+        try
+        {
+            var url = await _branding.SaveImageAsync(TenantId, kind, ms.ToArray(), file.ContentType, CurrentAudit(), ct);
+            return Ok(new { url });
+        }
+        catch (BrandingConfigInvalidException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 }

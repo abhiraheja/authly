@@ -42,6 +42,7 @@ public static class TenantBrandingJson
             // background
             if (TryString(root, "background", out var bg) && Enum.TryParse<BrandingBackground>(bg, true, out var pBg))
                 b.Background = pBg;
+            if (TryNonEmpty(root, "background_color", out var bgColor)) b.BackgroundColor = bgColor;
             if (TryNonEmpty(root, "gradient_from", out var gFrom)) b.GradientFrom = gFrom;
             if (TryNonEmpty(root, "gradient_to", out var gTo)) b.GradientTo = gTo;
             if (TryString(root, "background_image_url", out var bgImg)) b.BackgroundImageUrl = bgImg;
@@ -85,6 +86,7 @@ public static class TenantBrandingJson
         ["dark_mode"] = b.DarkMode,
         ["layout"] = b.Layout.ToString().ToLowerInvariant(),
         ["background"] = b.Background.ToString().ToLowerInvariant(),
+        ["background_color"] = b.BackgroundColor,
         ["gradient_from"] = b.GradientFrom,
         ["gradient_to"] = b.GradientTo,
         ["background_image_url"] = b.BackgroundImageUrl,

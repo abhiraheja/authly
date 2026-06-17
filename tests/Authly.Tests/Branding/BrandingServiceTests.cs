@@ -115,6 +115,50 @@ public class BrandingServiceTests
     }
 
     [Fact]
+    public async Task Save_accepts_an_uploaded_asset_ref_as_the_logo()
+    {
+        var h = new Harness();
+        await h.Service.SaveAsync(Tenant, new BrandingInput
+        {
+            PrimaryColor = "#5b6df5", ButtonTextColor = "#fff",
+            LogoUrl = "/branding/asset/" + Guid.NewGuid()
+        }, AuditContext.System); // no throw
+
+        var saved = TenantBrandingJson.Parse(h.Tenant.Branding);
+        Assert.StartsWith("/branding/asset/", saved.LogoUrl);
+    }
+
+    [Fact]
+    public async Task SaveImage_stores_bytes_replaces_prior_and_returns_relative_url()
+    {
+        var h = new Harness();
+        var url1 = await h.Service.SaveImageAsync(Tenant, "logo", new byte[] { 1, 2, 3 }, "image/png", AuditContext.System);
+        var url2 = await h.Service.SaveImageAsync(Tenant, "logo", new byte[] { 4, 5 }, "image/png", AuditContext.System);
+
+        Assert.StartsWith("/branding/asset/", url1);
+        Assert.Single(h.Assets.Items);                       // prior logo replaced
+        Assert.Equal(new byte[] { 4, 5 }, h.Assets.Items[0].Data);
+        Assert.EndsWith(h.Assets.Items[0].Id.ToString(), url2);
+        Assert.Contains("tenant.branding_image_uploaded", h.Audit.Events);
+    }
+
+    [Fact]
+    public async Task SaveImage_rejects_an_unsupported_content_type()
+    {
+        var h = new Harness();
+        await Assert.ThrowsAsync<BrandingConfigInvalidException>(() =>
+            h.Service.SaveImageAsync(Tenant, "logo", new byte[] { 1 }, "application/pdf", AuditContext.System));
+    }
+
+    [Fact]
+    public async Task SaveImage_rejects_an_unknown_kind()
+    {
+        var h = new Harness();
+        await Assert.ThrowsAsync<BrandingConfigInvalidException>(() =>
+            h.Service.SaveImageAsync(Tenant, "banner", new byte[] { 1 }, "image/png", AuditContext.System));
+    }
+
+    [Fact]
     public async Task SetCustomDomain_normalizes_and_persists()
     {
         var h = new Harness();
@@ -163,6 +207,7 @@ public class BrandingServiceTests
     private sealed class Harness
     {
         public readonly FakeTenantRepo Repo = new();
+        public readonly FakeBrandingAssetRepo Assets = new();
         public readonly RecordingAudit Audit = new();
         public readonly BrandingService Service;
         public readonly Tenant Tenant;
@@ -171,7 +216,25 @@ public class BrandingServiceTests
         {
             Tenant = new Tenant { Id = BrandingServiceTests.Tenant, Name = "Acme", Slug = "acme" };
             Repo.Store[Tenant.Id] = Tenant;
-            Service = new BrandingService(Repo, Audit);
+            Service = new BrandingService(Repo, Assets, Audit);
+        }
+    }
+
+    private sealed class FakeBrandingAssetRepo : IBrandingAssetRepository
+    {
+        public readonly List<BrandingAsset> Items = new();
+        public Task<BrandingAsset?> GetByIdAsync(Guid id, CancellationToken ct = default)
+            => Task.FromResult(Items.FirstOrDefault(a => a.Id == id));
+        public Task AddAsync(BrandingAsset asset, CancellationToken ct = default)
+        {
+            if (asset.Id == Guid.Empty) asset.Id = Guid.NewGuid();
+            Items.Add(asset);
+            return Task.CompletedTask;
+        }
+        public Task DeleteByKindAsync(Guid tenantId, string kind, CancellationToken ct = default)
+        {
+            Items.RemoveAll(a => a.TenantId == tenantId && a.Kind == kind);
+            return Task.CompletedTask;
         }
     }
 

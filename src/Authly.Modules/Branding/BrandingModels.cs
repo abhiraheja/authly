@@ -19,6 +19,7 @@ public sealed class BrandingInput
 
     // background
     public BrandingBackground Background { get; set; } = BrandingBackground.Gradient;
+    public string BackgroundColor { get; set; } = "#5b6df5";
     public string GradientFrom { get; set; } = "#5b6df5";
     public string GradientTo { get; set; } = "#1b9bc0";
     public string? BackgroundImageUrl { get; set; }
@@ -50,6 +51,7 @@ public sealed class BrandingInput
         DarkMode = b.DarkMode,
         Layout = b.Layout,
         Background = b.Background,
+        BackgroundColor = b.BackgroundColor,
         GradientFrom = b.GradientFrom,
         GradientTo = b.GradientTo,
         BackgroundImageUrl = b.BackgroundImageUrl,

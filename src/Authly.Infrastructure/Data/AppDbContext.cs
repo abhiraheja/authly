@@ -54,6 +54,7 @@ public class AppDbContext : DbContext
     public DbSet<MemberRole> MemberRoles => Set<MemberRole>();
     public DbSet<AccountInviteToken> AccountInviteTokens => Set<AccountInviteToken>();
     public DbSet<ObservabilityConfig> ObservabilityConfigs => Set<ObservabilityConfig>();
+    public DbSet<BrandingAsset> BrandingAssets => Set<BrandingAsset>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -665,6 +666,22 @@ public class AppDbContext : DbContext
             e.Property(x => x.LogStreamEndpoint).HasColumnName("log_stream_endpoint");
             e.Property(x => x.LogStreamKeyEncrypted).HasColumnName("log_stream_key_encrypted");
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
+        });
+
+        // Tenant-uploaded branding images (logo / login background) stored as bytes. Served by the
+        // public /branding/asset/{id} endpoint (the login page is anonymous), so NO RLS — reads must
+        // work without a tenant in scope; queries are by the unguessable Guid id.
+        b.Entity<BrandingAsset>(e =>
+        {
+            e.ToTable("branding_assets");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Kind).HasColumnName("kind").IsRequired();
+            e.Property(x => x.ContentType).HasColumnName("content_type").IsRequired();
+            e.Property(x => x.Data).HasColumnName("data").HasColumnType("bytea").IsRequired();
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            e.HasIndex(x => new { x.TenantId, x.Kind }).HasDatabaseName("idx_branding_assets_tenant_kind");
         });
 
         // Platform-level key/value control-plane state (log-stream cursor, etc). NOT tenant-scoped — no RLS.

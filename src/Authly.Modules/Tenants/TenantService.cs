@@ -52,12 +52,6 @@ public sealed partial class TenantService : ITenantService
         return tenant;
     }
 
-    public Task SuspendAsync(Guid id, AuditContext actor, CancellationToken ct = default)
-        => ChangeStatusAsync(id, TenantStatus.Suspended, "tenant.suspended", actor, ct);
-
-    public Task ReactivateAsync(Guid id, AuditContext actor, CancellationToken ct = default)
-        => ChangeStatusAsync(id, TenantStatus.Active, "tenant.reactivated", actor, ct);
-
     public Task DeleteAsync(Guid id, AuditContext actor, CancellationToken ct = default)
         => ChangeStatusAsync(id, TenantStatus.Deleted, "tenant.deleted", actor, ct);
 

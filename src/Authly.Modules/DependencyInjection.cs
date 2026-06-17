@@ -14,7 +14,6 @@ using Authly.Modules.Mfa;
 using Authly.Modules.Security;
 using Authly.Modules.Social;
 using Authly.Modules.Users;
-using Authly.Modules.SuperAdmins;
 using Authly.Modules.Tenants;
 using Authly.Modules.Webhooks;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,7 +27,6 @@ public static class DependencyInjection
     {
         services.AddScoped<IAuditLogger, AuditLogger>();
         services.AddScoped<ITenantService, TenantService>();
-        services.AddScoped<ISuperAdminService, SuperAdminService>();
         services.AddScoped<Accounts.IAccountService, Accounts.AccountService>();
         services.AddScoped<Operators.IOperatorRbacService, Operators.OperatorRbacService>();
         services.AddScoped<Operators.IConsoleAccessService, Operators.ConsoleAccessService>();
@@ -77,10 +75,6 @@ public static class DependencyInjection
         // Phase 13 — self-host telemetry + GDPR/DPDP compliance.
         services.AddScoped<Compliance.IConsentService, Compliance.ConsentService>();
         services.AddScoped<Compliance.IDataRightsService, Compliance.DataRightsService>();
-        services.AddScoped<Compliance.ISelfHostSyncService, Compliance.SelfHostSyncService>();
-
-        // Phase 14 — platform ops announcements.
-        services.AddScoped<Announcements.IAnnouncementService, Announcements.AnnouncementService>();
 
         // Self-service tenant signup (Supabase-style: visitor provisions their own workspace).
         services.AddScoped<Signup.ITenantSignupService, Signup.TenantSignupService>();

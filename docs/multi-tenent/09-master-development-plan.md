@@ -49,8 +49,8 @@ Phase 2  Operator RBAC + guard           ✅ DONE (feat/operator-rbac)
 Phase 3  Org→Project selector + new-project   ✅ DONE (feat/console-selector)
 Phase 4  Members UI + employee invite    ✅ DONE (feat/members-invite)
 Phase 5  Cleanup (IsTenantAdmin / legacy admin)   ✅ DONE (feat/cleanup-legacy-admin)
-Phase 6  Remove SuperAdmin + self-host cleanup (monitoring → account surface)   ← NEXT
-Phase 7  Pluggable observability (OpenTelemetry)
+Phase 6  Remove SuperAdmin + self-host cleanup (monitoring → account surface)   ✅ DONE (feat/remove-superadmin)
+Phase 7  Pluggable observability (OpenTelemetry)   ← NEXT
 ```
 - **UI re-skin** ek **parallel track** hai: Phase 0 foundation ke baad existing screens
   area-by-area re-skin; saare NAYE feature screens (P3/P4/P6/P7) **seedha SAARVIX** mein.
@@ -196,14 +196,18 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 ## Phase 6 — Remove SuperAdmin + self-host cleanup
 **Goal:** delete the platform-operator surface; move monitoring to account surface. **Source:** doc 04.
 
-**Tasks**
-- [ ] Delete `src/Authly.Web/Areas/SuperAdmin/**`, `SuperAdmin` entity/service/repo, `AuthSchemes.SuperAdmin`/`AuthPolicies.SuperAdmin`/`SuperAdminClaims`; `Program.cs` super-admin cookie + bootstrap + `SUPERADMIN_ENABLED` gate + `SuperAdminIpAllowlistMiddleware`. Migration: drop `super_admins`.
-- [ ] Drop cloud-only: **Announcements** (entity/service/controller + tenant-admin banner), **SelfHostedInstance** + `SelfHostSyncService` + sync ingest, `DEPLOYMENT_MODE`/`SYNC_*`, tenant **suspend/reactivate**.
-- [ ] **Move** monitoring/health/login-analytics (`IPlatformHealthProbe`, `InstanceMetricsCollector`, `LoginAnalyticsStore`) → read-only **Account/admin** page (SAARVIX). Box-health global; per-tenant metrics scoped to the account's projects.
-- [ ] **Fold** tenant **Delete** → project settings owner action (`TenantService.DeleteAsync`, `project.delete`).
-- [ ] Keep audit logging (drop only `super_admin` actor paths).
+**Status: ✅ DONE** (branch `feat/remove-superadmin`; 257 tests green; build clean.)
 
-**Tests:** remove SuperAdmin tests; add monitoring-page + project-delete tests.
+**Tasks**
+- [x] Deleted `Areas/SuperAdmin/**`, `SuperAdmin` entity/enum/repo/service, `AuthSchemes.SuperAdmin`/`AuthPolicies.SuperAdmin`/`SuperAdminClaims`, `SuperAdminIpAllowlistMiddleware`; `Program.cs` super-admin cookie scheme + policy + `EnsureSeededAsync` bootstrap + `SUPERADMIN_ENABLED` gate + `/superadmin` 404 + IP-allowlist wiring (default auth scheme now `User`); Home page super-admin link. Migration `RemoveSuperAdminAndCloudTables` (drops `super_admins`, `announcements`, `self_hosted_instances`).
+- [x] Dropped cloud-only: **Announcements** (entity/repo/service + tenant-admin banner — `TenantBanners` now onboarding-only), **SelfHostedInstance** + `SelfHostSyncService` + `/api` sync ingest (`SyncController`) + `SelfHostSyncJob` (Hangfire job removed), `IDeploymentContext`/`DeploymentContext` (+ `DEPLOYMENT_MODE`/`SYNC_*` reads + boot disclosure audit), tenant **suspend/reactivate** (`ITenantService`/`TenantService`). `SyncPayload`/`InstanceRegistration` contracts removed.
+- [x] **Moved** monitoring to the console: `TenantAdmin/MonitoringController` (`observability.read`) reuses `IPlatformHealthProbe` + `IInstanceMetricsCollector` + `ILoginAnalyticsStore`; SAARVIX page (health, instance totals, 14-day login analytics; version from entry assembly). Sidebar "Monitoring" entry.
+- [x] **Folded** tenant **Delete** → `TenantAdmin/SettingsController` (`project.delete`, slug-confirm) → `TenantService.DeleteAsync`; auto-switches to another project in the org or signs out. Sidebar "Project settings" entry.
+- [x] Audit logging kept (only `super_admin` actor paths removed with the surface). `SystemRbac.SuperAdmin` end-user role retained (unrelated to the deleted platform surface).
+
+**Tests:** ✅ removed SuperAdmin/Announcement/SelfHostSync/Deployment tests + dead fakes; `TenantService` suspend test → delete test; MFA admin check already role-based. Build + 257 green.
+
+> `IInstanceMetricsCollector`/`PlatformHealthProbe`/`LoginAnalyticsStore` (Infrastructure) + their DI kept — they back the relocated page. Hangfire dashboard gate is now "any authenticated principal" in non-dev (was super-admin).
 
 ---
 
@@ -227,7 +231,7 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 2. `AddOperatorRbac` — P2
 3. `AddAccountInviteTokens` — P4 ✅
 4. `DropIsTenantAdmin` — P5 ✅
-5. `RemoveSuperAdminAndCloudTables` (drop `super_admins`, `announcements`, `self_hosted_instances`) — P6
+5. `RemoveSuperAdminAndCloudTables` (drop `super_admins`, `announcements`, `self_hosted_instances`) — P6 ✅
 6. `AddObservabilityConfig` — P7
 
 > Pre-prod (no data): chaaho to recreate-from-scratch bhi kar sakte ho; warna additive migrations + targeted drops.
@@ -247,10 +251,10 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 - [x] Signup → Account+Organization+first Project; login account-based, tenant-agnostic. *(Phase 1)*
 - [x] Console: org→project selector switches; "New project" self-serve; non-member access rejected. *(Phase 3)*
 - [x] Employees invited as operators with custom operator roles; **permissions gate console actions ✅ (Phase 2)**; end-user `User`/RBAC untouched ✅; invite flow + member/role-CRUD UI ✅ *(Phase 4)*.
-- [ ] SuperAdmin gone; monitoring on account surface; tenant delete in project settings; cloud-only features removed.
+- [x] SuperAdmin gone; monitoring on account surface; tenant delete in project settings; cloud-only features removed. *(Phase 6)*
 - [ ] Observability opt-in (OpenTelemetry); nothing ships unconfigured; local Grafana stack works.
 - [x] Entire UI on SAARVIX (compiled Tailwind), light+dark, responsive; no Bootstrap residue *(except SuperAdmin, deleted P6)*. *(Phase 0)*
-- [ ] All tests green *(266 green now)*; docs 02/03 noted as superseded by 06/04.
+- [ ] All tests green *(257 green now)*; docs 02/03 noted as superseded by 06/04.
 
 ---
 

@@ -15,7 +15,6 @@ public class AppDbContext : DbContext
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<User> Users => Set<User>();
-    public DbSet<SuperAdmin> SuperAdmins => Set<SuperAdmin>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Session> Sessions => Set<Session>();
     public DbSet<LoginHistory> LoginHistory => Set<LoginHistory>();
@@ -43,8 +42,6 @@ public class AppDbContext : DbContext
     public DbSet<RecoveryContact> RecoveryContacts => Set<RecoveryContact>();
     public DbSet<PendingContactChange> PendingContactChanges => Set<PendingContactChange>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
-    public DbSet<SelfHostedInstance> SelfHostedInstances => Set<SelfHostedInstance>();
-    public DbSet<Announcement> Announcements => Set<Announcement>();
     public DbSet<UserDevice> UserDevices => Set<UserDevice>();
     public DbSet<PlatformState> PlatformState => Set<PlatformState>();
     public DbSet<AccessPolicy> AccessPolicies => Set<AccessPolicy>();
@@ -127,22 +124,6 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        b.Entity<SuperAdmin>(e =>
-        {
-            e.ToTable("super_admins");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
-            e.Property(x => x.Email).HasColumnName("email").IsRequired();
-            e.Property(x => x.PasswordHash).HasColumnName("password_hash").IsRequired();
-            e.Property(x => x.Role).HasColumnName("role").HasConversion<string>()
-                .HasDefaultValue(SuperAdminRole.Operator).IsRequired();
-            e.Property(x => x.MfaEnabled).HasColumnName("mfa_enabled").HasDefaultValue(true);
-            e.Property(x => x.MustChangePassword).HasColumnName("must_change_password").HasDefaultValue(false);
-            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
-            e.Property(x => x.LastLoginAt).HasColumnName("last_login_at");
-
-            e.HasIndex(x => x.Email).IsUnique().HasDatabaseName("idx_super_admins_email");
-        });
 
         // --- Console identity (global / RLS-exempt; read before any tenant is resolved) ---
 
@@ -623,28 +604,6 @@ public class AppDbContext : DbContext
             e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
         });
 
-        // Platform-level (cloud control plane). NOT tenant-scoped — no RLS, like super_admins.
-        b.Entity<SelfHostedInstance>(e =>
-        {
-            e.ToTable("self_hosted_instances");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
-            e.Property(x => x.OwnerTenantId).HasColumnName("owner_tenant_id");
-            e.Property(x => x.Name).HasColumnName("name");
-            e.Property(x => x.SyncKeyHash).HasColumnName("sync_key_hash").IsRequired();
-            e.Property(x => x.Version).HasColumnName("version");
-            e.Property(x => x.LastSeenAt).HasColumnName("last_seen_at");
-            e.Property(x => x.UserCount).HasColumnName("user_count").HasDefaultValue(0);
-            e.Property(x => x.AppCount).HasColumnName("app_count").HasDefaultValue(0);
-            e.Property(x => x.TenantCount).HasColumnName("tenant_count").HasDefaultValue(0);
-            e.Property(x => x.Health).HasColumnName("health").HasColumnType("jsonb").HasDefaultValueSql("'{}'");
-            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
-
-            e.HasIndex(x => x.SyncKeyHash).IsUnique().HasDatabaseName("idx_self_hosted_instances_sync_key");
-
-            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.OwnerTenantId).OnDelete(DeleteBehavior.SetNull);
-        });
-
         // Tenant-scoped ABAC access policies (RLS like users). Conditions stored as jsonb.
         b.Entity<AccessPolicy>(e =>
         {
@@ -697,22 +656,6 @@ public class AppDbContext : DbContext
             e.Property(x => x.Key).HasColumnName("key");
             e.Property(x => x.Value).HasColumnName("value").IsRequired();
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
-        });
-
-        // Platform-level super-admin announcements. NOT tenant-scoped — no RLS, like super_admins.
-        b.Entity<Announcement>(e =>
-        {
-            e.ToTable("announcements");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
-            e.Property(x => x.Title).HasColumnName("title").IsRequired();
-            e.Property(x => x.Body).HasColumnName("body").IsRequired();
-            e.Property(x => x.Severity).HasColumnName("severity").HasDefaultValue("info");
-            e.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true);
-            e.Property(x => x.ExpiresAt).HasColumnName("expires_at");
-            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
-
-            e.HasIndex(x => new { x.IsActive, x.ExpiresAt }).HasDatabaseName("idx_announcements_visible");
         });
 
         b.Entity<MfaBackupCode>(e =>

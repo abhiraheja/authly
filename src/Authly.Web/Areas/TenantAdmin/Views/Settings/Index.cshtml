@@ -1,0 +1,34 @@
+@model Authly.Web.Areas.TenantAdmin.Controllers.ProjectSettingsViewModel
+
+<div>
+    <h1 class="font-display text-xl font-bold">Project settings</h1>
+    <p class="text-sm text-muted-foreground mt-0.5">Settings for the currently active project.</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+    <div class="card">
+        <div class="card-header"><h2 class="card-title">General</h2></div>
+        <div class="card-body">
+            <dl class="grid grid-cols-12 gap-y-2 text-sm">
+                <dt class="col-span-4 text-muted-foreground">Name</dt>
+                <dd class="col-span-8">@Model.Name</dd>
+                <dt class="col-span-4 text-muted-foreground">Slug</dt>
+                <dd class="col-span-8"><code class="text-xs">@Model.Slug</code></dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="card border-l-4 border-l-danger">
+        <div class="card-body">
+            <h2 class="text-danger font-semibold">Delete project</h2>
+            <p class="text-muted-foreground text-sm mt-1">
+                Permanently retires this project and its applications, users, and data. This can't be undone.
+            </p>
+            <form asp-area="TenantAdmin" asp-controller="Settings" asp-action="Delete" method="post"
+                  onsubmit="return confirm('Delete this project? This cannot be undone.');" class="mt-2 space-y-2">
+                <input type="text" name="confirmSlug" class="input" placeholder="Type &quot;@Model.Slug&quot; to confirm" autocomplete="off" />
+                <button type="submit" class="btn btn-danger btn-sm">Delete project</button>
+            </form>
+        </div>
+    </div>
+</div>

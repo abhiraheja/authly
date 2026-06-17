@@ -5,6 +5,7 @@ using Authly.Core.Interfaces;
 using AccountEntity = Authly.Core.Entities.Account;
 using Authly.Modules.Audit;
 using Authly.Modules.Operators;
+using Authly.Modules.Provisioning;
 using Authly.Modules.Auth;
 using Authly.Modules.Authorization;
 using Authly.Modules.Common;
@@ -49,9 +50,7 @@ public sealed class TenantSignupService : ITenantSignupService
     private readonly IAccountRepository _accounts;
     private readonly IOrganizationRepository _organizations;
     private readonly IOrganizationMembershipRepository _memberships;
-    private readonly ITenantService _tenants;
-    private readonly ITenantContext _tenantContext;
-    private readonly IRbacService _rbac;
+    private readonly IConsoleProvisioningService _provisioning;
     private readonly IOperatorRbacService _operatorRbac;
     private readonly IPasswordHasher _hasher;
     private readonly IAuditLogger _audit;
@@ -60,9 +59,7 @@ public sealed class TenantSignupService : ITenantSignupService
         IAccountRepository accounts,
         IOrganizationRepository organizations,
         IOrganizationMembershipRepository memberships,
-        ITenantService tenants,
-        ITenantContext tenantContext,
-        IRbacService rbac,
+        IConsoleProvisioningService provisioning,
         IOperatorRbacService operatorRbac,
         IPasswordHasher hasher,
         IAuditLogger audit)
@@ -70,9 +67,7 @@ public sealed class TenantSignupService : ITenantSignupService
         _accounts = accounts;
         _organizations = organizations;
         _memberships = memberships;
-        _tenants = tenants;
-        _tenantContext = tenantContext;
-        _rbac = rbac;
+        _provisioning = provisioning;
         _operatorRbac = operatorRbac;
         _hasher = hasher;
         _audit = audit;
@@ -109,11 +104,7 @@ public sealed class TenantSignupService : ITenantSignupService
             resourceType: "organization", resourceId: organization.Id,
             metadata: new { organization.Slug, organization.Name }, ct: ct);
 
-        // 3) First project (tenant) inside the org. The signup surface is tenant-less, so this runs
-        //    without an ambient tenant (tenants table is not RLS-protected). De-duplicate the slug.
-        var tenant = await CreateFirstProjectAsync(request.CompanyName, organization.Id, ct);
-
-        // 4) Founding membership — the owner is immediately Active.
+        // 3) Founding membership — the owner is immediately Active.
         var membership = new OrganizationMembership
         {
             AccountId = account.Id,
@@ -123,14 +114,12 @@ public sealed class TenantSignupService : ITenantSignupService
         };
         await _memberships.AddAsync(membership, ct);
 
-        // 5) Seed the org's operator-RBAC catalogue + system roles, and grant the founder org_owner.
+        // 4) Seed the org's operator-RBAC catalogue + system roles, and grant the founder org_owner.
         await _operatorRbac.EnsureSystemRolesAsync(organization.Id, ct);
         await _operatorRbac.AssignSystemRoleAsync(organization.Id, membership.Id, OperatorRbac.OrgOwner, account.Id, ct);
 
-        // 6) Bind RLS context to the new project and seed its end-user (app) system roles so the
-        //    project is immediately usable for hosted login.
-        _tenantContext.SetTenant(tenant.Id);
-        await _rbac.EnsureSystemRolesAsync(tenant.Id, ct);
+        // 5) First project (tenant) inside the org — slug de-dup + end-user system roles + RLS binding.
+        var tenant = await _provisioning.CreateProjectAsync(organization.Id, request.CompanyName, actor, ct);
 
         await _audit.LogAsync("tenant.signup", actor, tenant.Id,
             resourceType: "tenant", resourceId: tenant.Id,
@@ -161,26 +150,5 @@ public sealed class TenantSignupService : ITenantSignupService
         }
 
         throw new TenantSignupException("Could not allocate a unique organization identifier. Please try a different company name.");
-    }
-
-    private async Task<Tenant> CreateFirstProjectAsync(string companyName, Guid organizationId, CancellationToken ct)
-    {
-        var baseSlug = TenantService.Slugify(companyName);
-        for (var attempt = 0; attempt < MaxSlugAttempts; attempt++)
-        {
-            // First attempt uses the natural slug; subsequent attempts disambiguate (acme, acme-2, …).
-            var slug = attempt == 0 ? baseSlug : $"{baseSlug}-{attempt + 1}";
-            try
-            {
-                return await _tenants.CreateAsync(
-                    new CreateTenantRequest(companyName, slug, organizationId), AuditContext.System, ct);
-            }
-            catch (SlugAlreadyExistsException)
-            {
-                // Try the next disambiguated slug.
-            }
-        }
-
-        throw new TenantSignupException("Could not allocate a unique workspace identifier. Please try a different company name.");
     }
 }

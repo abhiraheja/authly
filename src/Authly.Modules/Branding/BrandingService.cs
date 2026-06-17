@@ -34,19 +34,51 @@ public sealed partial class BrandingService : IBrandingService
 
         var branding = new TenantBranding
         {
+            // identity
             LogoUrl = NormalizeOptional(input.LogoUrl),
             PrimaryColor = ValidateColor(input.PrimaryColor, "primary color"),
             ButtonTextColor = ValidateColor(input.ButtonTextColor, "button text color"),
             FontFamily = string.IsNullOrWhiteSpace(input.FontFamily)
                 ? TenantBranding.Default.FontFamily
                 : SanitizeFont(input.FontFamily),
-            Layout = input.Layout,
             DarkMode = input.DarkMode,
-            Tagline = NormalizeOptional(input.Tagline)
+
+            // layout
+            Layout = input.Layout,
+
+            // background
+            Background = input.Background,
+            GradientFrom = ValidateColor(input.GradientFrom, "gradient start color"),
+            GradientTo = ValidateColor(input.GradientTo, "gradient end color"),
+            BackgroundImageUrl = NormalizeOptional(input.BackgroundImageUrl),
+            BackgroundFit = input.BackgroundFit,
+            BackgroundPosition = SanitizePosition(input.BackgroundPosition),
+            OverlayOpacity = Math.Clamp(input.OverlayOpacity, 0, 100),
+
+            // text
+            Heading = NormalizeOptional(input.Heading) ?? TenantBranding.Default.Heading,
+            Subtitle = NormalizeOptional(input.Subtitle) ?? TenantBranding.Default.Subtitle,
+            HeadingSize = input.HeadingSize,
+            Tagline = NormalizeOptional(input.Tagline),
+            FeatureBullets = NormalizeBullets(input.FeatureBullets),
+            FooterText = NormalizeOptional(input.FooterText),
+
+            // card / shape
+            CardStyle = input.CardStyle,
+            CardShadow = input.CardShadow,
+            CornerRadius = Math.Clamp(input.CornerRadius, 0, 16)
         };
 
         if (branding.LogoUrl is not null && !IsHttpUrl(branding.LogoUrl))
             throw new BrandingConfigInvalidException("The logo URL must be an absolute http(s) URL.");
+
+        if (branding.BackgroundImageUrl is not null && !IsHttpUrl(branding.BackgroundImageUrl))
+            throw new BrandingConfigInvalidException("The background image URL must be an absolute http(s) URL.");
+
+        if (branding.Background == Core.Enums.BrandingBackground.Image
+            && branding.Layout != Core.Enums.BrandingLayout.CenteredPlain
+            && branding.BackgroundImageUrl is null)
+            throw new BrandingConfigInvalidException("Choose a background image URL, or pick a solid/gradient background.");
 
         tenant.Branding = TenantBrandingJson.Serialize(branding);
         tenant.UpdatedAt = DateTimeOffset.UtcNow;
@@ -104,6 +136,23 @@ public sealed partial class BrandingService : IBrandingService
     private static string? NormalizeOptional(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    /// <summary>Keeps only a safe CSS <c>background-position</c> value (keywords / percentages / px).</summary>
+    private static string SanitizePosition(string? value)
+    {
+        var v = value?.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(v) || !Position().IsMatch(v)) return "center";
+        return v;
+    }
+
+    /// <summary>Trims, drops blanks, caps each bullet length, and limits the list to 6 items.</summary>
+    private static List<string> NormalizeBullets(IEnumerable<string>? bullets)
+        => (bullets ?? Enumerable.Empty<string>())
+            .Select(b => b?.Trim() ?? "")
+            .Where(b => b.Length > 0)
+            .Select(b => b.Length > 80 ? b[..80] : b)
+            .Take(6)
+            .ToList();
+
     private static string? NormalizeDomain(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
@@ -125,6 +174,10 @@ public sealed partial class BrandingService : IBrandingService
     // CSS font lists are letters/digits/spaces/commas/hyphens and quotes only.
     [GeneratedRegex("[^a-zA-Z0-9 ,\\-'\"]")]
     private static partial Regex FontDisallowed();
+
+    // CSS background-position: 1–2 tokens of keyword | percentage | px length.
+    [GeneratedRegex("^(left|right|top|bottom|center|\\d{1,3}%|\\d{1,4}px)( (left|right|top|bottom|center|\\d{1,3}%|\\d{1,4}px))?$")]
+    private static partial Regex Position();
 
     // A conservative DNS hostname (labels of letters/digits/hyphens, at least one dot).
     [GeneratedRegex("^(?=.{1,253}$)(?!-)[a-z0-9-]{1,63}(?<!-)(\\.(?!-)[a-z0-9-]{1,63}(?<!-))+$")]

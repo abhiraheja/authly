@@ -21,14 +21,14 @@ public class BrandingServiceTests
             PrimaryColor = "#AABBCC",
             ButtonTextColor = "#FFFFFF",
             FontFamily = "Roboto, sans-serif",
-            Layout = Core.Enums.BrandingLayout.Split,
+            Layout = Core.Enums.BrandingLayout.FormRight,
             DarkMode = true,
             Tagline = "  Hello  "
         }, AuditContext.System);
 
         var saved = TenantBrandingJson.Parse(h.Tenant.Branding);
         Assert.Equal("#aabbcc", saved.PrimaryColor);                 // normalized to lower-case
-        Assert.Equal(Core.Enums.BrandingLayout.Split, saved.Layout);
+        Assert.Equal(Core.Enums.BrandingLayout.FormRight, saved.Layout);
         Assert.True(saved.DarkMode);
         Assert.Equal("Hello", saved.Tagline);                        // trimmed
         Assert.Contains("tenant.branding_updated", h.Audit.Events);
@@ -65,6 +65,53 @@ public class BrandingServiceTests
         var saved = TenantBrandingJson.Parse(h.Tenant.Branding);
         Assert.DoesNotContain("<", saved.FontFamily);
         Assert.DoesNotContain(">", saved.FontFamily);
+    }
+
+    [Fact]
+    public async Task Save_rejects_a_non_http_background_image_url()
+    {
+        var h = new Harness();
+        await Assert.ThrowsAsync<BrandingConfigInvalidException>(() =>
+            h.Service.SaveAsync(Tenant, new BrandingInput
+            {
+                PrimaryColor = "#5b6df5", ButtonTextColor = "#fff",
+                BackgroundImageUrl = "javascript:alert(1)"
+            }, AuditContext.System));
+    }
+
+    [Fact]
+    public async Task Save_requires_an_image_url_when_image_background_on_a_split_layout()
+    {
+        var h = new Harness();
+        await Assert.ThrowsAsync<BrandingConfigInvalidException>(() =>
+            h.Service.SaveAsync(Tenant, new BrandingInput
+            {
+                PrimaryColor = "#5b6df5", ButtonTextColor = "#fff",
+                Layout = Core.Enums.BrandingLayout.FormRight,
+                Background = Core.Enums.BrandingBackground.Image,
+                BackgroundImageUrl = null
+            }, AuditContext.System));
+    }
+
+    [Fact]
+    public async Task Save_sanitizes_position_clamps_numbers_and_normalizes_bullets()
+    {
+        var h = new Harness();
+        await h.Service.SaveAsync(Tenant, new BrandingInput
+        {
+            PrimaryColor = "#5b6df5", ButtonTextColor = "#fff",
+            BackgroundPosition = "url(evil)",
+            OverlayOpacity = 500,
+            CornerRadius = -4,
+            FeatureBullets = new List<string> { "  one  ", "", "two", "three", "four", "five", "six", "seven" }
+        }, AuditContext.System);
+
+        var saved = TenantBrandingJson.Parse(h.Tenant.Branding);
+        Assert.Equal("center", saved.BackgroundPosition);   // unsafe value rejected -> default
+        Assert.Equal(100, saved.OverlayOpacity);            // clamped
+        Assert.Equal(0, saved.CornerRadius);                // clamped
+        Assert.Equal(6, saved.FeatureBullets.Count);        // blanks dropped, capped at 6
+        Assert.Equal("one", saved.FeatureBullets[0]);       // trimmed
     }
 
     [Fact]

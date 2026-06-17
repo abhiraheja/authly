@@ -119,16 +119,10 @@ public sealed class OnboardingController : TenantAdminControllerBase
         if (!ModelState.IsValid) return View(model);
 
         var current = await _branding.GetAsync(TenantId, ct);
-        await _branding.SaveAsync(TenantId, new BrandingInput
-        {
-            LogoUrl = string.IsNullOrWhiteSpace(model.LogoUrl) ? null : model.LogoUrl.Trim(),
-            PrimaryColor = model.PrimaryColor,
-            ButtonTextColor = current.ButtonTextColor,
-            FontFamily = current.FontFamily,
-            Layout = current.Layout,
-            DarkMode = current.DarkMode,
-            Tagline = current.Tagline
-        }, CurrentAudit(), ct);
+        var input = BrandingInput.From(current);
+        input.LogoUrl = string.IsNullOrWhiteSpace(model.LogoUrl) ? null : model.LogoUrl.Trim();
+        input.PrimaryColor = model.PrimaryColor;
+        await _branding.SaveAsync(TenantId, input, CurrentAudit(), ct);
 
         return RedirectToAction(nameof(TestLogin));
     }

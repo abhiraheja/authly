@@ -26,7 +26,6 @@ internal sealed class FakeUserRepo : IUserRepository
     public Task<PagedResult<User>> ListPagedAsync(Guid tenantId, Pagination page, string? emailContains = null, CancellationToken ct = default)
         => throw new NotImplementedException();
     public Task DeleteAsync(User user, CancellationToken ct = default) { Items.Remove(user); return Task.CompletedTask; }
-    public Task<bool> AnyTenantAdminAsync(Guid tenantId, CancellationToken ct = default) => Task.FromResult(false);
     public Task AddAsync(User user, CancellationToken ct = default)
     {
         if (user.Id == Guid.Empty) user.Id = Guid.NewGuid();

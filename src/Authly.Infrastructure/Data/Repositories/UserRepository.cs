@@ -47,9 +47,6 @@ public sealed class UserRepository : IUserRepository
         await _db.SaveChangesAsync(ct);
     }
 
-    public Task<bool> AnyTenantAdminAsync(Guid tenantId, CancellationToken ct = default)
-        => _db.Users.AnyAsync(u => u.TenantId == tenantId && u.IsTenantAdmin, ct);
-
     public async Task AddAsync(User user, CancellationToken ct = default)
     {
         _db.Users.Add(user);

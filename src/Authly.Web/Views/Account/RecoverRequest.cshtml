@@ -3,22 +3,21 @@
     Layout = "_AuthLayout";
 }
 
-<p class="text-center text-muted mb-4">
+<h2 class="font-display text-2xl font-bold">Recover account</h2>
+<p class="text-sm text-muted-foreground mt-1 mb-6">
     Lost access to your account? Enter your email and we'll send a recovery link to every contact on file.
 </p>
 
-<form asp-controller="Account" asp-action="RecoverRequest" method="post">
-    <div class="mb-4">
-        <label asp-for="Email" class="form-label">Email</label>
-        <input asp-for="Email" class="form-control" autocomplete="email" placeholder="you@example.com" />
-        <span asp-validation-for="Email" class="text-danger small"></span>
+<form asp-controller="Account" asp-action="RecoverRequest" method="post" class="space-y-4">
+    <div>
+        <label asp-for="Email" class="label">Email</label>
+        <input asp-for="Email" class="input" autocomplete="email" placeholder="you@example.com" />
+        <span asp-validation-for="Email" class="text-danger text-xs"></span>
     </div>
 
-    <div class="d-grid">
-        <button type="submit" class="btn btn-primary">Recover account</button>
-    </div>
+    <button type="submit" class="btn btn-primary w-full">Recover account</button>
 </form>
 
-<p class="text-center text-muted small mt-4 mb-0">
-    <a asp-controller="Account" asp-action="Login">Back to sign in</a>
+<p class="text-center text-sm text-muted-foreground mt-6">
+    <a class="text-primary hover:underline" asp-controller="Account" asp-action="Login">Back to sign in</a>
 </p>

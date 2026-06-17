@@ -6,69 +6,72 @@
     var redirectHint = $"{Context.Request.Scheme}://{Context.Request.Host}/account/external/{Model.Provider}/callback";
 }
 
-<div class="page-title-head mb-3">
-    <h4 class="mb-0">@(preset?.DisplayName ?? Model.Provider) login</h4>
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">@(preset?.DisplayName ?? Model.Provider) login</h1>
+    </div>
 </div>
 
-<div class="card">
+<div class="card mt-4">
     <div class="card-body">
         <form asp-area="TenantAdmin" asp-controller="SocialProviders" asp-action="Save" method="post">
             <input type="hidden" asp-for="Id" />
             <input type="hidden" asp-for="Provider" />
 
-            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+            <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
 
-            <div class="alert alert-info py-2 small">
-                Set this as the provider's redirect/callback URL:<br /><code>@redirectHint</code>
+            <div class="card card-body !py-3 flex items-center gap-3 border-l-4 border-l-primary mb-4">
+                <i data-lucide="info" class="size-5 text-primary shrink-0"></i>
+                <div class="text-sm">Set this as the provider's redirect/callback URL:<br /><code>@redirectHint</code></div>
             </div>
 
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label asp-for="ClientId" class="form-label">Client ID</label>
-                    <input asp-for="ClientId" class="form-control" autocomplete="off" />
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label asp-for="ClientId" class="label">Client ID</label>
+                    <input asp-for="ClientId" class="input" autocomplete="off" />
                 </div>
-                <div class="col-md-6">
-                    <label asp-for="ClientSecret" class="form-label">Client secret @(configured ? "(leave blank to keep)" : "")</label>
-                    <input asp-for="ClientSecret" type="password" class="form-control" autocomplete="new-password" />
+                <div>
+                    <label asp-for="ClientSecret" class="label">Client secret @(configured ? "(leave blank to keep)" : "")</label>
+                    <input asp-for="ClientSecret" type="password" class="input" autocomplete="new-password" />
                 </div>
-                <div class="col-12">
-                    <label asp-for="Scopes" class="form-label">Scopes (space-separated, blank = defaults)</label>
-                    <input asp-for="Scopes" class="form-control" placeholder="@(preset is null ? "openid email profile" : string.Join(' ', preset.DefaultScopes))" />
+                <div class="md:col-span-2">
+                    <label asp-for="Scopes" class="label">Scopes (space-separated, blank = defaults)</label>
+                    <input asp-for="Scopes" class="input" placeholder="@(preset is null ? "openid email profile" : string.Join(' ', preset.DefaultScopes))" />
                 </div>
 
                 @if (isCustom)
                 {
-                    <div class="col-12"><hr class="my-1" /><span class="small text-muted">Generic OAuth2/OIDC endpoints</span></div>
-                    <div class="col-12">
-                        <label asp-for="AuthorizationEndpoint" class="form-label">Authorization endpoint</label>
-                        <input asp-for="AuthorizationEndpoint" class="form-control" />
+                    <div class="md:col-span-2"><hr class="my-1 border-border" /><span class="text-sm text-muted-foreground">Generic OAuth2/OIDC endpoints</span></div>
+                    <div class="md:col-span-2">
+                        <label asp-for="AuthorizationEndpoint" class="label">Authorization endpoint</label>
+                        <input asp-for="AuthorizationEndpoint" class="input" />
                     </div>
-                    <div class="col-md-6">
-                        <label asp-for="TokenEndpoint" class="form-label">Token endpoint</label>
-                        <input asp-for="TokenEndpoint" class="form-control" />
+                    <div>
+                        <label asp-for="TokenEndpoint" class="label">Token endpoint</label>
+                        <input asp-for="TokenEndpoint" class="input" />
                     </div>
-                    <div class="col-md-6">
-                        <label asp-for="UserInfoEndpoint" class="form-label">User-info endpoint</label>
-                        <input asp-for="UserInfoEndpoint" class="form-control" />
+                    <div>
+                        <label asp-for="UserInfoEndpoint" class="label">User-info endpoint</label>
+                        <input asp-for="UserInfoEndpoint" class="input" />
                     </div>
                 }
 
-                <div class="col-12">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" asp-for="IsActive" id="isActive" />
-                        <label class="form-check-label" for="isActive">Active (show as a sign-in option)</label>
+                <div class="md:col-span-2">
+                    <div class="flex items-center gap-2">
+                        <label class="switch"><input asp-for="IsActive" type="checkbox" id="isActive" /><span class="track"></span></label>
+                        <label for="isActive">Active (show as a sign-in option)</label>
                     </div>
                 </div>
             </div>
 
-            <div class="d-flex gap-2 mt-4">
+            <div class="flex gap-2 mt-4">
                 <button type="submit" class="btn btn-primary">Save</button>
-                <a class="btn btn-soft-secondary" asp-area="TenantAdmin" asp-controller="SocialProviders" asp-action="Index">Cancel</a>
+                <a class="btn btn-outline" asp-area="TenantAdmin" asp-controller="SocialProviders" asp-action="Index">Cancel</a>
                 @if (configured)
                 {
                     <form asp-area="TenantAdmin" asp-controller="SocialProviders" asp-action="Delete" asp-route-id="@Model.Id" method="post"
                           class="ms-auto" onsubmit="return confirm('Remove this provider?');">
-                        <button type="submit" class="btn btn-soft-danger">Remove</button>
+                        <button type="submit" class="btn btn-danger">Remove</button>
                     </form>
                 }
             </div>
@@ -76,6 +79,6 @@
     </div>
 </div>
 
-<p class="small text-muted mt-3">
-    <i data-lucide="shield" class="me-1"></i> The client secret is encrypted at rest and never shown again after saving.
+<p class="text-sm text-muted-foreground mt-3 flex items-center gap-2">
+    <i data-lucide="shield" class="size-4"></i> The client secret is encrypted at rest and never shown again after saving.
 </p>

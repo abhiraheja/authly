@@ -4,30 +4,29 @@
     ViewData["Title"] = "Admin sign in";
 }
 
-<p class="text-center text-muted mb-4">Sign in to manage your workspace.</p>
+<h2 class="font-display text-2xl font-bold">Admin sign in</h2>
+<p class="text-sm text-muted-foreground mt-1 mb-6">Sign in to manage your workspace.</p>
 
-<form asp-area="TenantAdmin" asp-controller="Account" asp-action="Login" method="post">
+<form asp-area="TenantAdmin" asp-controller="Account" asp-action="Login" method="post" class="space-y-4">
     <input type="hidden" asp-for="ReturnUrl" />
-    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+    <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
 
-    <div class="mb-3">
-        <label asp-for="Email" class="form-label">Email</label>
-        <input asp-for="Email" class="form-control" autocomplete="username" placeholder="admin@example.com" />
-        <span asp-validation-for="Email" class="text-danger small"></span>
+    <div>
+        <label asp-for="Email" class="label">Email</label>
+        <input asp-for="Email" class="input" autocomplete="username" placeholder="admin@example.com" />
+        <span asp-validation-for="Email" class="text-danger text-xs"></span>
     </div>
 
-    <div class="mb-4">
-        <label asp-for="Password" class="form-label">Password</label>
-        <input asp-for="Password" class="form-control" autocomplete="current-password" placeholder="••••••••" />
-        <span asp-validation-for="Password" class="text-danger small"></span>
+    <div>
+        <label asp-for="Password" class="label">Password</label>
+        <input asp-for="Password" class="input" autocomplete="current-password" placeholder="••••••••" />
+        <span asp-validation-for="Password" class="text-danger text-xs"></span>
     </div>
 
-    <div class="d-grid">
-        <button type="submit" class="btn btn-primary">Sign in</button>
-    </div>
+    <button type="submit" class="btn btn-primary w-full">Sign in</button>
 </form>
 
-<p class="text-center text-muted small mt-4 mb-0">
+<p class="text-center text-sm text-muted-foreground mt-6">
     Don't have a workspace yet?
-    <a asp-area="" asp-controller="Signup" asp-action="Index">Create one</a>
+    <a class="text-primary hover:underline" asp-area="" asp-controller="Signup" asp-action="Index">Create one</a>
 </p>

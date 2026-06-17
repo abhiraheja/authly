@@ -5,60 +5,58 @@
     var isNew = Model.Id is null;
 }
 
-<div class="page-title-head mb-3">
-    <h4 class="mb-0">@(isNew ? "Add" : "Edit") webhook endpoint</h4>
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">@(isNew ? "Add" : "Edit") webhook endpoint</h1>
+    </div>
 </div>
 
-<div class="card">
+<div class="card mt-4">
     <div class="card-body">
-        <form asp-area="TenantAdmin" asp-controller="Webhooks" asp-action="Save" method="post" class="row g-3">
+        <form asp-area="TenantAdmin" asp-controller="Webhooks" asp-action="Save" method="post" class="space-y-4">
             <input type="hidden" asp-for="Id" />
-            <div asp-validation-summary="All" class="text-danger small"></div>
+            <div asp-validation-summary="All" class="text-danger text-xs"></div>
 
-            <div class="col-12">
-                <label class="form-label" asp-for="Url">Endpoint URL</label>
-                <input class="form-control" asp-for="Url" placeholder="https://example.com/hooks/authly" />
+            <div>
+                <label class="label" asp-for="Url">Endpoint URL</label>
+                <input class="input" asp-for="Url" placeholder="https://example.com/hooks/authly" />
             </div>
 
-            <div class="col-12">
-                <label class="form-label" asp-for="Secret">Signing secret</label>
-                <input class="form-control" asp-for="Secret" type="password" autocomplete="new-password"
+            <div>
+                <label class="label" asp-for="Secret">Signing secret</label>
+                <input class="input" asp-for="Secret" type="password" autocomplete="new-password"
                        placeholder="@(isNew ? "Leave blank to auto-generate" : "Leave blank to keep current")" />
-                <div class="form-text">Used to HMAC-SHA256 sign each delivery (header <code>X-Authly-Signature</code>). Write-only.</div>
+                <p class="mt-1 text-xs text-muted-foreground">Used to HMAC-SHA256 sign each delivery (header <code>X-Authly-Signature</code>). Write-only.</p>
             </div>
 
-            <div class="col-12">
-                <label class="form-label">Subscribed events</label>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="Events" value="*" id="ev-wild"
+            <div>
+                <label class="label">Subscribed events</label>
+                <label class="flex items-center gap-2">
+                    <input class="checkbox" type="checkbox" name="Events" value="*" id="ev-wild"
                            @(selected.Contains("*") ? "checked" : "") />
-                    <label class="form-check-label fw-medium" for="ev-wild">All events (<code>*</code>)</label>
-                </div>
-                <hr class="my-2" />
-                <div class="row">
+                    <span class="font-medium">All events (<code>*</code>)</span>
+                </label>
+                <hr class="my-2 border-border" />
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
                     @foreach (var ev in catalog)
                     {
-                        <div class="col-md-4">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="Events" value="@ev" id="ev-@ev"
-                                       @(selected.Contains(ev) ? "checked" : "") />
-                                <label class="form-check-label small" for="ev-@ev">@ev</label>
-                            </div>
-                        </div>
+                        <label class="flex items-center gap-2">
+                            <input class="checkbox" type="checkbox" name="Events" value="@ev" id="ev-@ev"
+                                   @(selected.Contains(ev) ? "checked" : "") />
+                            <span class="text-sm">@ev</span>
+                        </label>
                     }
                 </div>
             </div>
 
-            <div class="col-12">
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" asp-for="IsActive" />
-                    <label class="form-check-label" asp-for="IsActive">Active</label>
-                </div>
+            <div class="flex items-center gap-2">
+                <label class="switch"><input asp-for="IsActive" type="checkbox" /><span class="track"></span></label>
+                <label asp-for="IsActive">Active</label>
             </div>
 
-            <div class="col-12 d-flex gap-2">
+            <div class="flex gap-2">
                 <button type="submit" class="btn btn-primary">Save endpoint</button>
-                <a class="btn btn-soft-secondary" asp-area="TenantAdmin" asp-controller="Webhooks" asp-action="Index">Cancel</a>
+                <a class="btn btn-outline" asp-area="TenantAdmin" asp-controller="Webhooks" asp-action="Index">Cancel</a>
             </div>
         </form>
     </div>

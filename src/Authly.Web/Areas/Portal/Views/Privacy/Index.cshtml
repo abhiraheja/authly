@@ -3,44 +3,46 @@
     var email = ViewData["Email"] as string ?? "";
 }
 
-<div class="page-title-head">
-    <h4>Privacy &amp; data</h4>
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Privacy &amp; data</h1>
+    </div>
 </div>
 
-<p class="text-muted small">
+<p class="text-sm text-muted-foreground mt-2">
     Exercise your data rights: download everything we hold about you, review your consent history,
     or permanently delete your account.
 </p>
 
-<div class="row g-4">
-    <div class="col-lg-7">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mt-4">
+    <div class="lg:col-span-7">
         <div class="card">
-            <div class="card-header">Consent history</div>
-            <div class="table-responsive">
-                <table class="table align-middle mb-0">
-                    <thead><tr><th>Purpose</th><th>Status</th><th>Version</th><th class="text-end">Date</th></tr></thead>
+            <div class="card-header"><span class="card-title">Consent history</span></div>
+            <div class="overflow-x-auto scroll-thin">
+                <table class="table">
+                    <thead><tr><th>Purpose</th><th>Status</th><th>Version</th><th class="text-right">Date</th></tr></thead>
                     <tbody>
                         @foreach (var c in Model)
                         {
                             <tr>
-                                <td class="text-capitalize">@c.Purpose.Replace('_', ' ')</td>
+                                <td class="capitalize">@c.Purpose.Replace('_', ' ')</td>
                                 <td>
                                     @if (c.Granted)
                                     {
-                                        <span class="badge bg-soft-success">granted</span>
+                                        <span class="badge badge-success">granted</span>
                                     }
                                     else
                                     {
-                                        <span class="badge bg-soft-danger">withdrawn</span>
+                                        <span class="badge badge-danger">withdrawn</span>
                                     }
                                 </td>
-                                <td class="text-muted small">@(c.Version ?? "—")</td>
-                                <td class="text-end text-muted small">@c.CreatedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm") UTC</td>
+                                <td class="text-muted-foreground text-sm">@(c.Version ?? "—")</td>
+                                <td class="text-right text-muted-foreground text-sm">@c.CreatedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm") UTC</td>
                             </tr>
                         }
                         @if (Model.Count == 0)
                         {
-                            <tr><td colspan="4" class="text-center text-muted py-4">No consent records yet.</td></tr>
+                            <tr><td colspan="4" class="text-center text-muted-foreground py-4">No consent records yet.</td></tr>
                         }
                     </tbody>
                 </table>
@@ -48,31 +50,31 @@
         </div>
     </div>
 
-    <div class="col-lg-5">
-        <div class="card mb-4">
-            <div class="card-header">Export your data</div>
+    <div class="lg:col-span-5 space-y-4">
+        <div class="card">
+            <div class="card-header"><span class="card-title">Export your data</span></div>
             <div class="card-body">
-                <p class="text-muted small">
+                <p class="text-sm text-muted-foreground mb-3">
                     Download a machine-readable JSON copy of your profile, sessions, login history,
                     security factors, and consents.
                 </p>
-                <a asp-area="Portal" asp-controller="Privacy" asp-action="Export" class="btn btn-soft-primary">
-                    <i data-lucide="download" class="me-1"></i> Download export
+                <a asp-area="Portal" asp-controller="Privacy" asp-action="Export" class="btn btn-primary">
+                    <i data-lucide="download" class="size-4"></i> Download export
                 </a>
             </div>
         </div>
 
-        <div class="card border-danger">
-            <div class="card-header text-danger">Delete account</div>
+        <div class="card border-l-4 border-l-danger">
+            <div class="card-header"><span class="card-title text-danger">Delete account</span></div>
             <div class="card-body">
-                <p class="text-muted small">
+                <p class="text-sm text-muted-foreground mb-3">
                     This permanently erases your account and all associated data. It cannot be undone.
                     Type your email <strong>@email</strong> to confirm.
                 </p>
                 <form asp-area="Portal" asp-controller="Privacy" asp-action="Erase" method="post"
                       onsubmit="return confirm('Permanently erase your account? This cannot be undone.');">
                     <div class="mb-3">
-                        <input name="confirmEmail" class="form-control" autocomplete="off" placeholder="@email" />
+                        <input name="confirmEmail" class="input" autocomplete="off" placeholder="@email" />
                     </div>
                     <button type="submit" class="btn btn-danger">Permanently delete my account</button>
                 </form>

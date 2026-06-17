@@ -2,48 +2,51 @@
     ViewData["Title"] = "Developer docs";
 }
 
-<div class="container py-4" style="max-width:920px;">
-    <h1 class="fw-bold mb-1">Developer documentation</h1>
-    <p class="lead text-muted">Authly is a standards-based OpenID Connect / OAuth 2.0 provider. Point your OIDC client at the discovery document and you're done.</p>
+<div class="mx-auto max-w-[920px] py-6">
+    <h1 class="font-display text-2xl font-bold mb-1">Developer documentation</h1>
+    <p class="text-lg text-muted-foreground">Authly is a standards-based OpenID Connect / OAuth 2.0 provider. Point your OIDC client at the discovery document and you're done.</p>
 
-    <div class="card my-4">
+    <div class="card my-6">
         <div class="card-header">Your endpoints</div>
         <div class="card-body">
             <div class="mb-2">
-                <label class="form-label small mb-1">Discovery document</label>
-                <input class="form-control form-control-sm" value="@ViewBag.Discovery" readonly onclick="this.select()" />
+                <label class="label text-xs mb-1">Discovery document</label>
+                <input class="input" value="@ViewBag.Discovery" readonly onclick="this.select()" />
             </div>
-            <div class="row g-2">
-                <div class="col-md-4">
-                    <label class="form-label small mb-1">Authorization</label>
-                    <input class="form-control form-control-sm" value="@ViewBag.Authorize" readonly onclick="this.select()" />
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div>
+                    <label class="label text-xs mb-1">Authorization</label>
+                    <input class="input" value="@ViewBag.Authorize" readonly onclick="this.select()" />
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label small mb-1">Token</label>
-                    <input class="form-control form-control-sm" value="@ViewBag.Token" readonly onclick="this.select()" />
+                <div>
+                    <label class="label text-xs mb-1">Token</label>
+                    <input class="input" value="@ViewBag.Token" readonly onclick="this.select()" />
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label small mb-1">UserInfo</label>
-                    <input class="form-control form-control-sm" value="@ViewBag.UserInfo" readonly onclick="this.select()" />
+                <div>
+                    <label class="label text-xs mb-1">UserInfo</label>
+                    <input class="input" value="@ViewBag.UserInfo" readonly onclick="this.select()" />
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label small mb-1">End session (logout)</label>
-                    <input class="form-control form-control-sm" value="@ViewBag.Logout" readonly onclick="this.select()" />
+                <div>
+                    <label class="label text-xs mb-1">End session (logout)</label>
+                    <input class="input" value="@ViewBag.Logout" readonly onclick="this.select()" />
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="alert alert-info small">
-        <strong>Choosing a client type.</strong>
-        <strong>Web</strong> apps are confidential (issued a <code>client_secret</code>).
-        <strong>SPA / Native</strong> apps are public — no secret, PKCE only. A browser app must be a
-        <strong>SPA</strong> client: it cannot hold a secret, so a Web/confidential client fails at the
-        token exchange.
+    <div class="card card-body !py-3 flex items-start gap-3 border-l-4 border-l-primary text-sm">
+        <i data-lucide="info" class="size-4 text-primary mt-0.5 shrink-0"></i>
+        <div>
+            <strong>Choosing a client type.</strong>
+            <strong>Web</strong> apps are confidential (issued a <code>client_secret</code>).
+            <strong>SPA / Native</strong> apps are public — no secret, PKCE only. A browser app must be a
+            <strong>SPA</strong> client: it cannot hold a secret, so a Web/confidential client fails at the
+            token exchange.
+        </div>
     </div>
 
-    <h4>Quickstart</h4>
-    <ol>
+    <h2 class="font-display text-xl font-bold mt-6">Quickstart</h2>
+    <ol class="list-decimal pl-5 space-y-1">
         <li>In your tenant admin console, open <strong>Get started</strong> and create your first application.</li>
         <li>Copy the <strong>Client ID</strong> (and <strong>Client secret</strong> for web apps — shown once).</li>
         <li>Register your <strong>redirect URI</strong> (exact match).</li>
@@ -51,11 +54,11 @@
         <li>Use the <strong>Sandbox</strong> to run a test login.</li>
     </ol>
 
-    <h4 class="mt-4">Flows</h4>
+    <h2 class="font-display text-xl font-bold mt-6">Flows</h2>
     <p>Authorization Code + PKCE (required), Refresh Token (rotated on use), and Client Credentials. Access tokens last 1&nbsp;hour; refresh tokens 14&nbsp;days.</p>
 
-    <h4 class="mt-4">Authorization request</h4>
-    <pre class="bg-light p-3 rounded small"><code>GET /connect/authorize
+    <h2 class="font-display text-xl font-bold mt-6">Authorization request</h2>
+    <pre class="bg-muted p-3 rounded text-sm"><code>GET /connect/authorize
   ?response_type=code
   &amp;client_id=YOUR_CLIENT_ID
   &amp;redirect_uri=https://myapp.com/callback
@@ -63,8 +66,8 @@
   &amp;code_challenge=CHALLENGE&amp;code_challenge_method=S256
   &amp;state=RANDOM</code></pre>
 
-    <h4 class="mt-4">Token exchange</h4>
-    <pre class="bg-light p-3 rounded small"><code>POST /connect/token
+    <h2 class="font-display text-xl font-bold mt-6">Token exchange</h2>
+    <pre class="bg-muted p-3 rounded text-sm"><code>POST /connect/token
   grant_type=authorization_code
   code=THE_CODE
   redirect_uri=https://myapp.com/callback
@@ -72,32 +75,32 @@
   client_secret=YOUR_SECRET   (confidential clients only)
   code_verifier=THE_VERIFIER</code></pre>
 
-    <h4 class="mt-4">Logout (RP-initiated end-session)</h4>
+    <h2 class="font-display text-xl font-bold mt-6">Logout (RP-initiated end-session)</h2>
     <p>
         Clearing tokens in your app alone is <em>not</em> a full logout — Authly keeps its own SSO
         session cookie, so the next visit to <code>/connect/authorize</code> silently re-authenticates
         (no login page). Send the user to the end-session endpoint to log them out of Authly too:
     </p>
-    <pre class="bg-light p-3 rounded small"><code>GET /connect/logout
+    <pre class="bg-muted p-3 rounded text-sm"><code>GET /connect/logout
   ?id_token_hint=THE_ID_TOKEN
   &amp;post_logout_redirect_uri=https://myapp.com/</code></pre>
-    <p class="small text-muted">
+    <p class="text-sm text-muted-foreground">
         Your app's <strong>origin root</strong> (<code>scheme://host[:port]/</code>) is allowed
         automatically — it's derived from the redirect URIs you registered (registering
         <code>https://myapp.com/callback</code> permits <code>post_logout_redirect_uri=https://myapp.com/</code>).
         Send <code>id_token_hint</code> so Authly can validate the request and skip a confirm prompt.
     </p>
 
-    <h4 class="mt-4">Browser (SPA) apps &amp; CORS</h4>
-    <p class="small text-muted">
+    <h2 class="font-display text-xl font-bold mt-6">Browser (SPA) apps &amp; CORS</h2>
+    <p class="text-sm text-muted-foreground">
         The <code>/connect/authorize</code> redirect is a top-level navigation, but the discovery,
         token, and userinfo calls are XHRs subject to CORS. Authly allows these automatically for the
         <strong>origin of any registered redirect URI</strong> — so a browser app whose redirect URI
         is registered just works, with no CORS configuration.
     </p>
 
-    <h4 class="mt-4">Troubleshooting</h4>
-    <ul class="small">
+    <h2 class="font-display text-xl font-bold mt-6">Troubleshooting</h2>
+    <ul class="list-disc pl-5 text-sm space-y-1">
         <li><code>invalid_redirect_uri</code> — the <code>redirect_uri</code> isn't registered (exact match required).</li>
         <li><code>invalid_client</code> — wrong credentials, or a public client sending a secret.</li>
         <li>Re-login skips the login page — app-only logout left Authly's SSO cookie; use the end-session endpoint.</li>
@@ -105,7 +108,7 @@
         <li><code>invalid_request</code> "different workspace" — the <code>tenant</code>/host resolves to a different tenant than the one that owns the <code>client_id</code>.</li>
     </ul>
 
-    <p class="text-muted mt-4">
+    <p class="text-muted-foreground mt-6">
         Full guide with framework examples and troubleshooting: <code>docs/developer/Quickstart.md</code> in the repository.
     </p>
 </div>

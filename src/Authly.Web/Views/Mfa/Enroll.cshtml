@@ -3,33 +3,31 @@
     Layout = "_AuthLayout";
 }
 
-<p class="text-center text-muted mb-3">
+<p class="text-center text-muted-foreground mb-4">
     Your organization requires two-step verification. Scan this QR code with an authenticator
     app (Google Authenticator, 1Password, Authy…), then enter the 6-digit code.
 </p>
 
 @if (Model.Error is not null)
 {
-    <div class="alert alert-danger py-2 small">@Model.Error</div>
+    <div class="card card-body !py-2.5 mb-4 flex items-center gap-2 border-l-4 border-l-danger text-sm"><i data-lucide="alert-circle" class="size-4 text-coral"></i>@Model.Error</div>
 }
 
-<div class="text-center mb-3">
-    <div class="d-inline-block p-2 bg-white rounded border" style="max-width:200px">@Html.Raw(Model.QrSvg)</div>
+<div class="text-center mb-4">
+    <div class="inline-block p-2 bg-white rounded border max-w-[200px]">@Html.Raw(Model.QrSvg)</div>
 </div>
 
-<p class="text-center small text-muted">
-    Can't scan? Enter this key manually:<br /><code>@Model.Secret</code>
+<p class="text-center text-sm text-muted-foreground">
+    Can't scan? Enter this key manually:<br /><code class="kbd">@Model.Secret</code>
 </p>
 
-<form asp-controller="Mfa" asp-action="Enroll" method="post">
+<form asp-controller="Mfa" asp-action="Enroll" method="post" class="space-y-4">
     <input type="hidden" asp-for="FactorId" />
-    <div class="mb-3">
-        <label asp-for="Code" class="form-label"></label>
-        <input asp-for="Code" class="form-control text-center" inputmode="numeric" autocomplete="one-time-code"
+    <div>
+        <label asp-for="Code" class="label"></label>
+        <input asp-for="Code" class="input text-center tracking-[.4em] text-lg" inputmode="numeric" autocomplete="one-time-code"
                maxlength="6" placeholder="123456" autofocus />
-        <span asp-validation-for="Code" class="text-danger small"></span>
+        <span asp-validation-for="Code" class="text-danger text-xs"></span>
     </div>
-    <div class="d-grid">
-        <button type="submit" class="btn btn-primary">Verify &amp; continue</button>
-    </div>
+    <button type="submit" class="btn btn-primary w-full">Verify &amp; continue</button>
 </form>

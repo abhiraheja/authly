@@ -1,45 +1,42 @@
 @model MfaPolicyViewModel
 
-<div class="page-title-head mb-3">
-    <h4 class="mb-0">Multi-factor authentication</h4>
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Multi-factor authentication</h1>
+        <p class="text-sm text-muted-foreground mt-0.5">Control how and when users are challenged for a second factor.</p>
+    </div>
 </div>
 
-<div class="card">
+<div class="card mt-4">
     <div class="card-body">
         <form asp-area="TenantAdmin" asp-controller="MfaPolicy" asp-action="Index" method="post">
-            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+            <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
 
             <div class="mb-4">
-                <label class="form-label fw-medium">Enforcement</label>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" asp-for="Policy" value="Optional" id="pOptional" />
-                    <label class="form-check-label" for="pOptional">
-                        <strong>Optional</strong> — users may enable MFA; only those who do are challenged.
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" asp-for="Policy" value="AdminsOnly" id="pAdmins" />
-                    <label class="form-check-label" for="pAdmins">
-                        <strong>Admins only</strong> — tenant administrators must use MFA; optional for everyone else.
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" asp-for="Policy" value="Required" id="pRequired" />
-                    <label class="form-check-label" for="pRequired">
-                        <strong>Required</strong> — every user must complete MFA to sign in.
-                    </label>
-                </div>
+                <label class="label font-medium">Enforcement</label>
+                <label class="flex items-start gap-2 mb-2">
+                    <input class="radio mt-0.5" type="radio" asp-for="Policy" value="Optional" id="pOptional" />
+                    <span><strong>Optional</strong> — users may enable MFA; only those who do are challenged.</span>
+                </label>
+                <label class="flex items-start gap-2 mb-2">
+                    <input class="radio mt-0.5" type="radio" asp-for="Policy" value="AdminsOnly" id="pAdmins" />
+                    <span><strong>Admins only</strong> — tenant administrators must use MFA; optional for everyone else.</span>
+                </label>
+                <label class="flex items-start gap-2">
+                    <input class="radio mt-0.5" type="radio" asp-for="Policy" value="Required" id="pRequired" />
+                    <span><strong>Required</strong> — every user must complete MFA to sign in.</span>
+                </label>
             </div>
 
             <div class="mb-4">
-                <label class="form-label fw-medium">Allowed methods</label>
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" asp-for="AllowTotp" id="allowTotp" />
-                    <label class="form-check-label" for="allowTotp">Authenticator apps (TOTP)</label>
+                <label class="label font-medium">Allowed methods</label>
+                <div class="flex items-center gap-2 mb-2">
+                    <label class="switch"><input asp-for="AllowTotp" type="checkbox" id="allowTotp" /><span class="track"></span></label>
+                    <label for="allowTotp">Authenticator apps (TOTP)</label>
                 </div>
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" asp-for="AllowEmailOtp" id="allowEmail" />
-                    <label class="form-check-label" for="allowEmail">Email one-time codes</label>
+                <div class="flex items-center gap-2">
+                    <label class="switch"><input asp-for="AllowEmailOtp" type="checkbox" id="allowEmail" /><span class="track"></span></label>
+                    <label for="allowEmail">Email one-time codes</label>
                 </div>
             </div>
 

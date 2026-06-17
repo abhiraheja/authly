@@ -1,12 +1,14 @@
 @model IReadOnlyList<LoginHistory>
 
-<div class="page-title-head">
-    <h4>Login activity</h4>
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Login activity</h1>
+    </div>
 </div>
 
-<div class="card">
-    <div class="table-responsive">
-        <table class="table align-middle mb-0">
+<div class="card mt-4">
+    <div class="overflow-x-auto scroll-thin">
+        <table class="table">
             <thead>
                 <tr>
                     <th>When</th>
@@ -21,22 +23,22 @@
                 {
                     var badge = h.Result switch
                     {
-                        "success" => "bg-soft-success",
-                        "blocked" => "bg-soft-danger",
-                        "failed" => "bg-soft-warning",
-                        _ => "badge-lighten-secondary"
+                        "success" => "badge-success",
+                        "blocked" => "badge-danger",
+                        "failed" => "badge-warning",
+                        _ => "badge-neutral"
                     };
                     <tr>
-                        <td class="text-muted">@h.CreatedAt.ToString("yyyy-MM-dd HH:mm") UTC</td>
+                        <td class="text-muted-foreground">@h.CreatedAt.ToString("yyyy-MM-dd HH:mm") UTC</td>
                         <td><span class="badge @badge">@h.Result</span></td>
-                        <td class="text-muted">@(h.Method ?? "—")</td>
-                        <td class="text-muted">@(h.IpAddress ?? "—")</td>
-                        <td class="text-muted text-truncate" style="max-width:280px;">@(h.UserAgent ?? "—")</td>
+                        <td class="text-muted-foreground">@(h.Method ?? "—")</td>
+                        <td class="text-muted-foreground">@(h.IpAddress ?? "—")</td>
+                        <td class="text-muted-foreground truncate" style="max-width:280px;">@(h.UserAgent ?? "—")</td>
                     </tr>
                 }
                 @if (Model.Count == 0)
                 {
-                    <tr><td colspan="5" class="text-center text-muted py-4">No login activity yet.</td></tr>
+                    <tr><td colspan="5" class="text-center text-muted-foreground py-4">No login activity yet.</td></tr>
                 }
             </tbody>
         </table>

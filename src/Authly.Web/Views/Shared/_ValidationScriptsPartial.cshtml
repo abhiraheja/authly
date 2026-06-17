@@ -1,2 +1,5 @@
-﻿<script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+@* jQuery is required by jquery-validation. SAARVIX layouts don't load it globally,
+   so the validation partial pulls it in itself (progressive client-side validation). *@
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
 <script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>

@@ -5,69 +5,68 @@
     var apiKey = TempData["NewApiKey"] as string;
 }
 
-<div class="page-title-head mb-3">
-    <h4 class="mb-1">Your credentials</h4>
-    <p class="text-muted mb-0">Copy these now — secrets are shown only once.</p>
+<div class="flex items-center justify-between gap-3 mb-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Your credentials</h1>
+        <p class="text-sm text-muted-foreground mt-0.5">Copy these now — secrets are shown only once.</p>
+    </div>
 </div>
 
 @await Html.PartialAsync("_WizardSteps")
 
-<div class="row">
-    <div class="col-lg-8">
-        <div class="card mb-3">
-            <div class="card-header">Step 2 — OAuth client credentials</div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label">Client ID</label>
-                    <input class="form-control" value="@clientId" readonly onclick="this.select()" />
+<div class="max-w-3xl space-y-3">
+    <div class="card">
+        <div class="card-header"><div class="card-title">Step 2 — OAuth client credentials</div></div>
+        <div class="card-body space-y-3">
+            <div>
+                <label class="label">Client ID</label>
+                <input class="input" value="@clientId" readonly onclick="this.select()" />
+            </div>
+            @if (clientSecret is not null)
+            {
+                <div>
+                    <label class="label">Client secret</label>
+                    <input class="input" value="@clientSecret" readonly onclick="this.select()" />
                 </div>
-                @if (clientSecret is not null)
-                {
-                    <div class="mb-2">
-                        <label class="form-label">Client secret</label>
-                        <input class="form-control" value="@clientSecret" readonly onclick="this.select()" />
-                    </div>
-                    <div class="alert alert-warning py-2 mb-0">
-                        <i data-lucide="alert-triangle" class="me-1"></i>
-                        Store this secret securely. It won't be shown again — you can rotate it later from the application page.
-                    </div>
-                }
-                else
-                {
-                    <p class="text-muted mb-0">This is a public client (PKCE) — no client secret is issued.</p>
-                }
-            </div>
+                <div class="card card-body !py-3 flex items-center gap-3 border-l-4 border-l-warning">
+                    <i data-lucide="alert-triangle" class="size-4 text-warning"></i>
+                    <span>Store this secret securely. It won't be shown again — you can rotate it later from the application page.</span>
+                </div>
+            }
+            else
+            {
+                <p class="text-sm text-muted-foreground">This is a public client (PKCE) — no client secret is issued.</p>
+            }
         </div>
+    </div>
 
-        <div class="card mb-3">
-            <div class="card-header">Optional — backend API key</div>
-            <div class="card-body">
-                @if (apiKey is not null)
-                {
-                    <label class="form-label">API key</label>
-                    <input class="form-control mb-2" value="@apiKey" readonly onclick="this.select()" />
-                    <div class="alert alert-warning py-2 mb-0">Copy now — this key won't be shown again.</div>
-                }
-                else
-                {
-                    <p class="text-muted">Need a server-to-server key for the management API? Create one now.</p>
-                    <form asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="CreateApiKey" method="post" class="row g-2">
-                        <input type="hidden" name="appId" value="@Model.Id" />
-                        <div class="col-sm-7">
-                            <input name="name" class="form-control" placeholder="Server key" />
-                        </div>
-                        <div class="col-sm-5">
-                            <button type="submit" class="btn btn-soft-primary w-100">Generate API key</button>
-                        </div>
-                    </form>
-                }
-            </div>
+    <div class="card">
+        <div class="card-header"><div class="card-title">Optional — backend API key</div></div>
+        <div class="card-body">
+            @if (apiKey is not null)
+            {
+                <label class="label">API key</label>
+                <input class="input mb-2" value="@apiKey" readonly onclick="this.select()" />
+                <div class="card card-body !py-3 flex items-center gap-3 border-l-4 border-l-warning">
+                    <i data-lucide="alert-triangle" class="size-4 text-warning"></i>
+                    <span>Copy now — this key won't be shown again.</span>
+                </div>
+            }
+            else
+            {
+                <p class="text-sm text-muted-foreground mb-3">Need a server-to-server key for the management API? Create one now.</p>
+                <form asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="CreateApiKey" method="post" class="flex gap-2">
+                    <input type="hidden" name="appId" value="@Model.Id" />
+                    <input name="name" class="input flex-1" placeholder="Server key" />
+                    <button type="submit" class="btn btn-primary">Generate API key</button>
+                </form>
+            }
         </div>
+    </div>
 
-        <div class="d-flex justify-content-end">
-            <a asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="Branding" class="btn btn-primary">
-                Continue to branding <i data-lucide="arrow-right" class="ms-1"></i>
-            </a>
-        </div>
+    <div class="flex justify-end">
+        <a asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="Branding" class="btn btn-primary">
+            Continue to branding <i data-lucide="arrow-right" class="size-4"></i>
+        </a>
     </div>
 </div>

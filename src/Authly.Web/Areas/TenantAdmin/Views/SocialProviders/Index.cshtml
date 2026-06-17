@@ -3,45 +3,44 @@
     var presets = SocialProviderPresets.Known;
 }
 
-<div class="page-title-head mb-3">
-    <h4 class="mb-0">Social login</h4>
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Social login</h1>
+        <p class="text-sm text-muted-foreground mt-0.5">Let users sign in with external identity providers.</p>
+    </div>
 </div>
 
-<div class="card mb-3">
+<div class="card mt-4 mb-4">
     <div class="card-body">
-        <h6 class="mb-3">Providers</h6>
-        <div class="row g-2">
+        <h6 class="mb-3 font-semibold">Providers</h6>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
             @foreach (var preset in presets)
             {
                 var existing = Model.FirstOrDefault(p => string.Equals(p.Provider, preset.Key, StringComparison.OrdinalIgnoreCase));
-                <div class="col-md-6">
-                    <div class="d-flex align-items-center justify-content-between border rounded p-2">
-                        <div>
-                            <div class="fw-medium">@preset.DisplayName</div>
-                            <div class="small text-muted">
-                                @if (existing is not null)
-                                {
-                                    @(existing.IsActive ? "Active" : "Configured (inactive)")
-                                }
-                                else { <text>Not configured</text> }
-                            </div>
+                <div class="flex items-center justify-between border border-border rounded p-2">
+                    <div>
+                        <div class="font-medium">@preset.DisplayName</div>
+                        <div class="text-sm text-muted-foreground">
+                            @if (existing is not null)
+                            {
+                                @(existing.IsActive ? "Active" : "Configured (inactive)")
+                            }
+                            else { <text>Not configured</text> }
                         </div>
-                        <a class="btn btn-sm btn-soft-primary" asp-area="TenantAdmin" asp-controller="SocialProviders"
-                           asp-action="Edit" asp-route-provider="@preset.Key" asp-route-id="@existing?.Id">
-                            @(existing is null ? "Configure" : "Edit")
-                        </a>
                     </div>
+                    <a class="btn btn-sm btn-primary" asp-area="TenantAdmin" asp-controller="SocialProviders"
+                       asp-action="Edit" asp-route-provider="@preset.Key" asp-route-id="@existing?.Id">
+                        @(existing is null ? "Configure" : "Edit")
+                    </a>
                 </div>
             }
-            <div class="col-md-6">
-                <div class="d-flex align-items-center justify-content-between border rounded p-2 border-dashed">
-                    <div>
-                        <div class="fw-medium">Custom (OAuth2/OIDC)</div>
-                        <div class="small text-muted">Bring your own endpoints</div>
-                    </div>
-                    <a class="btn btn-sm btn-soft-secondary" asp-area="TenantAdmin" asp-controller="SocialProviders"
-                       asp-action="Edit" asp-route-provider="custom">Add</a>
+            <div class="flex items-center justify-between border border-dashed border-border rounded p-2">
+                <div>
+                    <div class="font-medium">Custom (OAuth2/OIDC)</div>
+                    <div class="text-sm text-muted-foreground">Bring your own endpoints</div>
                 </div>
+                <a class="btn btn-sm btn-outline" asp-area="TenantAdmin" asp-controller="SocialProviders"
+                   asp-action="Edit" asp-route-provider="custom">Add</a>
             </div>
         </div>
     </div>
@@ -54,23 +53,25 @@
 {
     <div class="card">
         <div class="card-body">
-            <h6 class="mb-3">Custom providers</h6>
-            <table class="table table-sm align-middle mb-0">
-                <thead><tr><th>Provider</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                @foreach (var p in custom)
-                {
-                    <tr>
-                        <td class="fw-medium">@p.Provider</td>
-                        <td>@(p.IsActive ? "active" : "inactive")</td>
-                        <td class="text-end">
-                            <a class="btn btn-sm btn-soft-primary" asp-area="TenantAdmin" asp-controller="SocialProviders"
-                               asp-action="Edit" asp-route-provider="@p.Provider" asp-route-id="@p.Id">Edit</a>
-                        </td>
-                    </tr>
-                }
-                </tbody>
-            </table>
+            <h6 class="mb-3 font-semibold">Custom providers</h6>
+            <div class="overflow-x-auto scroll-thin">
+                <table class="table">
+                    <thead><tr><th>Provider</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach (var p in custom)
+                    {
+                        <tr>
+                            <td class="font-medium">@p.Provider</td>
+                            <td>@(p.IsActive ? "active" : "inactive")</td>
+                            <td class="text-right">
+                                <a class="btn btn-sm btn-primary" asp-area="TenantAdmin" asp-controller="SocialProviders"
+                                   asp-action="Edit" asp-route-provider="@p.Provider" asp-route-id="@p.Id">Edit</a>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 }

@@ -4,55 +4,53 @@
     ViewData["Title"] = "Create your workspace";
 }
 
-<h4 class="text-center mb-1">Create your workspace</h4>
-<p class="text-center text-muted mb-4">Spin up your own Authly tenant and become its administrator.</p>
+<h2 class="font-display text-2xl font-bold text-center">Create your workspace</h2>
+<p class="text-center text-muted-foreground mt-1 mb-6">Spin up your own Authly tenant and become its administrator.</p>
 
-<form asp-controller="Signup" asp-action="Index" method="post">
-    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+<form asp-controller="Signup" asp-action="Index" method="post" class="space-y-4">
+    <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
 
-    <div class="mb-3">
-        <label asp-for="CompanyName" class="form-label"></label>
-        <input asp-for="CompanyName" class="form-control" placeholder="Acme Inc." autofocus />
-        <span asp-validation-for="CompanyName" class="text-danger small"></span>
+    <div>
+        <label asp-for="CompanyName" class="label"></label>
+        <input asp-for="CompanyName" class="input" placeholder="Acme Inc." autofocus />
+        <span asp-validation-for="CompanyName" class="text-danger text-xs"></span>
     </div>
 
-    <div class="row">
-        <div class="col-sm-6 mb-3">
-            <label asp-for="FirstName" class="form-label"></label>
-            <input asp-for="FirstName" class="form-control" autocomplete="given-name" />
-            <span asp-validation-for="FirstName" class="text-danger small"></span>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+            <label asp-for="FirstName" class="label"></label>
+            <input asp-for="FirstName" class="input" autocomplete="given-name" />
+            <span asp-validation-for="FirstName" class="text-danger text-xs"></span>
         </div>
-        <div class="col-sm-6 mb-3">
-            <label asp-for="LastName" class="form-label"></label>
-            <input asp-for="LastName" class="form-control" autocomplete="family-name" />
-            <span asp-validation-for="LastName" class="text-danger small"></span>
+        <div>
+            <label asp-for="LastName" class="label"></label>
+            <input asp-for="LastName" class="input" autocomplete="family-name" />
+            <span asp-validation-for="LastName" class="text-danger text-xs"></span>
         </div>
     </div>
 
-    <div class="mb-3">
-        <label asp-for="Email" class="form-label"></label>
-        <input asp-for="Email" class="form-control" autocomplete="username" placeholder="you@example.com" />
-        <span asp-validation-for="Email" class="text-danger small"></span>
+    <div>
+        <label asp-for="Email" class="label"></label>
+        <input asp-for="Email" class="input" autocomplete="username" placeholder="you@example.com" />
+        <span asp-validation-for="Email" class="text-danger text-xs"></span>
     </div>
 
-    <div class="mb-3">
-        <label asp-for="Password" class="form-label">Password</label>
-        <input asp-for="Password" class="form-control" autocomplete="new-password" placeholder="At least 8 characters" />
-        <span asp-validation-for="Password" class="text-danger small"></span>
+    <div>
+        <label asp-for="Password" class="label">Password</label>
+        <input asp-for="Password" class="input" autocomplete="new-password" placeholder="At least 8 characters" />
+        <span asp-validation-for="Password" class="text-danger text-xs"></span>
     </div>
 
-    <div class="mb-4">
-        <label asp-for="ConfirmPassword" class="form-label"></label>
-        <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
-        <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+    <div>
+        <label asp-for="ConfirmPassword" class="label"></label>
+        <input asp-for="ConfirmPassword" class="input" autocomplete="new-password" />
+        <span asp-validation-for="ConfirmPassword" class="text-danger text-xs"></span>
     </div>
 
-    <div class="d-grid">
-        <button type="submit" class="btn btn-primary">Create workspace</button>
-    </div>
+    <button type="submit" class="btn btn-primary w-full">Create workspace</button>
 </form>
 
-<p class="text-center text-muted small mt-4 mb-0">
+<p class="text-center text-sm text-muted-foreground mt-6 mb-0">
     Already have a workspace?
-    <a asp-area="TenantAdmin" asp-controller="Account" asp-action="Login">Sign in</a>
+    <a class="text-primary hover:underline" asp-area="TenantAdmin" asp-controller="Account" asp-action="Login">Sign in</a>
 </p>

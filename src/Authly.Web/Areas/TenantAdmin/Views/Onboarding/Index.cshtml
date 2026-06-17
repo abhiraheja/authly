@@ -1,47 +1,47 @@
 @model CreateApplicationViewModel
 
-<div class="page-title-head mb-3">
-    <h4 class="mb-1">Welcome to Authly 👋</h4>
-    <p class="text-muted mb-0">Four quick steps to a working login for your app.</p>
+<div class="flex items-center justify-between gap-3 mb-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Welcome to Authly 👋</h1>
+        <p class="text-sm text-muted-foreground mt-0.5">Four quick steps to a working login for your app.</p>
+    </div>
 </div>
 
 @await Html.PartialAsync("_WizardSteps")
 
-<div class="row">
-    <div class="col-lg-8">
-        <div class="card">
-            <div class="card-header">Step 1 — Create your first application</div>
-            <div class="card-body">
-                <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
-                <form asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="CreateApp" method="post">
-                    <div class="mb-3">
-                        <label asp-for="Name" class="form-label"></label>
-                        <input asp-for="Name" class="form-control" placeholder="My web app" />
-                        <span asp-validation-for="Name" class="text-danger small"></span>
-                    </div>
-                    <div class="mb-3">
-                        <label asp-for="Type" class="form-label"></label>
-                        <select asp-for="Type" asp-items="Html.GetEnumSelectList<ApplicationType>()" class="form-select"></select>
-                        <div class="form-text">Web = confidential (has a secret). SPA/Native = public, PKCE.</div>
-                    </div>
-                    <div class="mb-3">
-                        <label asp-for="RedirectUris" class="form-label"></label>
-                        <textarea asp-for="RedirectUris" class="form-control" rows="2"
-                                  placeholder="https://myapp.com/callback"></textarea>
-                        <div class="form-text">Where Authly returns users after login — one per line.</div>
-                    </div>
-                    <div class="mb-3">
-                        <label asp-for="Scopes" class="form-label"></label>
-                        <input asp-for="Scopes" class="form-control" />
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <a asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index" class="text-muted small">Skip for now</a>
-                        <button type="submit" class="btn btn-primary">
-                            Create &amp; continue <i data-lucide="arrow-right" class="ms-1"></i>
-                        </button>
-                    </div>
-                </form>
-            </div>
+<div class="max-w-3xl">
+    <div class="card">
+        <div class="card-header"><div class="card-title">Step 1 — Create your first application</div></div>
+        <div class="card-body">
+            <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
+            <form asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="CreateApp" method="post" class="space-y-4">
+                <div>
+                    <label asp-for="Name" class="label"></label>
+                    <input asp-for="Name" class="input" placeholder="My web app" />
+                    <span asp-validation-for="Name" class="text-danger text-xs"></span>
+                </div>
+                <div>
+                    <label asp-for="Type" class="label"></label>
+                    <select asp-for="Type" asp-items="Html.GetEnumSelectList<ApplicationType>()" class="select"></select>
+                    <p class="mt-1 text-xs text-muted-foreground">Web = confidential (has a secret). SPA/Native = public, PKCE.</p>
+                </div>
+                <div>
+                    <label asp-for="RedirectUris" class="label"></label>
+                    <textarea asp-for="RedirectUris" class="textarea" rows="2"
+                              placeholder="https://myapp.com/callback"></textarea>
+                    <p class="mt-1 text-xs text-muted-foreground">Where Authly returns users after login — one per line.</p>
+                </div>
+                <div>
+                    <label asp-for="Scopes" class="label"></label>
+                    <input asp-for="Scopes" class="input" />
+                </div>
+                <div class="flex justify-between items-center">
+                    <a asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index" class="text-sm text-muted-foreground hover:underline">Skip for now</a>
+                    <button type="submit" class="btn btn-primary">
+                        Create &amp; continue <i data-lucide="arrow-right" class="size-4"></i>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

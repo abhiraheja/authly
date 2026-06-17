@@ -3,56 +3,57 @@
     Layout = "_AuthLayout";
 }
 
-<p class="text-center text-muted mb-4">Create your account.</p>
+<h2 class="font-display text-2xl font-bold">Create your account</h2>
+<p class="text-sm text-muted-foreground mt-1 mb-6">Get started with a new account.</p>
 
-<form asp-controller="Account" asp-action="Register" method="post">
-    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+<form asp-controller="Account" asp-action="Register" method="post" class="space-y-4">
+    <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
 
-    <div class="mb-3">
-        <label asp-for="Email" class="form-label">Email</label>
-        <input asp-for="Email" class="form-control" autocomplete="email" placeholder="you@example.com" />
-        <span asp-validation-for="Email" class="text-danger small"></span>
+    <div>
+        <label asp-for="Email" class="label">Email</label>
+        <input asp-for="Email" class="input" autocomplete="email" placeholder="you@example.com" />
+        <span asp-validation-for="Email" class="text-danger text-xs"></span>
     </div>
 
-    <div class="row g-2 mb-3">
-        <div class="col">
-            <label asp-for="FirstName" class="form-label">First name</label>
-            <input asp-for="FirstName" class="form-control" autocomplete="given-name" />
+    <div class="flex gap-2">
+        <div class="flex-1">
+            <label asp-for="FirstName" class="label">First name</label>
+            <input asp-for="FirstName" class="input" autocomplete="given-name" />
         </div>
-        <div class="col">
-            <label asp-for="LastName" class="form-label">Last name</label>
-            <input asp-for="LastName" class="form-control" autocomplete="family-name" />
+        <div class="flex-1">
+            <label asp-for="LastName" class="label">Last name</label>
+            <input asp-for="LastName" class="input" autocomplete="family-name" />
         </div>
     </div>
 
-    <div class="mb-3">
-        <label asp-for="Password" class="form-label">Password</label>
-        <input asp-for="Password" class="form-control" autocomplete="new-password" placeholder="••••••••" />
-        <span asp-validation-for="Password" class="text-danger small"></span>
+    <div>
+        <label asp-for="Password" class="label">Password</label>
+        <input asp-for="Password" class="input" autocomplete="new-password" placeholder="••••••••" />
+        <span asp-validation-for="Password" class="text-danger text-xs"></span>
     </div>
 
-    <div class="mb-4">
-        <label asp-for="ConfirmPassword" class="form-label">Confirm password</label>
-        <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" placeholder="••••••••" />
-        <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+    <div>
+        <label asp-for="ConfirmPassword" class="label">Confirm password</label>
+        <input asp-for="ConfirmPassword" class="input" autocomplete="new-password" placeholder="••••••••" />
+        <span asp-validation-for="ConfirmPassword" class="text-danger text-xs"></span>
     </div>
 
-    <div class="mb-3 form-check">
-        <input asp-for="AcceptTerms" class="form-check-input" type="checkbox" />
-        <label asp-for="AcceptTerms" class="form-check-label small">
-            I agree to the <a href="/legal/terms" target="_blank" rel="noopener">Terms of Service</a>
-            and <a href="/legal/privacy" target="_blank" rel="noopener">Privacy Policy</a>.
-        </label>
-        <span asp-validation-for="AcceptTerms" class="text-danger small d-block"></span>
+    <div class="flex items-start gap-2">
+        <input asp-for="AcceptTerms" type="checkbox" class="mt-1" />
+        <div>
+            <label asp-for="AcceptTerms" class="text-sm text-muted-foreground">
+                I agree to the <a class="text-primary hover:underline" href="/legal/terms" target="_blank" rel="noopener">Terms of Service</a>
+                and <a class="text-primary hover:underline" href="/legal/privacy" target="_blank" rel="noopener">Privacy Policy</a>.
+            </label>
+            <span asp-validation-for="AcceptTerms" class="text-danger text-xs block"></span>
+        </div>
     </div>
 
     <partial name="_Captcha" />
 
-    <div class="d-grid">
-        <button type="submit" class="btn btn-primary">Create account</button>
-    </div>
+    <button type="submit" class="btn btn-primary w-full">Create account</button>
 </form>
 
-<p class="text-center text-muted small mt-4 mb-0">
-    Already have an account? <a asp-controller="Account" asp-action="Login">Sign in</a>
+<p class="text-center text-sm text-muted-foreground mt-6">
+    Already have an account? <a class="text-primary hover:underline" asp-controller="Account" asp-action="Login">Sign in</a>
 </p>

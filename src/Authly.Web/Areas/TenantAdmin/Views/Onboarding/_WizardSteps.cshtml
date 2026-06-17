@@ -2,17 +2,17 @@
     var step = ViewBag.Step is int s ? s : 1;
     var labels = new[] { "Application", "Credentials", "Branding", "Test login" };
 }
-<div class="d-flex flex-wrap gap-2 mb-4">
+<div class="flex flex-wrap gap-x-6 gap-y-2 mb-4">
     @for (var i = 0; i < labels.Length; i++)
     {
         var n = i + 1;
-        var state = n < step ? "bg-success" : (n == step ? "bg-primary" : "bg-soft-secondary");
-        var textCls = n <= step ? "fw-semibold" : "text-muted";
-        <div class="d-flex align-items-center gap-2 me-3">
-            <span class="badge rounded-circle @state" style="width:1.75rem;height:1.75rem;line-height:1.25rem;">
+        var stateCls = n < step ? "bg-success/15 text-success" : (n == step ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground");
+        var textCls = n <= step ? "font-semibold" : "text-muted-foreground";
+        <div class="flex items-center gap-2">
+            <span class="grid place-items-center size-7 rounded-full @stateCls text-sm font-semibold">
                 @if (n < step)
                 {
-                    <i data-lucide="check" style="width:.9rem;height:.9rem;"></i>
+                    <i data-lucide="check" class="size-4"></i>
                 }
                 else
                 {

@@ -4,6 +4,12 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
+# Node.js for the SAARVIX Tailwind build (MSBuild runs `npm ci` + `npm run build:css`
+# during publish, compiling wwwroot/css/saarvix.css so the image ships CSS offline).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nodejs npm \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy solution + project files first for layer-cached restore
 COPY Authly.slnx ./
 COPY src/Authly.Core/Authly.Core.csproj            src/Authly.Core/

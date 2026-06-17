@@ -1,7 +1,7 @@
 using System.Security.Claims;
+using Authly.Core.Enums;
 using Authly.Core.Interfaces;
-using Authly.Modules.Common;
-using Authly.Modules.TenantAdmins;
+using Authly.Modules.Accounts;
 using Authly.Web.Areas.TenantAdmin.Models;
 using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
@@ -14,20 +14,25 @@ namespace Authly.Web.Areas.TenantAdmin.Controllers;
 [Route("tenantadmin/account")]
 public sealed class AccountController : Controller
 {
-    private readonly ITenantAdminService _admins;
-    private readonly ITenantContext _tenant;
+    private readonly IAccountService _accounts;
+    private readonly IOrganizationMembershipRepository _memberships;
+    private readonly ITenantRepository _tenants;
 
-    public AccountController(ITenantAdminService admins, ITenantContext tenant)
+    public AccountController(
+        IAccountService accounts,
+        IOrganizationMembershipRepository memberships,
+        ITenantRepository tenants)
     {
-        _admins = admins;
-        _tenant = tenant;
+        _accounts = accounts;
+        _memberships = memberships;
+        _tenants = tenants;
     }
 
     [HttpGet("login")]
     [AllowAnonymous]
     public IActionResult Login(string? returnUrl = null)
     {
-        if (!_tenant.HasTenant) return View("TenantRequired");
+        // Account login is tenant-agnostic — the account's org membership resolves the workspace.
         ViewData["Layout"] = "_AuthLayout";
         return View(new TenantAdminLoginViewModel { ReturnUrl = returnUrl });
     }
@@ -37,33 +42,46 @@ public sealed class AccountController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(TenantAdminLoginViewModel model, CancellationToken ct)
     {
-        if (!_tenant.HasTenant) return View("TenantRequired");
         ViewData["Layout"] = "_AuthLayout";
         if (!ModelState.IsValid) return View(model);
 
-        var info = new RequestInfo(
-            HttpContext.Connection.RemoteIpAddress?.ToString(),
-            Request.Headers.UserAgent.ToString() is { Length: > 0 } ua ? ua : null);
-
-        var result = await _admins.SignInAsync(_tenant.TenantId!.Value, model.Email, model.Password, info, ct);
-        if (!result.Succeeded || result.User is null)
+        var account = await _accounts.ValidateCredentialsAsync(model.Email, model.Password, ct);
+        if (account is null)
         {
-            ModelState.AddModelError(string.Empty, "Invalid credentials, or this account is not a tenant administrator.");
+            ModelState.AddModelError(string.Empty, "Invalid credentials.");
             return View(model);
         }
 
+        // Resolve the active workspace: first Active membership → its first project.
+        var memberships = await _memberships.ListByAccountAsync(account.Id, ct);
+        var active = memberships.FirstOrDefault(m => m.Status == MembershipStatus.Active);
+        if (active is null)
+        {
+            ModelState.AddModelError(string.Empty, "This account has no active workspace access.");
+            return View(model);
+        }
+
+        var projects = await _tenants.ListByOrganizationAsync(active.OrganizationId, ct);
+        var project = projects.FirstOrDefault();
+        if (project is null)
+        {
+            ModelState.AddModelError(string.Empty, "This organization has no projects yet.");
+            return View(model);
+        }
+
+        await _accounts.RecordLoginAsync(account.Id, ct);
+
         var claims = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, result.User.Id.ToString()),
-            new(ClaimTypes.Name, result.User.Email),
-            new(TenantAdminClaims.TenantId, result.User.TenantId.ToString())
+            new(ClaimTypes.NameIdentifier, account.Id.ToString()),
+            new(ClaimTypes.Name, account.Email),
+            new(TenantAdminClaims.AccountId, account.Id.ToString()),
+            new(TenantAdminClaims.OrgId, active.OrganizationId.ToString()),
+            new(TenantAdminClaims.TenantId, project.Id.ToString())
         };
         await HttpContext.SignInAsync(AuthSchemes.TenantAdmin,
             new ClaimsPrincipal(new ClaimsIdentity(claims, AuthSchemes.TenantAdmin)),
             new AuthenticationProperties { IsPersistent = true });
-
-        if (result.Bootstrapped)
-            TempData["Success"] = "Welcome — you're now the administrator for this workspace.";
 
         if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
             return Redirect(model.ReturnUrl);

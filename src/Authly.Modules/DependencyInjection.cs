@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<IAuditLogger, AuditLogger>();
         services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<ISuperAdminService, SuperAdminService>();
+        services.AddScoped<Accounts.IAccountService, Accounts.AccountService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IApplicationService, ApplicationService>();
         services.AddScoped<ITenantAdminService, TenantAdminService>();

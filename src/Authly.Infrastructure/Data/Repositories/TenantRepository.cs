@@ -26,6 +26,12 @@ public sealed class TenantRepository : ITenantRepository
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<Tenant>> ListByOrganizationAsync(Guid organizationId, CancellationToken ct = default)
+        => await _db.Tenants
+            .Where(t => t.OrganizationId == organizationId && t.Status != TenantStatus.Deleted)
+            .OrderBy(t => t.CreatedAt)
+            .ToListAsync(ct);
+
     public Task<bool> SlugExistsAsync(string slug, CancellationToken ct = default)
         => _db.Tenants.AnyAsync(t => t.Slug == slug, ct);
 

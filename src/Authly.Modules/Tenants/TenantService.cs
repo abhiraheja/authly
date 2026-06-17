@@ -26,6 +26,9 @@ public sealed partial class TenantService : ITenantService
 
     public async Task<Tenant> CreateAsync(CreateTenantRequest request, AuditContext actor, CancellationToken ct = default)
     {
+        var organizationId = request.OrganizationId
+            ?? throw new InvalidOperationException("A tenant must be created within an organization (OrganizationId is required).");
+
         var slug = Slugify(string.IsNullOrWhiteSpace(request.Slug) ? request.Name : request.Slug!);
         if (await _repo.SlugExistsAsync(slug, ct))
             throw new SlugAlreadyExistsException(slug);
@@ -35,6 +38,7 @@ public sealed partial class TenantService : ITenantService
         {
             Name = request.Name.Trim(),
             Slug = slug,
+            OrganizationId = organizationId,
             Status = TenantStatus.Active,
             CreatedAt = now,
             UpdatedAt = now

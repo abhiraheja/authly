@@ -25,10 +25,12 @@ public class TenantServiceTests
         var audit = new RecordingAuditLogger();
         var service = new TenantService(repo, audit);
 
-        var tenant = await service.CreateAsync(new CreateTenantRequest("Acme Inc."),
+        var orgId = Guid.NewGuid();
+        var tenant = await service.CreateAsync(new CreateTenantRequest("Acme Inc.", OrganizationId: orgId),
             new AuditContext(Guid.NewGuid(), "super_admin"));
 
         Assert.Equal("acme-inc", tenant.Slug);
+        Assert.Equal(orgId, tenant.OrganizationId);
         Assert.Equal(TenantStatus.Active, tenant.Status);
         Assert.Single(repo.Added);
         Assert.Equal("tenant.created", audit.Events.Single());
@@ -42,7 +44,7 @@ public class TenantServiceTests
         var service = new TenantService(repo, new RecordingAuditLogger());
 
         await Assert.ThrowsAsync<SlugAlreadyExistsException>(() =>
-            service.CreateAsync(new CreateTenantRequest("Acme", "acme"), AuditContext.System));
+            service.CreateAsync(new CreateTenantRequest("Acme", "acme", Guid.NewGuid()), AuditContext.System));
     }
 
     [Fact]
@@ -74,6 +76,8 @@ public class TenantServiceTests
             => Task.FromResult<Tenant?>(null);
         public Task<IReadOnlyList<Tenant>> ListAsync(CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<Tenant>>(Store.Values.ToList());
+        public Task<IReadOnlyList<Tenant>> ListByOrganizationAsync(Guid organizationId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<Tenant>>(Store.Values.Where(t => t.OrganizationId == organizationId).ToList());
         public Task<bool> SlugExistsAsync(string slug, CancellationToken ct = default)
             => Task.FromResult(ExistingSlugs.Contains(slug) || Store.Values.Any(t => t.Slug == slug));
         public Task AddAsync(Tenant tenant, CancellationToken ct = default)

@@ -1,5 +1,6 @@
 using Authly.Core.Interfaces;
 using Authly.Modules.Hooks;
+using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Authly.Web.Areas.TenantAdmin.Controllers;
@@ -16,6 +17,7 @@ public sealed class PipelineHooksController : TenantAdminControllerBase
     public PipelineHooksController(IPipelineHookService hooks, ITenantContext tenant) : base(tenant)
         => _hooks = hooks;
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -23,6 +25,7 @@ public sealed class PipelineHooksController : TenantAdminControllerBase
         return View(await _hooks.ListAsync(TenantId, ct));
     }
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("edit")]
     public async Task<IActionResult> Edit(Guid? id, CancellationToken ct)
     {
@@ -41,6 +44,7 @@ public sealed class PipelineHooksController : TenantAdminControllerBase
         return View(input);
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(PipelineHookInput input, CancellationToken ct)
@@ -59,6 +63,7 @@ public sealed class PipelineHooksController : TenantAdminControllerBase
         }
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("{id:guid}/delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)

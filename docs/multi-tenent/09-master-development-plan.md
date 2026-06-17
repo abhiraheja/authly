@@ -45,8 +45,8 @@ Do populations (kabhi mat milao):
 ```
 Phase 0  UI Foundation (SAARVIX)         ✅ DONE (main 2c952a9)
 Phase 1  Identity: Org + Account         ✅ DONE (feat/identity-org-account 01dfc2c)
-Phase 2  Operator RBAC + guard           ← NEXT
-Phase 3  Org→Project selector + new-project
+Phase 2  Operator RBAC + guard           ✅ DONE (feat/operator-rbac)
+Phase 3  Org→Project selector + new-project   ← NEXT
 Phase 4  Members UI + employee invite
 Phase 5  Cleanup (IsTenantAdmin / legacy admin)
 Phase 6  Remove SuperAdmin + self-host cleanup (monitoring → account surface)
@@ -122,19 +122,23 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 ## Phase 2 — Operator RBAC + guard
 **Goal:** custom operator roles/permissions gate console; membership+permission guard. **Source:** doc 06 §4.5, §5.
 
-**Tasks**
-- [ ] Entities: `OperatorRole`, `OperatorPermission`, `OperatorRolePermission`, `MemberRole` (keyed on `OrganizationMembershipId`). Org-scoped (`organization_id` column), **no RLS**.
-- [ ] `src/Authly.Core/Authorization/OperatorRbac.cs` (mirror `SystemRbac.cs`): catalogue
-      `project.{read,write,create,delete}`, `client.manage`, `enduser.manage`,
-      `member.{read,invite,manage}`, `role.manage`, `observability.{read,manage}`, `org.manage`, `billing.manage`.
-      System roles: `org_owner`, `org_admin`, `project_admin`, `viewer`.
-- [ ] `IOperatorRbacService.EnsureSystemRolesAsync(orgId)` (mirror `RbacService`); seed on org-create (wire into Phase 1 signup → owner gets `org_owner`).
-- [ ] `IConsoleAccessService.ResolveAsync(accountId, orgId, projectId)` → effective permission set (verify membership Active + project∈org). Mirror `RbacService.GetUserAuthorizationAsync`.
-- [ ] `RequireOperatorPermissionAttribute(permission)` action filter — reuse **`PermissionEvaluator.Satisfies`** verbatim; reads set cached by base guard.
-- [ ] `TenantAdminControllerBase`: equality-check → membership+project-in-org check via `IConsoleAccessService`; `CurrentUserId`→`CurrentAccountId`; add `OrgId`; thread dependency into ~16 derived controllers; annotate actions with `[RequireOperatorPermission(...)]`.
-- [ ] Migration `AddOperatorRbac`.
+**Status: ✅ DONE** (branch `feat/operator-rbac`; 252 tests green; org_owner allow + no-perms deny smoke-verified vs Postgres).
 
-**Tests:** `ResolveAsync` (member/non-member/project-not-in-org/disabled); `EnsureSystemRolesAsync` idempotency; attribute allow/deny.
+**Tasks**
+- [x] Entities: `OperatorRole`, `OperatorPermission`, `OperatorRolePermission`, `MemberRole` (keyed on `OrganizationMembershipId`). Org-scoped (`organization_id` column), **no RLS**.
+- [x] `src/Authly.Core/Authorization/OperatorRbac.cs` (mirrors `SystemRbac.cs`): catalogue
+      `project.{read,write,create,delete}`, `client.{read,manage}`, `enduser.{read,manage}`,
+      `member.{read,invite,manage}`, `role.{read,manage}`, `observability.{read,manage}`, `org.{read,manage}`, `billing.{read,manage}` (19 perms).
+      System roles: `org_owner`, `org_admin`, `project_admin`, `viewer`.
+- [x] `IOperatorRbacService.EnsureSystemRolesAsync(orgId)` (mirrors `RbacService`); seeded on org-create (wired into signup → owner gets `org_owner` via `AssignSystemRoleAsync`).
+- [x] `IConsoleAccessService.ResolveAsync(accountId, orgId, projectId)` → effective permission set (verifies membership Active + project∈org).
+- [x] `RequireOperatorPermissionAttribute(permission)` action filter — reuses **`PermissionEvaluator.Satisfies`** verbatim; reads set cached by base guard in `HttpContext.Items`.
+- [x] `TenantAdminControllerBase`: equality-check → membership+project-in-org check via `IConsoleAccessService` (resolved from `RequestServices`, no ctor churn); `CurrentAccountId` + `OrgId` added (`CurrentUserId` kept as alias); all 15 derived controllers' actions annotated with `[RequireOperatorPermission(...)]`.
+- [x] Migration `AddOperatorRbac` (4 tables, no RLS).
+
+**Tests:** ✅ `ResolveAsync` (member/non-member/project-not-in-org/disabled); `EnsureSystemRolesAsync` seeding + idempotency; signup grants org_owner. Build + 252 tests green.
+
+> Test/send diagnostic POSTs (AccessPolicies.Test, Messaging.SendTest, Webhooks.Test) annotated `project.write` (side-effecting); revisit if read-tier preferred. Full operator-role CRUD UI = Phase 4.
 
 ---
 
@@ -232,7 +236,7 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 ## 5. Definition of Done (whole effort)
 - [x] Signup → Account+Organization+first Project; login account-based, tenant-agnostic. *(Phase 1)*
 - [ ] Console: org→project selector switches; "New project" self-serve; non-member access rejected. *(Phase 2–3)*
-- [ ] Employees invited as operators with custom operator roles; permissions gate console actions; end-user `User`/RBAC untouched. *(Phase 2/4)*
+- [~] Employees invited as operators with custom operator roles; **permissions gate console actions ✅ (Phase 2)**; end-user `User`/RBAC untouched ✅. Invite flow + role-CRUD UI = Phase 4.
 - [ ] SuperAdmin gone; monitoring on account surface; tenant delete in project settings; cloud-only features removed.
 - [ ] Observability opt-in (OpenTelemetry); nothing ships unconfigured; local Grafana stack works.
 - [x] Entire UI on SAARVIX (compiled Tailwind), light+dark, responsive; no Bootstrap residue *(except SuperAdmin, deleted P6)*. *(Phase 0)*

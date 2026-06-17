@@ -1,6 +1,7 @@
 using Authly.Core.Interfaces;
 using Authly.Modules.ApiKeys;
 using Authly.Web.Areas.TenantAdmin.Models;
+using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Authly.Web.Areas.TenantAdmin.Controllers;
@@ -13,6 +14,7 @@ public sealed class ApiKeysController : TenantAdminControllerBase
 
     public ApiKeysController(IApiKeyService keys, ITenantContext tenant) : base(tenant) => _keys = keys;
 
+    [RequireOperatorPermission("client.read")]
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -20,6 +22,7 @@ public sealed class ApiKeysController : TenantAdminControllerBase
         return View(await _keys.ListAsync(TenantId, ct));
     }
 
+    [RequireOperatorPermission("client.read")]
     [HttpGet("create")]
     public IActionResult Create()
     {
@@ -27,6 +30,7 @@ public sealed class ApiKeysController : TenantAdminControllerBase
         return View(new CreateApiKeyViewModel());
     }
 
+    [RequireOperatorPermission("client.manage")]
     [HttpPost("create")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateApiKeyViewModel model, CancellationToken ct)
@@ -47,6 +51,7 @@ public sealed class ApiKeysController : TenantAdminControllerBase
         return RedirectToAction(nameof(Index));
     }
 
+    [RequireOperatorPermission("client.manage")]
     [HttpPost("{id:guid}/revoke")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Revoke(Guid id, CancellationToken ct)

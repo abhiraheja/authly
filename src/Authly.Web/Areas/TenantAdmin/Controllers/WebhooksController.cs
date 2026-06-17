@@ -1,6 +1,7 @@
 using Authly.Core.Events;
 using Authly.Core.Interfaces;
 using Authly.Modules.Webhooks;
+using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Authly.Web.Areas.TenantAdmin.Controllers;
@@ -17,6 +18,7 @@ public sealed class WebhooksController : TenantAdminControllerBase
     public WebhooksController(IWebhookService webhooks, ITenantContext tenant) : base(tenant)
         => _webhooks = webhooks;
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -26,6 +28,7 @@ public sealed class WebhooksController : TenantAdminControllerBase
         return View();
     }
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("edit")]
     public async Task<IActionResult> Edit(Guid? id, CancellationToken ct)
     {
@@ -43,6 +46,7 @@ public sealed class WebhooksController : TenantAdminControllerBase
         return View(input);
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(WebhookEndpointInput input, CancellationToken ct)
@@ -62,6 +66,7 @@ public sealed class WebhooksController : TenantAdminControllerBase
         }
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("{id:guid}/delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
@@ -71,6 +76,7 @@ public sealed class WebhooksController : TenantAdminControllerBase
         return RedirectToAction(nameof(Index));
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("{id:guid}/test")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Test(Guid id, CancellationToken ct)
@@ -87,6 +93,7 @@ public sealed class WebhooksController : TenantAdminControllerBase
         return RedirectToAction(nameof(Index));
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("deliveries/{deliveryId:guid}/retry")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Retry(Guid deliveryId, CancellationToken ct)

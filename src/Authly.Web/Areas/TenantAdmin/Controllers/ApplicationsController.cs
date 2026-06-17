@@ -1,6 +1,7 @@
 using Authly.Core.Interfaces;
 using Authly.Modules.Applications;
 using Authly.Web.Areas.TenantAdmin.Models;
+using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Authly.Web.Areas.TenantAdmin.Controllers;
@@ -14,6 +15,7 @@ public sealed class ApplicationsController : TenantAdminControllerBase
     public ApplicationsController(IApplicationService apps, ITenantContext tenant) : base(tenant)
         => _apps = apps;
 
+    [RequireOperatorPermission("client.read")]
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -21,6 +23,7 @@ public sealed class ApplicationsController : TenantAdminControllerBase
         return View(await _apps.ListAsync(TenantId, ct));
     }
 
+    [RequireOperatorPermission("client.read")]
     [HttpGet("create")]
     public IActionResult Create()
     {
@@ -28,6 +31,7 @@ public sealed class ApplicationsController : TenantAdminControllerBase
         return View(new CreateApplicationViewModel());
     }
 
+    [RequireOperatorPermission("client.manage")]
     [HttpPost("create")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateApplicationViewModel model, CancellationToken ct)
@@ -57,6 +61,7 @@ public sealed class ApplicationsController : TenantAdminControllerBase
         return RedirectToAction(nameof(Details), new { id = result.Application.Id });
     }
 
+    [RequireOperatorPermission("client.read")]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
@@ -68,6 +73,7 @@ public sealed class ApplicationsController : TenantAdminControllerBase
         return View(app);
     }
 
+    [RequireOperatorPermission("client.read")]
     [HttpGet("{id:guid}/edit")]
     public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
     {
@@ -85,6 +91,7 @@ public sealed class ApplicationsController : TenantAdminControllerBase
         });
     }
 
+    [RequireOperatorPermission("client.manage")]
     [HttpPost("{id:guid}/edit")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(Guid id, EditApplicationViewModel model, CancellationToken ct)
@@ -121,6 +128,7 @@ public sealed class ApplicationsController : TenantAdminControllerBase
         return RedirectToAction(nameof(Details), new { id });
     }
 
+    [RequireOperatorPermission("client.manage")]
     [HttpPost("{id:guid}/rotate-secret")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RotateSecret(Guid id, CancellationToken ct)
@@ -143,6 +151,7 @@ public sealed class ApplicationsController : TenantAdminControllerBase
         return RedirectToAction(nameof(Details), new { id });
     }
 
+    [RequireOperatorPermission("client.manage")]
     [HttpPost("{id:guid}/delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)

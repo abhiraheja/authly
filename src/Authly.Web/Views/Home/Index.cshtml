@@ -1,13 +1,193 @@
+@using Authly.Web.Models
 @{
-    ViewData["Title"] = "Authly";
+    Layout = "_PublicLayout";
+    ViewData["Title"] = "Authly — Self-hostable authentication infrastructure";
+    ViewData["NavActive"] = "";
+    ViewData["Description"] = "Authly is an open-source, self-hostable identity platform: OAuth2/OIDC, passkeys, MFA, RBAC + ABAC, multi-tenant, webhooks. Run it with Docker in minutes.";
+
+    var heroTabs = new CodeTabs("hero", new[]
+    {
+        new CodeTab("JavaScript", "<span class=\"tok-com\">// Point any OIDC client at the discovery document</span>\n<span class=\"tok-key\">import</span> { Issuer } <span class=\"tok-key\">from</span> <span class=\"tok-str\">\"openid-client\"</span>;\n\n<span class=\"tok-key\">const</span> authly = <span class=\"tok-key\">await</span> Issuer.<span class=\"tok-fn\">discover</span>(<span class=\"tok-str\">\"https://auth.yourco.com\"</span>);\n<span class=\"tok-key\">const</span> client = <span class=\"tok-key\">new</span> authly.<span class=\"tok-fn\">Client</span>({\n  client_id: process.env.AUTHLY_CLIENT_ID,\n  client_secret: process.env.AUTHLY_CLIENT_SECRET,\n  redirect_uris: [<span class=\"tok-str\">\"https://app.yourco.com/callback\"</span>],\n});"),
+        new CodeTab("cURL", "<span class=\"tok-com\"># Exchange an authorization code for tokens</span>\ncurl -X POST https://auth.yourco.com<span class=\"tok-str\">/connect/token</span> \\\n  -d grant_type=authorization_code \\\n  -d code=<span class=\"tok-str\">\"$CODE\"</span> \\\n  -d redirect_uri=<span class=\"tok-str\">\"https://app.yourco.com/callback\"</span> \\\n  -d client_id=<span class=\"tok-str\">\"$CLIENT_ID\"</span> \\\n  -d client_secret=<span class=\"tok-str\">\"$CLIENT_SECRET\"</span> \\\n  -d code_verifier=<span class=\"tok-str\">\"$VERIFIER\"</span>"),
+        new CodeTab("C#", "<span class=\"tok-com\">// ASP.NET Core — standard OpenID Connect handler</span>\nbuilder.Services.<span class=\"tok-fn\">AddAuthentication</span>()\n  .<span class=\"tok-fn\">AddOpenIdConnect</span>(<span class=\"tok-str\">\"authly\"</span>, o =&gt; {\n    o.Authority = <span class=\"tok-str\">\"https://auth.yourco.com\"</span>;\n    o.ClientId = <span class=\"tok-str\">\"app_yourco\"</span>;\n    o.ResponseType = <span class=\"tok-str\">\"code\"</span>;          <span class=\"tok-com\">// Auth Code + PKCE</span>\n    o.Scope.<span class=\"tok-fn\">Add</span>(<span class=\"tok-str\">\"openid profile email offline_access\"</span>);\n  });"),
+    });
+
+    var devTabs = new CodeTabs("dev", new[]
+    {
+        new CodeTab("Verify a token", "<span class=\"tok-com\">// Verify a JWT against the published JWKS — no round-trip</span>\n<span class=\"tok-key\">import</span> { jwtVerify, createRemoteJWKSet } <span class=\"tok-key\">from</span> <span class=\"tok-str\">\"jose\"</span>;\n\n<span class=\"tok-key\">const</span> jwks = <span class=\"tok-fn\">createRemoteJWKSet</span>(\n  <span class=\"tok-key\">new</span> <span class=\"tok-fn\">URL</span>(<span class=\"tok-str\">\"https://auth.yourco.com/.well-known/jwks.json\"</span>));\n\n<span class=\"tok-key\">const</span> { payload } = <span class=\"tok-key\">await</span> <span class=\"tok-fn\">jwtVerify</span>(token, jwks, {\n  issuer: <span class=\"tok-str\">\"https://auth.yourco.com\"</span>,\n});\n<span class=\"tok-com\">// payload.sub, payload.email, payload.roles, custom claims…</span>"),
+        new CodeTab("Verify a webhook", "<span class=\"tok-com\">// Every event is HMAC-SHA256 signed (timestamp.body)</span>\n<span class=\"tok-key\">import</span> crypto <span class=\"tok-key\">from</span> <span class=\"tok-str\">\"node:crypto\"</span>;\n\n<span class=\"tok-key\">function</span> <span class=\"tok-fn\">verify</span>(req, secret) {\n  <span class=\"tok-key\">const</span> ts = req.headers[<span class=\"tok-str\">\"x-authly-timestamp\"</span>];\n  <span class=\"tok-key\">const</span> sig = crypto.<span class=\"tok-fn\">createHmac</span>(<span class=\"tok-str\">\"sha256\"</span>, secret)\n    .<span class=\"tok-fn\">update</span>(`${ts}.${req.rawBody}`).<span class=\"tok-fn\">digest</span>(<span class=\"tok-str\">\"hex\"</span>);\n  <span class=\"tok-key\">return</span> `sha256=${sig}` === req.headers[<span class=\"tok-str\">\"x-authly-signature\"</span>];\n}"),
+        new CodeTab("Call the API", "<span class=\"tok-com\"># Manage users with the tenant-scoped Management API</span>\ncurl https://auth.yourco.com<span class=\"tok-str\">/api/v1/users</span>?page=1&amp;limit=50 \\\n  -H <span class=\"tok-str\">\"X-API-Key: $AUTHLY_API_KEY\"</span>\n\n<span class=\"tok-com\"># → { \"data\": [...], \"total\": 128, \"page\": 1, \"limit\": 50 }</span>"),
+    });
+
+    var features = new[]
+    {
+        new FeatureCardVM("key-round", "OAuth 2.0 & OIDC", "Standards-based authorization server (OpenIddict): Auth Code + PKCE, Client Credentials, refresh rotation, discovery & JWKS.", "/.well-known/openid-configuration"),
+        new FeatureCardVM("fingerprint", "Passkeys & WebAuthn", "Phishing-resistant passwordless sign-in with FIDO2 device biometrics — plus social login and magic links.", "authly.passkey.register()"),
+        new FeatureCardVM("shield-check", "Multi-factor auth", "TOTP, Email OTP, WhatsApp OTP, and backup codes — enrollable per user, enforced per tenant or role.", "mfa: { method: \"totp\" }"),
+        new FeatureCardVM("lock", "RBAC + ABAC", "Fine-grained roles and permissions in every token, plus attribute-based access policies and risk-based conditional access.", "hasPermission(\"user.delete\")"),
+        new FeatureCardVM("building-2", "Multi-tenant", "Organizations group projects (environments); each project is an isolated tenant with Postgres row-level security.", "project_id: prj_acme"),
+        new FeatureCardVM("webhook", "Webhooks & hooks", "Signed delivery for 40+ identity events with retries, plus pipeline hooks to inject custom logic into the auth flow.", "event: user.login.succeeded"),
+    };
 }
 
-<div class="text-center py-12">
-    <h1 class="font-display text-4xl font-bold">Authly</h1>
-    <p class="text-lg text-muted-foreground mt-2">Free, open-source, multi-tenant Identity-as-a-Service.</p>
-    <div class="flex gap-2 justify-center mt-6">
-        <a class="btn btn-primary" asp-controller="Signup" asp-action="Index">Create your workspace</a>
-        <a class="btn btn-outline" asp-area="TenantAdmin" asp-controller="Account" asp-action="Login">Admin sign in</a>
-        <a class="btn btn-outline" href="/docs">Developer Docs</a>
+<!-- ============ HERO ============ -->
+<section class="relative overflow-hidden border-b border-border">
+    <div class="absolute inset-0 grid-bg pointer-events-none" aria-hidden="true"></div>
+    <div class="absolute left-1/2 top-0 -translate-x-1/2 h-72 w-[60rem] glow-blob pointer-events-none" aria-hidden="true"></div>
+    <div class="relative mx-auto max-w-7xl px-4 sm:px-6 pb-20 pt-16 md:pt-24">
+        <div class="mx-auto max-w-3xl text-center">
+            <div class="mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-card/80 px-3 py-1 text-xs text-muted-foreground">
+                <i data-lucide="sparkles" class="size-3.5 text-primary"></i>
+                <span>Open source · Self-hostable · Passkeys on every install</span>
+            </div>
+            <h1 class="font-display text-4xl md:text-6xl font-bold tracking-tight">
+                Authentication infrastructure<br class="hidden sm:block" /> you can <span class="text-gradient">self-host</span>.
+            </h1>
+            <p class="mx-auto mt-5 max-w-2xl text-base md:text-lg text-muted-foreground">
+                Authly is a developer-first, multi-tenant identity platform — OAuth2/OIDC, passkeys, MFA, RBAC, and webhooks
+                behind one API and one admin console. Free, open source, and yours to run with a single Docker command.
+            </p>
+            <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+                <a class="btn btn-primary btn-lg" asp-controller="Signup" asp-action="Index">Get started <i data-lucide="arrow-right" class="size-4"></i></a>
+                <a class="btn btn-outline btn-lg" href="/docs"><i data-lucide="terminal" class="size-4"></i> Read the docs</a>
+                <a class="btn btn-ghost btn-lg" href="@Authly.Web.SiteInfo.GitHubUrl" target="_blank" rel="noopener"><i data-lucide="github" class="size-4"></i> Star on GitHub</a>
+            </div>
+        </div>
+
+        <div class="mx-auto mt-12 max-w-3xl">
+            @await Html.PartialAsync("Marketing/_CodeTabs", heroTabs)
+        </div>
     </div>
-</div>
+</section>
+
+<!-- ============ TECH STRIP ============ -->
+<section class="border-b border-border bg-muted/30">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 py-8">
+        <p class="text-center eyebrow">Built on a boring, proven stack</p>
+        <div class="mt-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 text-center text-sm font-medium text-muted-foreground">
+            <div>.NET 10</div><div>OpenIddict</div><div>PostgreSQL</div><div>Redis</div><div>Hangfire</div><div>Docker</div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ FEATURES ============ -->
+<section class="border-b border-border">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 py-20">
+        <div class="max-w-2xl">
+            <p class="eyebrow">Platform</p>
+            <h2 class="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">Everything identity, in one primitive.</h2>
+            <p class="mt-3 text-muted-foreground">From a single sign-in button to enterprise-grade access control — composable, standards-based, and scoped per project.</p>
+        </div>
+        <div class="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            @foreach (var f in features)
+            {
+                @await Html.PartialAsync("Marketing/_FeatureCard", f)
+            }
+        </div>
+    </div>
+</section>
+
+<!-- ============ ARCHITECTURE ============ -->
+<section class="border-b border-border bg-muted/20">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 py-20">
+        <div class="grid gap-10 lg:grid-cols-[1fr_1.6fr] lg:items-center">
+            <div>
+                <p class="eyebrow">Architecture</p>
+                <h2 class="mt-2 font-display text-3xl font-bold tracking-tight">Two identity layers. Zero overlap.</h2>
+                <p class="mt-3 text-muted-foreground">
+                    Your team operates the console with global <strong>operator accounts</strong>. Your customers authenticate
+                    against your apps as <strong>tenant-scoped end-users</strong>. The two never share a credential surface —
+                    and every project is isolated at the database level.
+                </p>
+            </div>
+            @await Html.PartialAsync("Marketing/_ArchitectureDiagram")
+        </div>
+    </div>
+</section>
+
+<!-- ============ ADMIN SHOWCASE ============ -->
+<section class="border-b border-border">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 py-20">
+        <div class="grid gap-10 lg:grid-cols-2 lg:items-center">
+            <div class="order-2 lg:order-1">
+                @await Html.PartialAsync("Marketing/_Screenshot", new ScreenshotVM("Tenant admin console — dashboard", "admin-dashboard.png"))
+            </div>
+            <div class="order-1 lg:order-2">
+                <p class="eyebrow">Admin console</p>
+                <h2 class="mt-2 font-display text-3xl font-bold tracking-tight">A console for everything, not a config file.</h2>
+                <p class="mt-3 text-muted-foreground">Configure applications, users, roles, MFA, social providers, branding, webhooks and security — visually, per project.</p>
+                <ul class="mt-6 space-y-3 text-sm">
+                    @foreach (var item in new[] { "Register OAuth apps & rotate secrets", "RBAC + attribute-based access policies", "White-label hosted login & custom domains", "BYOK email & WhatsApp OTP", "Webhooks, pipeline hooks & custom claims", "Audit log, monitoring & observability" })
+                    {
+                        <li class="flex items-start gap-2.5"><i data-lucide="check" class="size-4 text-success mt-0.5 shrink-0"></i><span>@item</span></li>
+                    }
+                </ul>
+                <a class="btn btn-outline mt-6" asp-controller="Home" asp-action="Features">Explore all features <i data-lucide="arrow-right" class="size-4"></i></a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ DEVELOPER ============ -->
+<section class="border-b border-border bg-muted/20">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 py-20">
+        <div class="grid gap-10 lg:grid-cols-2 lg:items-center">
+            <div>
+                <p class="eyebrow">For developers</p>
+                <h2 class="mt-2 font-display text-3xl font-bold tracking-tight">An API surface you'd actually want to use.</h2>
+                <p class="mt-3 text-muted-foreground">Standard OIDC means any client library just works. REST endpoints and JWKS for everything else. Sensible defaults, escape hatches when you need them.</p>
+                <ul class="mt-6 space-y-3 text-sm">
+                    @foreach (var item in new[] { "OIDC discovery — point a client and go", "Stateless JWT verification via JWKS", "Refresh-token rotation with reuse detection", "HMAC-signed webhooks with replay protection", "Tenant-scoped Management REST API", "ABAC decision endpoint: POST /api/v1/access/evaluate" })
+                    {
+                        <li class="flex items-start gap-2.5"><span class="mt-1.5 size-1.5 rounded-full bg-primary shrink-0"></span><span>@item</span></li>
+                    }
+                </ul>
+            </div>
+            @await Html.PartialAsync("Marketing/_CodeTabs", devTabs)
+        </div>
+    </div>
+</section>
+
+<!-- ============ SECURITY STRIP ============ -->
+<section class="border-b border-border">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 py-14">
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            @foreach (var (k, v, icon) in new[]
+            {
+                ("Argon2id", "Memory-hard password hashing", "lock-keyhole"),
+                ("AES-256-GCM", "Secrets encrypted at rest", "shield"),
+                ("HIBP screening", "Breached-password rejection", "scan-eye"),
+                ("GDPR / DPDP", "Data export & right to erasure", "file-check"),
+            })
+            {
+                <div class="card card-body">
+                    <i data-lucide="@icon" class="size-5 text-primary"></i>
+                    <div class="mt-3 text-sm font-semibold">@k</div>
+                    <div class="mt-0.5 text-xs text-muted-foreground">@v</div>
+                </div>
+            }
+        </div>
+        <p class="mt-4 text-center text-xs text-muted-foreground">Plus rate limiting, account lockout, CAPTCHA, block/allow lists, conditional access, suspicious-login detection, and an append-only audit log.</p>
+    </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="relative overflow-hidden">
+    <div class="absolute left-1/2 bottom-0 -translate-x-1/2 h-64 w-[50rem] glow-blob pointer-events-none" aria-hidden="true"></div>
+    <div class="relative mx-auto max-w-3xl px-4 sm:px-6 py-24 text-center">
+        <i data-lucide="package-open" class="size-7 text-primary mx-auto"></i>
+        <h2 class="mt-4 font-display text-3xl md:text-4xl font-bold tracking-tight">Free, forever. Self-host in minutes.</h2>
+        <p class="mx-auto mt-3 max-w-xl text-muted-foreground">No MAU limits, no auth tax, no phone-home. Pull the image, run one command, own your identity stack.</p>
+        <div class="mx-auto mt-6 max-w-md">
+            <div class="code-surface px-4 py-3 text-left text-sm flex items-center justify-between gap-3">
+                <code><span class="tok-com">$</span> docker compose up --build -d</code>
+                <i data-lucide="terminal" class="size-4 opacity-50"></i>
+            </div>
+        </div>
+        <div class="mt-7 flex flex-wrap justify-center gap-3">
+            <a class="btn btn-primary btn-lg" asp-controller="Home" asp-action="SelfHost">Self-host guide</a>
+            <a class="btn btn-outline btn-lg" href="@Authly.Web.SiteInfo.GitHubUrl" target="_blank" rel="noopener"><i data-lucide="github" class="size-4"></i> View on GitHub</a>
+        </div>
+        <p class="mt-8 text-xs text-muted-foreground">Developed by <span class="font-medium text-foreground">@Authly.Web.SiteInfo.Author</span> · @Authly.Web.SiteInfo.License</p>
+    </div>
+</section>

@@ -1,0 +1,172 @@
+@using Authly.Web.Models
+@{
+    Layout = "_PublicLayout";
+    ViewData["Title"] = "Features";
+    ViewData["NavActive"] = "features";
+    ViewData["Description"] = "Everything Authly does: admin console, end-user portal, OAuth/OIDC, MFA, RBAC/ABAC, webhooks, messaging, security and compliance.";
+
+    // (icon, title, path, description) — paths verified against Tenant-Onboarding-Guide.md §4
+    var admin = new[]
+    {
+        ("layout-grid", "Applications", "/tenantadmin/applications", "Register OAuth clients (Web, SPA, Native, Machine); manage redirect URIs, scopes, rotate secrets (shown once)."),
+        ("users", "Users", "/tenantadmin/users", "List, search and manage end-users; assign roles; suspend/reactivate; force password reset; impersonate (audited)."),
+        ("shield", "Roles & permissions", "/tenantadmin/roles", "Create custom roles and fine-grained resource.action permissions, surfaced as the roles claim in tokens."),
+        ("key", "API keys", "/tenantadmin/apikeys", "Mint server-to-server keys for the Management API (shown once, stored hashed); list and revoke."),
+        ("smartphone", "MFA policy", "/tenantadmin/mfapolicy", "Require or offer TOTP, Email OTP, WhatsApp OTP and passkeys; per-tenant and per-role; backup codes."),
+        ("globe", "Social providers", "/tenantadmin/socialproviders", "Google / Microsoft / GitHub / Facebook presets and any custom OAuth2/OIDC provider — BYOK, encrypted at rest."),
+        ("mail", "Messaging (BYOK)", "/tenantadmin/messaging", "Bring your own email (SMTP/Zepto) and WhatsApp (MSG91/Gupshup); editable templates, preview and test send."),
+        ("palette", "Branding", "/tenantadmin/branding", "White-label the hosted login: logo, colors, fonts, layout, dark mode, tagline — plus custom domain mapping."),
+        ("webhook", "Webhooks", "/tenantadmin/webhooks", "Subscribe endpoints to 40+ events; HMAC-signed delivery, retries with backoff, delivery log and replay."),
+        ("git-merge", "Pipeline hooks", "/tenantadmin/pipelinehooks", "Inject custom HTTP logic at auth stages (pre/post login, pre-token, send-OTP) with timeout and fail-open/closed."),
+        ("tags", "Custom claims", "/tenantadmin/claimconfigs", "Add static, metadata-mapped or webhook-sourced claims to ID and access tokens, per application."),
+        ("lock-keyhole", "Security", "/tenantadmin/security", "Lockout, rate limits, breached-password (HIBP), CAPTCHA, disposable-email blocking, block/allow lists."),
+        ("scale", "Access policies (ABAC)", "/tenantadmin/accesspolicies", "Attribute-based allow/deny rules with a live test console; conditional access — block or step-up MFA."),
+        ("flask-conical", "Sandbox", "/tenantadmin/sandbox", "Run a test login against a real tenant user and copy your exact discovery endpoints — no admin cookie issued."),
+        ("user-plus", "Members & operator roles", "/tenantadmin/members", "Invite employees as console operators with org-scoped operator roles, distinct from end-user RBAC."),
+        ("activity", "Monitoring & observability", "/tenantadmin/monitoring", "DB/Redis health, project metrics, 14-day login analytics; opt-in OpenTelemetry (OTLP / Azure Monitor)."),
+    };
+
+    var portal = new[]
+    {
+        ("user", "Profile", "/portal/profile", "Edit name, timezone and locale; change password (verifies current, signs out other sessions)."),
+        ("shield-check", "Security & MFA", "/portal/security", "Enrol/disable TOTP, Email OTP and WhatsApp OTP; generate backup codes; view enrolled factors."),
+        ("fingerprint", "Passkeys", "/portal/passkeys", "Register, rename and remove FIDO2/WebAuthn passkeys for passwordless sign-in."),
+        ("monitor-smartphone", "Sessions", "/portal/sessions", "See active sessions (device, IP, time); revoke an individual session or all others."),
+        ("laptop", "Devices", "/portal/devices", "View known devices; trust, rename or forget them; trusted devices suppress new-device step-up."),
+        ("life-buoy", "Recovery", "/portal/recovery", "Add recovery contacts so account access can be restored; every recovery notifies all contacts."),
+        ("at-sign", "Contact change", "/portal/contact", "Securely change email or phone — verification on both old and new, with a cancellation window."),
+        ("history", "Activity", "/portal/activity", "Login history with timestamp, IP, method and MFA status; last-login tracking."),
+        ("file-lock", "Privacy & data", "/portal/privacy", "Export account data as JSON (GDPR/DPDP) and erase the account (cascade delete, email-confirmed)."),
+    };
+}
+
+<!-- header -->
+<section class="border-b border-border">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 py-16">
+        <p class="eyebrow">Features</p>
+        <h1 class="mt-2 font-display text-4xl font-bold tracking-tight">Everything Authly does.</h1>
+        <p class="mt-3 max-w-2xl text-muted-foreground">Three surfaces — an admin console for your team, a self-service portal for your users, and a standards-based API for your apps. Every capability below is shipped today.</p>
+        <div class="mt-6 flex flex-wrap gap-2 text-sm">
+            <a class="btn btn-outline btn-sm" href="#admin">Admin console</a>
+            <a class="btn btn-outline btn-sm" href="#portal">End-user portal</a>
+            <a class="btn btn-outline btn-sm" href="#developer">Developer &amp; API</a>
+        </div>
+    </div>
+</section>
+
+<!-- ADMIN -->
+<section id="admin" class="border-b border-border scroll-mt-20">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 py-16">
+        <div class="grid gap-8 lg:grid-cols-[1fr_1.1fr] lg:items-start">
+            <div class="lg:sticky lg:top-20">
+                <p class="eyebrow">Admin console · /tenantadmin</p>
+                <h2 class="mt-2 font-display text-3xl font-bold tracking-tight">Run your identity platform visually.</h2>
+                <p class="mt-3 text-muted-foreground">Sign in at <code class="text-primary">/tenantadmin/account/login</code>. A new workspace starts with a four-step onboarding wizard: create your first app, grab credentials, set branding, test login.</p>
+                <div class="mt-6">
+                    @await Html.PartialAsync("Marketing/_Screenshot", new ScreenshotVM("Admin console — Applications", "admin-applications.png"))
+                </div>
+            </div>
+            <div class="grid gap-3 sm:grid-cols-2">
+                @foreach (var (icon, title, path, desc) in admin)
+                {
+                    <div class="card card-body">
+                        <div class="flex items-center gap-2.5">
+                            <span class="grid place-items-center size-8 rounded-lg bg-primary/10 text-primary"><i data-lucide="@icon" class="size-4"></i></span>
+                            <div class="font-semibold text-sm">@title</div>
+                        </div>
+                        <p class="mt-2 text-sm text-muted-foreground">@desc</p>
+                        <code class="mt-2 text-xs text-muted-foreground">@path</code>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- PORTAL -->
+<section id="portal" class="border-b border-border bg-muted/20 scroll-mt-20">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 py-16">
+        <div class="grid gap-8 lg:grid-cols-[1.1fr_1fr] lg:items-start">
+            <div class="grid gap-3 sm:grid-cols-2">
+                @foreach (var (icon, title, path, desc) in portal)
+                {
+                    <div class="card card-body">
+                        <div class="flex items-center gap-2.5">
+                            <span class="grid place-items-center size-8 rounded-lg bg-teal/10 text-teal"><i data-lucide="@icon" class="size-4"></i></span>
+                            <div class="font-semibold text-sm">@title</div>
+                        </div>
+                        <p class="mt-2 text-sm text-muted-foreground">@desc</p>
+                        <code class="mt-2 text-xs text-muted-foreground">@path</code>
+                    </div>
+                }
+            </div>
+            <div class="lg:sticky lg:top-20 order-first lg:order-last">
+                <p class="eyebrow">End-user portal · /portal</p>
+                <h2 class="mt-2 font-display text-3xl font-bold tracking-tight">Self-service for your users.</h2>
+                <p class="mt-3 text-muted-foreground">Your customers sign in on branded hosted pages under <code class="text-primary">/account/*</code>, then manage their own profile, security and data in a branded portal — no support tickets required.</p>
+                <div class="mt-6">
+                    @await Html.PartialAsync("Marketing/_Screenshot", new ScreenshotVM("End-user portal — Security", "portal-security.png"))
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- DEVELOPER -->
+<section id="developer" class="border-b border-border scroll-mt-20">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 py-16">
+        <p class="eyebrow">Developer &amp; API</p>
+        <h2 class="mt-2 font-display text-3xl font-bold tracking-tight">Standards in, standards out.</h2>
+        <p class="mt-3 max-w-2xl text-muted-foreground">No proprietary protocol. Integrate with any OIDC client library, verify tokens locally, and automate everything over REST.</p>
+        <div class="mt-8 grid gap-4 md:grid-cols-3">
+            <div class="card card-body">
+                <i data-lucide="key-round" class="size-5 text-primary"></i>
+                <h3 class="mt-3 font-semibold">OAuth 2.0 / OIDC</h3>
+                <ul class="mt-2 space-y-1.5 text-sm text-muted-foreground">
+                    <li>Auth Code + PKCE (mandatory)</li>
+                    <li>Client Credentials (M2M)</li>
+                    <li>Refresh + rotation &amp; reuse detection</li>
+                    <li>Discovery · JWKS · userinfo</li>
+                    <li>Introspection · revocation · end-session</li>
+                </ul>
+                <a class="btn btn-ghost btn-sm mt-3 self-start px-0" href="/docs/oauth">Endpoint reference <i data-lucide="arrow-right" class="size-3.5"></i></a>
+            </div>
+            <div class="card card-body">
+                <i data-lucide="server" class="size-5 text-primary"></i>
+                <h3 class="mt-3 font-semibold">Management API</h3>
+                <ul class="mt-2 space-y-1.5 text-sm text-muted-foreground">
+                    <li><code class="text-xs">/api/v1/users</code></li>
+                    <li><code class="text-xs">/api/v1/roles</code> · <code class="text-xs">/permissions</code></li>
+                    <li><code class="text-xs">/api/v1/applications</code></li>
+                    <li><code class="text-xs">/api/v1/audit-logs</code></li>
+                    <li><code class="text-xs">/api/v1/access/evaluate</code></li>
+                </ul>
+                <a class="btn btn-ghost btn-sm mt-3 self-start px-0" href="/docs/api">API reference <i data-lucide="arrow-right" class="size-3.5"></i></a>
+            </div>
+            <div class="card card-body">
+                <i data-lucide="webhook" class="size-5 text-primary"></i>
+                <h3 class="mt-3 font-semibold">Events &amp; extensibility</h3>
+                <ul class="mt-2 space-y-1.5 text-sm text-muted-foreground">
+                    <li>40+ webhook events, HMAC-signed</li>
+                    <li>Retry with backoff + delivery log</li>
+                    <li>Pipeline hooks at auth stages</li>
+                    <li>Custom claims (static/metadata/webhook)</li>
+                    <li>Bulk import (Auth0 / Firebase / JSON)</li>
+                </ul>
+                <a class="btn btn-ghost btn-sm mt-3 self-start px-0" href="/docs/webhooks">Webhook guide <i data-lucide="arrow-right" class="size-3.5"></i></a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="bg-muted/20">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6 py-16 text-center">
+        <h2 class="font-display text-3xl font-bold tracking-tight">Ready to try it?</h2>
+        <p class="mx-auto mt-3 max-w-lg text-muted-foreground">Create a workspace in the hosted demo, or self-host the whole thing with Docker.</p>
+        <div class="mt-6 flex flex-wrap justify-center gap-3">
+            <a class="btn btn-primary btn-lg" asp-controller="Signup" asp-action="Index">Create a workspace</a>
+            <a class="btn btn-outline btn-lg" asp-controller="Home" asp-action="SelfHost">Self-host with Docker</a>
+        </div>
+    </div>
+</section>

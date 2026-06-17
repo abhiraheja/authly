@@ -1,0 +1,56 @@
+@using Authly.Web.Models
+@{
+    Layout = "_DocsLayout";
+    ViewData["Title"] = "Webhooks";
+    ViewData["DocsActive"] = "webhooks";
+    ViewData["Description"] = "Authly webhooks and pipeline hooks — subscribe to 40+ identity events, verify HMAC-SHA256 signatures, handle retries, and inject custom auth logic.";
+
+    var verifyTabs = new CodeTabs("wh", new[]
+    {
+        new CodeTab("Node.js", "<span class=\"tok-key\">import</span> crypto <span class=\"tok-key\">from</span> <span class=\"tok-str\">\"node:crypto\"</span>;\n\n<span class=\"tok-key\">function</span> <span class=\"tok-fn\">verify</span>(req, secret) {\n  <span class=\"tok-key\">const</span> ts  = req.headers[<span class=\"tok-str\">\"x-authly-timestamp\"</span>];\n  <span class=\"tok-key\">const</span> sig = req.headers[<span class=\"tok-str\">\"x-authly-signature\"</span>];\n  <span class=\"tok-key\">const</span> mac = crypto.<span class=\"tok-fn\">createHmac</span>(<span class=\"tok-str\">\"sha256\"</span>, secret)\n    .<span class=\"tok-fn\">update</span>(`${ts}.${req.rawBody}`).<span class=\"tok-fn\">digest</span>(<span class=\"tok-str\">\"hex\"</span>);\n  <span class=\"tok-key\">return</span> sig === `sha256=${mac}`;   <span class=\"tok-com\">// reject if false or ts too old</span>\n}"),
+        new CodeTab("C#", "<span class=\"tok-key\">using</span> System.Security.Cryptography;\n\n<span class=\"tok-key\">bool</span> <span class=\"tok-fn\">Verify</span>(<span class=\"tok-key\">string</span> ts, <span class=\"tok-key\">string</span> body, <span class=\"tok-key\">string</span> sig, <span class=\"tok-key\">string</span> secret) {\n  <span class=\"tok-key\">using var</span> h = <span class=\"tok-key\">new</span> <span class=\"tok-fn\">HMACSHA256</span>(Encoding.UTF8.GetBytes(secret));\n  <span class=\"tok-key\">var</span> mac = Convert.<span class=\"tok-fn\">ToHexString</span>(h.<span class=\"tok-fn\">ComputeHash</span>(\n      Encoding.UTF8.GetBytes($<span class=\"tok-str\">\"{ts}.{body}\"</span>))).ToLower();\n  <span class=\"tok-key\">return</span> sig == $<span class=\"tok-str\">\"sha256={mac}\"</span>;\n}"),
+    });
+}
+
+<p class="eyebrow">Extensibility</p>
+<h1 class="mt-2 font-display text-3xl font-bold tracking-tight">Webhooks &amp; events.</h1>
+<p class="mt-3 text-muted-foreground">Authly emits 40+ identity events. Register endpoints in <strong>Admin → Webhooks</strong>, subscribe to the events you care about, and receive signed, retried deliveries.</p>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-3">Event categories</h2>
+<div class="flex flex-wrap gap-2">
+    @foreach (var e in new[] { "user.created", "user.updated", "user.suspended", "login.succeeded", "login.failed", "login.blocked", "mfa.enrolled", "session.revoked", "token.issued", "role.assigned", "application.created", "webhook.test" })
+    {
+        <span class="badge badge-neutral font-mono">@e</span>
+    }
+</div>
+<p class="mt-2 text-xs text-muted-foreground">…and more across auth, user-lifecycle, MFA, session, token and application categories.</p>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">Payload &amp; signing</h2>
+<p class="text-sm text-muted-foreground">Every delivery carries a consistent envelope and is signed with HMAC-SHA256 over <code>timestamp.body</code>. Headers include <code>X-Authly-Signature: sha256=…</code>, <code>X-Authly-Timestamp</code> and a delivery id for replay protection.</p>
+<div class="mt-3 code-surface px-4 py-3 text-sm"><code>{
+  <span class="tok-str">"id"</span>: <span class="tok-str">"evt_…"</span>,
+  <span class="tok-str">"event"</span>: <span class="tok-str">"login.succeeded"</span>,
+  <span class="tok-str">"timestamp"</span>: <span class="tok-str">"2026-06-17T10:00:00Z"</span>,
+  <span class="tok-str">"tenant_id"</span>: <span class="tok-str">"…"</span>,
+  <span class="tok-str">"version"</span>: <span class="tok-str">"1"</span>,
+  <span class="tok-str">"data"</span>: { <span class="tok-com">/* event-specific */</span> }
+}</code></div>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">Verify a delivery</h2>
+@await Html.PartialAsync("Marketing/_CodeTabs", verifyTabs)
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">Retries</h2>
+<p class="text-sm text-muted-foreground">Failed deliveries retry on an exponential backoff — <code>1m → 5m → 30m → 2h → 24h</code> — and every attempt is recorded in the delivery log. You can manually retry or fire a test event from the dashboard.</p>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">Pipeline hooks</h2>
+<p class="text-sm text-muted-foreground">Where webhooks <em>notify</em>, pipeline hooks <em>participate</em>. Register an HTTP callout at an auth stage — <code>pre_registration</code>, <code>post_registration</code>, <code>pre_login</code>, <code>post_login</code>, <code>pre_token</code>, <code>send_otp</code>, <code>send_email</code> — with a timeout and an <code>on_failure</code> policy (<code>continue</code> = fail-open, <code>block</code> = fail-closed). A <code>pre_token</code> hook's response is merged into the token as custom claims.</p>
+
+<div class="mt-4 card card-body !py-3 flex items-start gap-3 border-l-4 border-l-primary text-sm">
+    <i data-lucide="tags" class="size-4 text-primary mt-0.5 shrink-0"></i>
+    <div><strong>Custom claims</strong> come in three flavours — static values, mapped user/app metadata, or a <code>pre_token</code> webhook — configured per application under <strong>Admin → Custom claims</strong>.</div>
+</div>
+
+<div class="mt-8 flex items-center justify-between border-t border-border pt-5 text-sm">
+    <a class="text-muted-foreground hover:text-foreground" href="/docs/api">← Management API</a>
+    <a class="text-primary hover:underline" href="/docs/admin">Admin console →</a>
+</div>

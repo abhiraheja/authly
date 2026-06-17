@@ -1,0 +1,12 @@
+@model Authly.Web.Models.FeatureCardVM
+<div class="card card-body h-full transition-colors hover:border-primary/40">
+    <span class="grid place-items-center size-10 rounded-lg bg-primary/10 text-primary">
+        <i data-lucide="@Model.Icon" class="size-5"></i>
+    </span>
+    <h3 class="mt-4 font-display font-semibold">@Model.Title</h3>
+    <p class="mt-1.5 text-sm text-muted-foreground">@Model.Desc</p>
+    @if (!string.IsNullOrEmpty(Model.Hint))
+    {
+        <code class="mt-3 inline-block text-xs text-primary/90 bg-primary/5 rounded px-2 py-1">@Model.Hint</code>
+    }
+</div>

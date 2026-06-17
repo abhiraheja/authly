@@ -1,0 +1,49 @@
+@{
+    Layout = "_DocsLayout";
+    ViewData["Title"] = "End-user portal";
+    ViewData["DocsActive"] = "portal";
+    ViewData["Description"] = "Guide to the Authly end-user experience — branded hosted auth pages and the self-service portal for profile, security, devices and privacy.";
+}
+
+<p class="eyebrow">Product guide</p>
+<h1 class="mt-2 font-display text-3xl font-bold tracking-tight">The end-user experience.</h1>
+<p class="mt-3 text-muted-foreground">Your customers authenticate on Authly's branded hosted pages under <code>/account/*</code>, then manage their own account in a self-service portal under <code>/portal/*</code>.</p>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">Hosted auth pages (<code>/account/*</code>)</h2>
+<ul class="list-disc pl-5 space-y-1.5 text-sm text-muted-foreground">
+    <li><strong>Register</strong> — screened by CAPTCHA, block lists and breached-password check; email verification; consent recorded.</li>
+    <li><strong>Login</strong> — lockout defense, conditional-access evaluation (block or step-up), MFA gate, session + login-history.</li>
+    <li><strong>Magic link</strong> — passwordless, one-time sign-in link.</li>
+    <li><strong>Forgot / reset password</strong> — anti-enumeration; breached passwords rejected on reset.</li>
+    <li><strong>Social login</strong> — round-trip to a configured provider, linked to the account.</li>
+</ul>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-3">Self-service portal (<code>/portal/*</code>)</h2>
+<div class="card overflow-hidden">
+    <div class="overflow-x-auto scroll-thin">
+        <table class="table">
+            <thead><tr><th>Page</th><th>Path</th><th>What users can do</th></tr></thead>
+            <tbody>
+                <tr><td>Profile</td><td><code>/portal/profile</code></td><td>Edit details; change password (signs out other sessions).</td></tr>
+                <tr><td>Security</td><td><code>/portal/security</code></td><td>Enrol TOTP / Email OTP / WhatsApp OTP; backup codes.</td></tr>
+                <tr><td>Passkeys</td><td><code>/portal/passkeys</code></td><td>Register, rename, remove WebAuthn passkeys.</td></tr>
+                <tr><td>Sessions</td><td><code>/portal/sessions</code></td><td>View and revoke active sessions.</td></tr>
+                <tr><td>Devices</td><td><code>/portal/devices</code></td><td>Trust, rename, forget known devices.</td></tr>
+                <tr><td>Recovery</td><td><code>/portal/recovery</code></td><td>Manage recovery contacts.</td></tr>
+                <tr><td>Contact</td><td><code>/portal/contact</code></td><td>Change email/phone with dual verification.</td></tr>
+                <tr><td>Activity</td><td><code>/portal/activity</code></td><td>Login history (time, IP, method, MFA).</td></tr>
+                <tr><td>Privacy</td><td><code>/portal/privacy</code></td><td>Export data (JSON) and erase the account.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="mt-4 card card-body !py-3 flex items-start gap-3 border-l-4 border-l-primary text-sm">
+    <i data-lucide="paint-bucket" class="size-4 text-primary mt-0.5 shrink-0"></i>
+    <div>The hosted pages and portal are <strong>branded per tenant</strong> — logo, colors, fonts, layout and dark mode are set under <strong>Admin → Branding</strong>, and apply on your custom domain.</div>
+</div>
+
+<div class="mt-8 flex items-center justify-between border-t border-border pt-5 text-sm">
+    <a class="text-muted-foreground hover:text-foreground" href="/docs/admin">← Admin console</a>
+    <a class="text-primary hover:underline" href="/docs/self-host">Self-host with Docker →</a>
+</div>

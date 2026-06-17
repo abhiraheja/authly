@@ -1,0 +1,86 @@
+@{
+    Layout = "_DocsLayout";
+    ViewData["Title"] = "OAuth & OIDC";
+    ViewData["DocsActive"] = "oauth";
+    ViewData["Description"] = "Authly OAuth 2.0 / OpenID Connect endpoint reference: discovery, authorize, token, userinfo, introspect, revoke, end-session, JWKS.";
+}
+
+<p class="eyebrow">Protocol</p>
+<h1 class="mt-2 font-display text-3xl font-bold tracking-tight">OAuth 2.0 &amp; OpenID Connect.</h1>
+<p class="mt-3 text-muted-foreground">Authly is a standards-based provider built on OpenIddict. Everything is advertised in the discovery document — point a client at it and it wires the rest.</p>
+
+<div class="mt-4 code-surface px-4 py-3 text-sm"><code>GET @ViewBag.Discovery</code></div>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-3">Endpoints</h2>
+<div class="card overflow-hidden">
+    <div class="overflow-x-auto scroll-thin">
+        <table class="table">
+            <thead><tr><th>Endpoint</th><th>Path</th><th>Purpose</th></tr></thead>
+            <tbody>
+                <tr><td>Discovery</td><td><code>/.well-known/openid-configuration</code></td><td>Advertises every endpoint, grant and key.</td></tr>
+                <tr><td>JWKS</td><td><code>/.well-known/jwks.json</code></td><td>Public signing keys for local JWT verification.</td></tr>
+                <tr><td>Authorization</td><td><code>/connect/authorize</code></td><td>Starts the Authorization Code flow.</td></tr>
+                <tr><td>Token</td><td><code>/connect/token</code></td><td>All grant types — code, refresh, client credentials.</td></tr>
+                <tr><td>UserInfo</td><td><code>/connect/userinfo</code></td><td>Profile claims for a bearer access token.</td></tr>
+                <tr><td>Introspection</td><td><code>/connect/introspect</code></td><td>Server-side token validation.</td></tr>
+                <tr><td>Revocation</td><td><code>/connect/revoke</code></td><td>Revoke an access or refresh token.</td></tr>
+                <tr><td>End session</td><td><code>/connect/logout</code></td><td>RP-initiated logout; clears the SSO cookie.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-3">Supported grants</h2>
+<div class="grid gap-3 sm:grid-cols-3">
+    @foreach (var (t, d) in new[]
+    {
+        ("Authorization Code + PKCE", "Mandatory for public and confidential clients. The interactive login flow."),
+        ("Refresh Token", "Rotated on every use; reusing a consumed token revokes the whole token family (theft detection)."),
+        ("Client Credentials", "Machine-to-machine — the service authenticates as itself, scoped to its tenant."),
+    })
+    {
+        <div class="card card-body"><div class="font-semibold text-sm">@t</div><p class="mt-1.5 text-sm text-muted-foreground">@d</p></div>
+    }
+</div>
+<p class="mt-3 text-sm text-muted-foreground">Access tokens live <strong>1 hour</strong>; refresh tokens <strong>14 days</strong>. Tokens are JWTs signed with RS256 — verify them locally against the JWKS, or call introspection for opaque validation.</p>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">Refresh</h2>
+<div class="code-surface px-4 py-3 text-sm"><code>POST /connect/token
+  grant_type=refresh_token
+  refresh_token=THE_REFRESH_TOKEN
+  client_id=YOUR_CLIENT_ID
+  client_secret=YOUR_SECRET   <span class="tok-com"># confidential clients only</span></code></div>
+<p class="mt-2 text-sm text-muted-foreground">A new refresh token is returned each time — discard the old one.</p>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">Logout (RP-initiated end-session)</h2>
+<p class="text-sm text-muted-foreground">Clearing tokens in your app alone is not a full logout — Authly keeps its own SSO cookie, so the next trip to <code>/connect/authorize</code> silently re-authenticates. Send the user to the end-session endpoint:</p>
+<div class="mt-3 code-surface px-4 py-3 text-sm"><code>GET /connect/logout
+  ?id_token_hint=THE_ID_TOKEN
+  &amp;post_logout_redirect_uri=https://app.yourco.com/</code></div>
+<p class="mt-2 text-sm text-muted-foreground">Your app's <strong>origin root</strong> is allowed automatically — derived from your registered redirect URIs. Send <code>id_token_hint</code> so Authly can validate and skip a confirm prompt.</p>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">Browser (SPA) apps &amp; CORS</h2>
+<p class="text-sm text-muted-foreground">The <code>/connect/authorize</code> redirect is a top-level navigation, but discovery/token/userinfo are XHRs subject to CORS. Authly allows these automatically for the <strong>origin of any registered redirect URI</strong> — no CORS config. Use a <strong>SPA (public)</strong> client; a browser can't hold a secret.</p>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-3">Common errors</h2>
+<div class="card overflow-hidden">
+    <div class="overflow-x-auto scroll-thin">
+        <table class="table">
+            <thead><tr><th>Symptom</th><th>Likely cause</th></tr></thead>
+            <tbody>
+                <tr><td><code>invalid_redirect_uri</code></td><td>The <code>redirect_uri</code> isn't registered (exact match required).</td></tr>
+                <tr><td><code>invalid_client</code></td><td>Wrong <code>client_id</code>/<code>client_secret</code>, or a public client sending a secret.</td></tr>
+                <tr><td><code>invalid_grant</code> on refresh</td><td>The refresh token was already used (rotation) or expired.</td></tr>
+                <tr><td>PKCE error</td><td>Missing/incorrect <code>code_verifier</code> for the <code>code_challenge</code> you sent.</td></tr>
+                <tr><td>Silent auto-login on re-login</td><td>App-only logout left Authly's SSO cookie — use the end-session endpoint.</td></tr>
+                <tr><td>CORS / status 0</td><td>Browser origin isn't a registered redirect-URI origin, or you're using a Web client instead of a SPA.</td></tr>
+                <tr><td><code>invalid_request</code> "different workspace"</td><td>The host/tenant resolves to a different tenant than the one owning the <code>client_id</code>.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="mt-8 flex items-center justify-between border-t border-border pt-5 text-sm">
+    <a class="text-muted-foreground hover:text-foreground" href="/docs/quickstart">← Quickstart</a>
+    <a class="text-primary hover:underline" href="/docs/api">Management API →</a>
+</div>

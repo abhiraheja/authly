@@ -1,6 +1,22 @@
 @{
-    ViewData["Title"] = "Privacy Policy";
+    Layout = "_PublicLayout";
+    ViewData["Title"] = "Privacy";
+    ViewData["NavActive"] = "";
 }
-<h1 class="font-display text-2xl font-bold">@ViewData["Title"]</h1>
-
-<p class="text-muted-foreground mt-2">Use this page to detail your site's privacy policy.</p>
+<div class="mx-auto max-w-3xl px-4 sm:px-6 py-16">
+    <p class="eyebrow">Privacy</p>
+    <h1 class="mt-2 font-display text-3xl font-bold tracking-tight">Privacy policy</h1>
+    <div class="mt-6 space-y-4 text-sm text-muted-foreground">
+        <p>
+            Authly is open-source software you run yourself. When you self-host, <strong>you</strong> are the
+            data controller — Authly does not phone home, and no user data, PII, secrets or database contents
+            ever leave your infrastructure.
+        </p>
+        <p>
+            Replace this page with your organization's own privacy policy. Authly is built to support GDPR and
+            India's DPDP from the start: data minimization, consent tracking, per-user data export (JSON), and
+            right-to-erasure — all available to your end-users from <code>/portal/privacy</code>.
+        </p>
+        <p>Maintained by @Authly.Web.SiteInfo.Author · @Authly.Web.SiteInfo.License.</p>
+    </div>
+</div>

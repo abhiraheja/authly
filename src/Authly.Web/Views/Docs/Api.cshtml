@@ -1,0 +1,56 @@
+@{
+    Layout = "_DocsLayout";
+    ViewData["Title"] = "Management API";
+    ViewData["DocsActive"] = "api";
+    ViewData["Description"] = "Authly Management REST API v1 — manage users, roles, applications, audit logs and ABAC decisions, authenticated by API key or client-credentials token.";
+}
+
+<p class="eyebrow">Reference</p>
+<h1 class="mt-2 font-display text-3xl font-bold tracking-tight">Management REST API.</h1>
+<p class="mt-3 text-muted-foreground">A tenant-scoped REST surface under <code>/api/v1</code> for programmatic management. Authenticate with a client-credentials Bearer token or an <code>X-API-Key</code>. Every endpoint is permission-gated and scoped to the authenticated tenant.</p>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">Authentication</h2>
+<div class="code-surface px-4 py-3 text-sm"><code><span class="tok-com"># API key (mint one under Admin → API keys, shown once)</span>
+curl @ViewBag.BaseUrl/api/v1/users -H <span class="tok-str">"X-API-Key: $AUTHLY_API_KEY"</span>
+
+<span class="tok-com"># or a client-credentials access token</span>
+curl @ViewBag.BaseUrl/api/v1/users -H <span class="tok-str">"Authorization: Bearer $TOKEN"</span></code></div>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-3">Resources</h2>
+<div class="card overflow-hidden">
+    <div class="overflow-x-auto scroll-thin">
+        <table class="table">
+            <thead><tr><th>Resource</th><th>Methods</th><th>Notes</th></tr></thead>
+            <tbody>
+                <tr><td><code>/api/v1/users</code></td><td>GET POST PATCH DELETE</td><td>List/create/update/delete; <code>/{id}/suspend</code>, <code>/reactivate</code>, <code>/force-password-reset</code>, <code>/roles</code>, <code>/sessions</code>.</td></tr>
+                <tr><td><code>/api/v1/roles</code></td><td>GET POST PATCH DELETE</td><td>Role CRUD; <code>/{id}/permissions</code> mapping.</td></tr>
+                <tr><td><code>/api/v1/permissions</code></td><td>GET</td><td>List permissions defined in the tenant.</td></tr>
+                <tr><td><code>/api/v1/applications</code></td><td>GET POST PATCH DELETE</td><td>OAuth client CRUD; <code>/{id}/secrets/rotate</code> (secret returned once).</td></tr>
+                <tr><td><code>/api/v1/audit-logs</code></td><td>GET</td><td>Filterable by <code>event</code> / <code>actorId</code> / date; paginated.</td></tr>
+                <tr><td><code>/api/v1/access/evaluate</code></td><td>POST</td><td>ABAC decision: returns <code>{ allowed, policy, reason }</code>.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">Conventions</h2>
+<ul class="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+    <li>JSON in/out (<code>application/json</code>).</li>
+    <li>Pagination: <code>?page=1&amp;limit=50</code> → <code>{ data, total, page, limit }</code>.</li>
+    <li>Errors: <code>{ "error": { "code", "message" } }</code> with the matching HTTP status.</li>
+    <li>Versioning is additive — breaking changes would ship under <code>/api/v2</code>.</li>
+</ul>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">ABAC evaluation</h2>
+<div class="code-surface px-4 py-3 text-sm"><code>POST /api/v1/access/evaluate
+{
+  <span class="tok-str">"action"</span>: <span class="tok-str">"invoice.approve"</span>,
+  <span class="tok-str">"resource"</span>: { <span class="tok-str">"amount"</span>: 5000, <span class="tok-str">"region"</span>: <span class="tok-str">"IN"</span> },
+  <span class="tok-str">"subject"</span>:  { <span class="tok-str">"role"</span>: <span class="tok-str">"manager"</span> }
+}
+<span class="tok-com"># → { "allowed": true, "policy": "...", "reason": "..." }</span></code></div>
+
+<div class="mt-8 flex items-center justify-between border-t border-border pt-5 text-sm">
+    <a class="text-muted-foreground hover:text-foreground" href="/docs/oauth">← OAuth &amp; OIDC</a>
+    <a class="text-primary hover:underline" href="/docs/webhooks">Webhooks &amp; events →</a>
+</div>

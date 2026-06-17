@@ -48,9 +48,16 @@ public static class UserClaims
     public const string ImpersonatorEmail = "authly:impersonator_email";
 }
 
-/// <summary>Custom claim types for the tenant-admin principal.</summary>
+/// <summary>Custom claim types for the tenant-admin (console operator) principal.</summary>
 public static class TenantAdminClaims
 {
+    /// <summary>The global console <c>Account</c> id (also carried as NameIdentifier).</summary>
+    public const string AccountId = "authly:account_id";
+
+    /// <summary>The active organization the operator is working in.</summary>
+    public const string OrgId = "authly:org_id";
+
+    /// <summary>The active project (tenant) within the active org.</summary>
     public const string TenantId = "authly:tenant_id";
 }
 

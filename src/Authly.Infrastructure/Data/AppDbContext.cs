@@ -48,6 +48,9 @@ public class AppDbContext : DbContext
     public DbSet<UserDevice> UserDevices => Set<UserDevice>();
     public DbSet<PlatformState> PlatformState => Set<PlatformState>();
     public DbSet<AccessPolicy> AccessPolicies => Set<AccessPolicy>();
+    public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<Organization> Organizations => Set<Organization>();
+    public DbSet<OrganizationMembership> OrganizationMemberships => Set<OrganizationMembership>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -60,6 +63,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
             e.Property(x => x.Slug).HasColumnName("slug").IsRequired();
             e.Property(x => x.Name).HasColumnName("name").IsRequired();
+            e.Property(x => x.OrganizationId).HasColumnName("organization_id").IsRequired();
             e.Property(x => x.Status).HasColumnName("status").HasConversion<string>()
                 .HasDefaultValue(TenantStatus.Active).IsRequired();
             e.Property(x => x.ParentId).HasColumnName("parent_id");
@@ -75,7 +79,12 @@ public class AppDbContext : DbContext
             // so tenants without a custom domain are unaffected).
             e.HasIndex(x => x.CustomDomain).IsUnique().HasDatabaseName("idx_tenants_custom_domain");
 
+            e.HasIndex(x => x.OrganizationId).HasDatabaseName("idx_tenants_organization");
+
             e.HasOne(x => x.Parent).WithMany().HasForeignKey(x => x.ParentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            // Block deleting an org that still owns live projects.
+            e.HasOne(x => x.Organization).WithMany(o => o.Tenants).HasForeignKey(x => x.OrganizationId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -129,6 +138,65 @@ public class AppDbContext : DbContext
             e.Property(x => x.LastLoginAt).HasColumnName("last_login_at");
 
             e.HasIndex(x => x.Email).IsUnique().HasDatabaseName("idx_super_admins_email");
+        });
+
+        // --- Console identity (global / RLS-exempt; read before any tenant is resolved) ---
+
+        b.Entity<Account>(e =>
+        {
+            e.ToTable("accounts");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.Email).HasColumnName("email").IsRequired();
+            e.Property(x => x.PasswordHash).HasColumnName("password_hash");
+            e.Property(x => x.FirstName).HasColumnName("first_name");
+            e.Property(x => x.LastName).HasColumnName("last_name");
+            e.Property(x => x.EmailVerified).HasColumnName("email_verified").HasDefaultValue(false);
+            e.Property(x => x.Status).HasColumnName("status").HasConversion<string>()
+                .HasDefaultValue(AccountStatus.Active).IsRequired();
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            e.Property(x => x.LastLoginAt).HasColumnName("last_login_at");
+
+            e.HasIndex(x => x.Email).IsUnique().HasDatabaseName("idx_accounts_email");
+        });
+
+        b.Entity<Organization>(e =>
+        {
+            e.ToTable("organizations");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.Name).HasColumnName("name").IsRequired();
+            e.Property(x => x.Slug).HasColumnName("slug").IsRequired();
+            e.Property(x => x.OwnerAccountId).HasColumnName("owner_account_id");
+            e.Property(x => x.Settings).HasColumnName("settings").HasColumnType("jsonb").HasDefaultValueSql("'{}'");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => x.Slug).IsUnique().HasDatabaseName("idx_organizations_slug");
+
+            e.HasOne(x => x.Owner).WithMany().HasForeignKey(x => x.OwnerAccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<OrganizationMembership>(e =>
+        {
+            e.ToTable("organization_memberships");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.AccountId).HasColumnName("account_id").IsRequired();
+            e.Property(x => x.OrganizationId).HasColumnName("organization_id").IsRequired();
+            e.Property(x => x.Status).HasColumnName("status").HasConversion<string>()
+                .HasDefaultValue(MembershipStatus.Invited).IsRequired();
+            e.Property(x => x.InvitedByAccountId).HasColumnName("invited_by_account_id");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.AccountId, x.OrganizationId }).IsUnique().HasDatabaseName("idx_org_memberships_account_org");
+            e.HasIndex(x => x.AccountId).HasDatabaseName("idx_org_memberships_account");
+
+            e.HasOne(x => x.Account).WithMany(a => a.Memberships).HasForeignKey(x => x.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Organization).WithMany(o => o.Memberships).HasForeignKey(x => x.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<AuditLog>(e =>

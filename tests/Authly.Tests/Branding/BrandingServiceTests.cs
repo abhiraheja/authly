@@ -138,6 +138,8 @@ public class BrandingServiceTests
             => Task.FromResult(Store.Values.FirstOrDefault(t => t.CustomDomain == host));
         public Task<IReadOnlyList<Tenant>> ListAsync(CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<Tenant>>(Store.Values.ToList());
+        public Task<IReadOnlyList<Tenant>> ListByOrganizationAsync(Guid organizationId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<Tenant>>(Store.Values.Where(t => t.OrganizationId == organizationId).ToList());
         public Task<bool> SlugExistsAsync(string slug, CancellationToken ct = default)
             => Task.FromResult(Store.Values.Any(t => t.Slug == slug));
         public Task AddAsync(Tenant tenant, CancellationToken ct = default) { Store[tenant.Id] = tenant; return Task.CompletedTask; }

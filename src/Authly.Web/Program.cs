@@ -9,6 +9,7 @@ using Authly.Modules;
 using Authly.Modules.Auth;
 using Authly.Web.Infrastructure;
 using Authly.Web.Infrastructure.Api;
+using Authly.Web.Infrastructure.Observability;
 using Authly.Web.Infrastructure.Messaging;
 using Authly.Web.Infrastructure.OAuth;
 using Microsoft.Extensions.Caching.Memory;
@@ -70,6 +71,9 @@ builder.Services.AddScoped<Authly.Web.Infrastructure.LogStreaming.LogStreamJob>(
 // Infrastructure (EF Core, Redis, Argon2id, AES) + business modules.
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddModules();
+
+// Pluggable observability (Phase 7): wire OpenTelemetry from the stored config (read at startup).
+builder.AddAuthlyObservability();
 
 // Web-layer adapters for module/core abstractions (routing + Hangfire live here).
 builder.Services.AddScoped<IAuthUrlBuilder, AuthUrlBuilder>();
@@ -161,12 +165,10 @@ using (var scope = app.Services.CreateScope())
     recurringJobs.AddOrUpdate<Authly.Web.Infrastructure.Maintenance.MaintenanceJobs>(
         "retention-purge-history", j => j.PurgeStaleHistoryAsync(CancellationToken.None), Cron.Daily());
 
-    // Phase 2 — audit log streaming to an external SIEM/webhook, only when an endpoint is configured.
-    if (Authly.Web.Infrastructure.LogStreaming.LogStreamJob.IsConfigured(builder.Configuration))
-        recurringJobs.AddOrUpdate<Authly.Web.Infrastructure.LogStreaming.LogStreamJob>(
-            "audit-log-stream", j => j.FlushAsync(CancellationToken.None), "*/5 * * * *");
-    else
-        recurringJobs.RemoveIfExists("audit-log-stream");
+    // Phase 2 — audit log streaming to an external SIEM/webhook. Always scheduled; the job no-ops
+    // unless a target is configured (stored observability config, or LOG_STREAM_* env fallback).
+    recurringJobs.AddOrUpdate<Authly.Web.Infrastructure.LogStreaming.LogStreamJob>(
+        "audit-log-stream", j => j.FlushAsync(CancellationToken.None), "*/5 * * * *");
 }
 
 if (!app.Environment.IsDevelopment())

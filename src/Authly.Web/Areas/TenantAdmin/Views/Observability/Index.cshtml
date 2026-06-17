@@ -1,0 +1,80 @@
+@model ObservabilityViewModel
+
+<div>
+    <h1 class="font-display text-xl font-bold">Observability</h1>
+    <p class="text-sm text-muted-foreground mt-0.5">Export traces, metrics, and logs via OpenTelemetry. Secrets are encrypted at rest; exporter changes apply on the next restart.</p>
+</div>
+
+<div class="card max-w-3xl mt-4">
+    <div class="card-body">
+        <form asp-area="TenantAdmin" asp-controller="Observability" asp-action="Index" method="post" class="space-y-5">
+            <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
+
+            <label class="flex items-center gap-2 text-sm">
+                <input asp-for="Enabled" type="checkbox" /> <span>Enable telemetry export</span>
+            </label>
+
+            <div>
+                <span class="label">Exporter</span>
+                <div class="flex flex-wrap gap-4 mt-1">
+                    <label class="flex items-center gap-2 text-sm"><input asp-for="Exporter" type="radio" value="otlp" /> <span>OTLP (collector)</span></label>
+                    <label class="flex items-center gap-2 text-sm"><input asp-for="Exporter" type="radio" value="azure_monitor" /> <span>Azure Monitor</span></label>
+                </div>
+            </div>
+
+            <div>
+                <label asp-for="OtlpEndpoint" class="label"></label>
+                <input asp-for="OtlpEndpoint" class="input" placeholder="http://otel-collector:4317" />
+                <p class="mt-1 text-xs text-muted-foreground">gRPC OTLP endpoint of your collector. Env <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> is the fallback.</p>
+            </div>
+
+            <div>
+                <label asp-for="OtlpHeaders" class="label">OTLP headers @(Model.HasOtlpHeaders ? "(leave blank to keep)" : "")</label>
+                <input asp-for="OtlpHeaders" type="password" class="input" autocomplete="new-password" placeholder="Authorization=Bearer …,X-Scope=…" />
+                <p class="mt-1 text-xs text-muted-foreground">Comma-separated <code>key=value</code> pairs (e.g. auth tokens). Stored encrypted.</p>
+            </div>
+
+            <div>
+                <label asp-for="AzureConnectionString" class="label">Azure Monitor connection string @(Model.HasAzureConnectionString ? "(leave blank to keep)" : "")</label>
+                <input asp-for="AzureConnectionString" type="password" class="input" autocomplete="new-password" placeholder="InstrumentationKey=…" />
+            </div>
+
+            <div>
+                <span class="label">Signals</span>
+                <div class="flex flex-wrap gap-4 mt-1">
+                    <label class="flex items-center gap-2 text-sm"><input asp-for="ExportTraces" type="checkbox" /> <span>Traces</span></label>
+                    <label class="flex items-center gap-2 text-sm"><input asp-for="ExportMetrics" type="checkbox" /> <span>Metrics</span></label>
+                    <label class="flex items-center gap-2 text-sm"><input asp-for="ExportLogs" type="checkbox" /> <span>Logs</span></label>
+                </div>
+            </div>
+
+            <div>
+                <label asp-for="SamplingRatio" class="label"></label>
+                <input asp-for="SamplingRatio" type="number" step="0.05" min="0" max="1" class="input max-w-40" />
+                <span asp-validation-for="SamplingRatio" class="text-danger text-xs"></span>
+                <p class="mt-1 text-xs text-muted-foreground">Head-based trace sampling, 0.0–1.0 (1 = sample everything).</p>
+            </div>
+
+            <hr class="border-border" />
+
+            <div>
+                <h2 class="font-medium">Audit log stream</h2>
+                <p class="text-xs text-muted-foreground mt-0.5 mb-2">Optionally POST audit entries to a SIEM/webhook on a 5-minute cycle.</p>
+                <label asp-for="LogStreamEndpoint" class="label"></label>
+                <input asp-for="LogStreamEndpoint" class="input" placeholder="https://siem.example.com/ingest" />
+                <label asp-for="LogStreamKey" class="label mt-3">Log-stream key @(Model.HasLogStreamKey ? "(leave blank to keep)" : "")</label>
+                <input asp-for="LogStreamKey" type="password" class="input" autocomplete="new-password" />
+            </div>
+
+            <div class="flex items-center gap-3 pt-1">
+                <button type="submit" class="btn btn-primary">Save settings</button>
+                @if (Model.UpdatedAt is { } at)
+                {
+                    <span class="text-xs text-muted-foreground">Last updated @at.ToString("yyyy-MM-dd HH:mm 'UTC'")</span>
+                }
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

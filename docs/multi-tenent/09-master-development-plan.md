@@ -50,7 +50,7 @@ Phase 3  Org→Project selector + new-project   ✅ DONE (feat/console-selector)
 Phase 4  Members UI + employee invite    ✅ DONE (feat/members-invite)
 Phase 5  Cleanup (IsTenantAdmin / legacy admin)   ✅ DONE (feat/cleanup-legacy-admin)
 Phase 6  Remove SuperAdmin + self-host cleanup (monitoring → account surface)   ✅ DONE (feat/remove-superadmin)
-Phase 7  Pluggable observability (OpenTelemetry)   ← NEXT
+Phase 7  Pluggable observability (OpenTelemetry)   ✅ DONE (feat/observability) — FINAL PHASE
 ```
 - **UI re-skin** ek **parallel track** hai: Phase 0 foundation ke baad existing screens
   area-by-area re-skin; saare NAYE feature screens (P3/P4/P6/P7) **seedha SAARVIX** mein.
@@ -214,15 +214,20 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 ## Phase 7 — Pluggable observability
 **Goal:** opt-in OpenTelemetry, admin-configured. **Source:** doc 05.
 
-**Tasks**
-- [ ] `ObservabilityConfig` global singleton entity (no TenantId): `Enabled`, `Exporter` (otlp|azure_monitor), `OtlpEndpoint`/`OtlpHeaders` (enc), `AzureConnectionString` (enc), `Signals`, `SamplingRatio`. Secrets via `IEncryptionService`. Migration (no RLS).
-- [ ] `Program.cs`: `AddOpenTelemetry().WithLogging/WithTracing/WithMetrics` + OTLP (+ Azure Monitor) exporter, **read stored config at startup; absent → no exporter**. Env fallback `OTEL_EXPORTER_OTLP_ENDPOINT`. (Changes apply on restart — document in UI.)
-- [ ] Enrichment processor: stamp `tenant.id`/`project.id` (+account) from `ITenantContext`.
-- [ ] Re-source `LogStreamJob` target from config (keep job).
-- [ ] Admin surface (SAARVIX): instance-global **Observability** menu (`observability.manage`) — mirror `MessagingProvider` BYOK UX (write-only secrets, encrypt, audit).
-- [ ] docker-compose: optional overlay `docker-compose.observability.yml` — OTel Collector → Loki + Tempo + Prometheus → Grafana (pre-provisioned). App OTLP → collector.
+**Status: ✅ DONE** (branch `feat/observability`; 262 tests green; build clean. Runtime Grafana verify pending.)
 
-**Verify:** configure → generate activity → see logs/traces/metrics in Grafana, filter by project.
+**Tasks**
+- [x] `ObservabilityConfig` global single-row entity (no TenantId, no RLS): `Enabled`, `Exporter` (otlp|azure_monitor), `OtlpEndpoint`, `OtlpHeadersEncrypted`, `AzureConnectionStringEncrypted`, `Signals`, `SamplingRatio`, `LogStreamEndpoint`, `LogStreamKeyEncrypted`. Secrets via `IEncryptionService`. Repo `IObservabilityConfigRepository` (upsert). Migration `AddObservabilityConfig`.
+- [x] `Authly.Modules.Observability.IObservabilityConfigService`: `GetSettingsAsync` (decrypted runtime), `GetForEditAsync` (secret-free view + `Has*` flags), `SaveAsync` (encrypt-on-write / blank-keeps-existing, signal normalize, sampling clamp, audit `observability.config_saved`).
+- [x] `Program.cs` `AddAuthlyObservability()` (`ObservabilityStartup`): reads stored config at startup (best-effort, env fallback `OTEL_EXPORTER_OTLP_ENDPOINT`), wires `AddOpenTelemetry().WithTracing/WithMetrics` (+ASP.NET Core/HttpClient/Runtime instrumentation, `TraceIdRatioBasedSampler`) and `builder.Logging.AddOpenTelemetry`; OTLP **or** Azure Monitor exporter per `Exporter`; absent/disabled → nothing exported. Packages added (OpenTelemetry 1.16, instrumentation, Azure.Monitor exporter).
+- [x] `TelemetryEnrichmentProcessor` stamps `tenant.id`/`project.id`/`org.id`/`account.id` from the request principal's claims.
+- [x] `LogStreamJob` re-sourced from config (endpoint/key from `ObservabilityConfig`, env `LOG_STREAM_*` fallback); recurring job always scheduled, self-guards (no endpoint → no-op).
+- [x] SAARVIX admin: `TenantAdmin/ObservabilityController` (`observability.read`/`observability.manage`) — write-only encrypted secrets, "applies on restart" note, sidebar entry.
+- [x] `docker-compose.observability.yml` overlay — OTel Collector → Tempo + Prometheus + Loki → Grafana (provisioned datasources); app OTLP → collector via env. Configs under `observability/`.
+
+**Tests:** ✅ `ObservabilityConfigService` (encrypt-on-write, blank-keeps-secret, signal normalize/clamp, secret-presence view, decrypt for runtime, disabled-when-no-row). Build + 262 green.
+
+**Verify (pending):** `docker compose -f docker-compose.yml -f docker-compose.observability.yml up` → enable OTLP in the Observability page (or env) → generate activity → traces/metrics/logs in Grafana, filterable by `project.id`.
 
 ---
 
@@ -232,7 +237,7 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 3. `AddAccountInviteTokens` — P4 ✅
 4. `DropIsTenantAdmin` — P5 ✅
 5. `RemoveSuperAdminAndCloudTables` (drop `super_admins`, `announcements`, `self_hosted_instances`) — P6 ✅
-6. `AddObservabilityConfig` — P7
+6. `AddObservabilityConfig` — P7 ✅
 
 > Pre-prod (no data): chaaho to recreate-from-scratch bhi kar sakte ho; warna additive migrations + targeted drops.
 
@@ -252,9 +257,9 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 - [x] Console: org→project selector switches; "New project" self-serve; non-member access rejected. *(Phase 3)*
 - [x] Employees invited as operators with custom operator roles; **permissions gate console actions ✅ (Phase 2)**; end-user `User`/RBAC untouched ✅; invite flow + member/role-CRUD UI ✅ *(Phase 4)*.
 - [x] SuperAdmin gone; monitoring on account surface; tenant delete in project settings; cloud-only features removed. *(Phase 6)*
-- [ ] Observability opt-in (OpenTelemetry); nothing ships unconfigured; local Grafana stack works.
+- [x] Observability opt-in (OpenTelemetry); nothing ships unconfigured; local Grafana stack overlay provided. *(Phase 7 — runtime Grafana verify pending)*
 - [x] Entire UI on SAARVIX (compiled Tailwind), light+dark, responsive; no Bootstrap residue *(except SuperAdmin, deleted P6)*. *(Phase 0)*
-- [ ] All tests green *(257 green now)*; docs 02/03 noted as superseded by 06/04.
+- [x] All tests green *(262 green now)*; docs 02/03 noted as superseded by 06/04.
 
 ---
 

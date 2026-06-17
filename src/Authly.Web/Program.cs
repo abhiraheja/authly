@@ -12,6 +12,8 @@ using Authly.Web.Infrastructure;
 using Authly.Web.Infrastructure.Api;
 using Authly.Web.Infrastructure.Messaging;
 using Authly.Web.Infrastructure.OAuth;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 using OpenIddict.Validation.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +25,23 @@ var superAdminEnabled = builder.Configuration.GetValue("SUPERADMIN_ENABLED", tru
 // MVC + Razor (all panels, hosted login, end-user portal are server-rendered).
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
+
+// CORS for browser-based (SPA) OAuth/OIDC clients. The authorize redirect is a top-level
+// navigation (no CORS), but the discovery, token and userinfo calls are XHRs from the SPA origin
+// and need Access-Control-Allow-Origin. Allowed origins are derived dynamically from the redirect
+// URIs tenant admins register for their applications (see ApplicationCorsPolicyProvider), so a
+// customer just adds their URL in the admin panel — no env config or redeploy. CORS_ALLOWED_ORIGINS
+// remains as an optional extra for trusted, non-application infrastructure.
+var corsStaticOrigins = (builder.Configuration["CORS_ALLOWED_ORIGINS"] ?? string.Empty)
+    .Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    .ToList();
+builder.Services.AddMemoryCache();
+builder.Services.AddCors();
+builder.Services.AddSingleton<Microsoft.AspNetCore.Cors.Infrastructure.ICorsPolicyProvider>(sp =>
+    new Authly.Web.Infrastructure.Cors.ApplicationCorsPolicyProvider(
+        sp.GetRequiredService<IOptions<Microsoft.AspNetCore.Cors.Infrastructure.CorsOptions>>(),
+        sp.GetRequiredService<IMemoryCache>(),
+        corsStaticOrigins));
 
 // Management API: error-envelope filter is resolved per request via [ServiceFilter].
 builder.Services.AddScoped<ApiExceptionFilter>();
@@ -218,6 +237,10 @@ if (!superAdminEnabled)
 }
 
 app.UseRouting();
+
+// CORS must sit between routing and auth so preflight (OPTIONS) and the OIDC discovery/token/
+// userinfo XHRs from the SPA origin get Access-Control-Allow-Origin headers.
+app.UseCors(Authly.Web.Infrastructure.Cors.ApplicationCorsPolicyProvider.SpaPolicyName);
 
 // Resolve tenant (sets app.current_tenant for the RLS backstop) before auth.
 app.UseMiddleware<TenantResolutionMiddleware>();

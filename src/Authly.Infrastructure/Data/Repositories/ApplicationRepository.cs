@@ -22,6 +22,16 @@ public sealed class ApplicationRepository : IApplicationRepository
             .OrderByDescending(a => a.CreatedAt)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<string>> ListAllRedirectUrisAsync(CancellationToken ct = default)
+    {
+        // text[] column — pull the arrays and flatten in memory (the applications table is small).
+        var lists = await _db.Applications
+            .Where(a => a.RedirectUris.Count > 0)
+            .Select(a => a.RedirectUris)
+            .ToListAsync(ct);
+        return lists.SelectMany(uris => uris).ToList();
+    }
+
     public async Task AddAsync(Application application, CancellationToken ct = default)
     {
         _db.Applications.Add(application);

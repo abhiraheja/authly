@@ -119,6 +119,7 @@ public class LockoutAndSettingsTests
         public Task<Tenant?> GetBySlugAsync(string slug, CancellationToken ct = default) => Task.FromResult<Tenant?>(null);
         public Task<Tenant?> GetByCustomDomainOrNullAsync(string host, CancellationToken ct = default) => Task.FromResult<Tenant?>(null);
         public Task<IReadOnlyList<Tenant>> ListAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Tenant>>(Store.Values.ToList());
+        public Task<IReadOnlyList<Tenant>> ListByOrganizationAsync(Guid organizationId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Tenant>>(Store.Values.Where(t => t.OrganizationId == organizationId).ToList());
         public Task<bool> SlugExistsAsync(string slug, CancellationToken ct = default) => Task.FromResult(false);
         public Task AddAsync(Tenant tenant, CancellationToken ct = default) { Store[tenant.Id] = tenant; return Task.CompletedTask; }
         public Task UpdateAsync(Tenant tenant, CancellationToken ct = default) { Store[tenant.Id] = tenant; return Task.CompletedTask; }

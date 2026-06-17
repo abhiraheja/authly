@@ -363,6 +363,7 @@ public class MfaServiceTests
         public Task<Tenant?> GetBySlugAsync(string s, CancellationToken ct = default) => Task.FromResult<Tenant?>(null);
         public Task<Tenant?> GetByCustomDomainOrNullAsync(string h, CancellationToken ct = default) => Task.FromResult<Tenant?>(null);
         public Task<IReadOnlyList<Tenant>> ListAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Tenant>>(new[] { Item });
+        public Task<IReadOnlyList<Tenant>> ListByOrganizationAsync(Guid organizationId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Tenant>>(new[] { Item });
         public Task<bool> SlugExistsAsync(string s, CancellationToken ct = default) => Task.FromResult(false);
         public Task AddAsync(Tenant t, CancellationToken ct = default) => Task.CompletedTask;
         public Task UpdateAsync(Tenant t, CancellationToken ct = default) => Task.CompletedTask;

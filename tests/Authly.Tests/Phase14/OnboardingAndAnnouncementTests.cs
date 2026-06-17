@@ -112,6 +112,7 @@ internal sealed class FakeTenantRepo : ITenantRepository
     public Task<Tenant?> GetBySlugAsync(string slug, CancellationToken ct = default) => Task.FromResult(Items.FirstOrDefault(t => t.Slug == slug));
     public Task<Tenant?> GetByCustomDomainOrNullAsync(string host, CancellationToken ct = default) => Task.FromResult<Tenant?>(null);
     public Task<IReadOnlyList<Tenant>> ListAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Tenant>>(Items.ToList());
+    public Task<IReadOnlyList<Tenant>> ListByOrganizationAsync(Guid organizationId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Tenant>>(Items.Where(t => t.OrganizationId == organizationId).ToList());
     public Task<bool> SlugExistsAsync(string slug, CancellationToken ct = default) => Task.FromResult(Items.Any(t => t.Slug == slug));
     public Task AddAsync(Tenant tenant, CancellationToken ct = default) { Items.Add(tenant); return Task.CompletedTask; }
     public Task UpdateAsync(Tenant tenant, CancellationToken ct = default) => Task.CompletedTask; // entity mutated in place

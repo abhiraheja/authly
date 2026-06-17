@@ -88,6 +88,9 @@ public static class DependencyInjection
         // --- Repositories ---
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ISuperAdminRepository, SuperAdminRepository>();
+        services.AddScoped<IAccountRepository, AccountRepository>();
+        services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+        services.AddScoped<IOrganizationMembershipRepository, OrganizationMembershipRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ISessionRepository, SessionRepository>();

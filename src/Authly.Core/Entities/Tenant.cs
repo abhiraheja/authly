@@ -15,6 +15,9 @@ public class Tenant
 
     public string Name { get; set; } = default!;
 
+    /// <summary>Owning organization (required). A project always lives inside exactly one org.</summary>
+    public Guid OrganizationId { get; set; }
+
     public TenantStatus Status { get; set; } = TenantStatus.Active;
 
     /// <summary>Parent tenant for sub-organizations (nested divisions/branches).</summary>
@@ -33,5 +36,6 @@ public class Tenant
     public DateTimeOffset UpdatedAt { get; set; }
 
     public Tenant? Parent { get; set; }
+    public Organization? Organization { get; set; }
     public ICollection<User> Users { get; set; } = new List<User>();
 }

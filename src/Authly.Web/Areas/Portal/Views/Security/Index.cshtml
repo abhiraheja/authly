@@ -1,45 +1,56 @@
 @model SecurityOverviewViewModel
 
-<div class="page-title-head">
-    <h4>Security</h4>
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Security</h1>
+    </div>
 </div>
 
-<div class="row">
-    <div class="col-lg-8">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mt-4">
+    <div class="lg:col-span-8 space-y-4">
         @if (Model.Policy.Policy == MfaPolicy.Required)
         {
-            <div class="alert alert-info py-2 small">Your organization requires two-step verification.</div>
+            <div class="card card-body !py-3 flex items-center gap-3 border-l-4 border-l-primary">
+                <i data-lucide="info" class="size-5 text-primary shrink-0"></i>
+                <span class="text-sm">Your organization requires two-step verification.</span>
+            </div>
         }
         else if (Model.Policy.Policy == MfaPolicy.AdminsOnly)
         {
-            <div class="alert alert-info py-2 small">Administrators in your organization must use two-step verification.</div>
+            <div class="card card-body !py-3 flex items-center gap-3 border-l-4 border-l-primary">
+                <i data-lucide="info" class="size-5 text-primary shrink-0"></i>
+                <span class="text-sm">Administrators in your organization must use two-step verification.</span>
+            </div>
         }
 
         @if (Model.NewBackupCodes is { Count: > 0 })
         {
-            <div class="alert alert-warning">
-                <h6 class="alert-heading"><i data-lucide="shield-alert" class="me-1"></i> Save your backup codes now</h6>
-                <p class="small mb-2">Each code works once. Store them somewhere safe — they won't be shown again.</p>
-                <div class="font-monospace small">
+            <div class="card card-body !py-3 border-l-4 border-l-warning">
+                <div class="flex items-center gap-2 mb-1">
+                    <i data-lucide="shield-alert" class="size-5 text-warning shrink-0"></i>
+                    <span class="font-semibold">Save your backup codes now</span>
+                </div>
+                <p class="text-sm text-muted-foreground mb-2">Each code works once. Store them somewhere safe — they won't be shown again.</p>
+                <div class="grid grid-cols-2 gap-2">
                     @foreach (var code in Model.NewBackupCodes)
                     {
-                        <div>@code</div>
+                        <code class="kbd">@code</code>
                     }
                 </div>
             </div>
         }
 
         <div class="card">
-            <div class="card-header">Two-step verification</div>
-            <div class="list-group list-group-flush">
-                <div class="list-group-item d-flex justify-content-between align-items-center">
+            <div class="card-header"><span class="card-title">Two-step verification</span></div>
+            <div class="divide-y divide-border">
+                <div class="flex items-center justify-between py-3 px-4">
                     <div>
-                        <div class="fw-medium">Authenticator app (TOTP)</div>
-                        <div class="small text-muted">@(Model.HasTotp ? "Enabled" : "Not set up")</div>
+                        <div class="font-medium">Authenticator app (TOTP)</div>
+                        <div class="text-sm text-muted-foreground">@(Model.HasTotp ? "Enabled" : "Not set up")</div>
                     </div>
                     @if (Model.HasTotp)
                     {
-                        <span class="badge bg-soft-success">active</span>
+                        <span class="badge badge-success">active</span>
                     }
                     else if (Model.Policy.AllowTotp)
                     {
@@ -47,31 +58,31 @@
                     }
                 </div>
 
-                <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div class="flex items-center justify-between py-3 px-4">
                     <div>
-                        <div class="fw-medium">Email one-time codes</div>
-                        <div class="small text-muted">@(Model.HasEmailOtp ? "Enabled" : "Not enabled")</div>
+                        <div class="font-medium">Email one-time codes</div>
+                        <div class="text-sm text-muted-foreground">@(Model.HasEmailOtp ? "Enabled" : "Not enabled")</div>
                     </div>
                     @if (Model.HasEmailOtp)
                     {
-                        <span class="badge bg-soft-success">active</span>
+                        <span class="badge badge-success">active</span>
                     }
                     else if (Model.Policy.AllowEmailOtp)
                     {
                         <form asp-area="Portal" asp-controller="Security" asp-action="EnableEmailOtp" method="post">
-                            <button type="submit" class="btn btn-sm btn-outline-secondary">Enable</button>
+                            <button type="submit" class="btn btn-sm btn-outline">Enable</button>
                         </form>
                     }
                 </div>
 
-                <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div class="flex items-center justify-between py-3 px-4">
                     <div>
-                        <div class="fw-medium">Backup codes</div>
-                        <div class="small text-muted">@Model.UnusedBackupCodes unused</div>
+                        <div class="font-medium">Backup codes</div>
+                        <div class="text-sm text-muted-foreground">@Model.UnusedBackupCodes unused</div>
                     </div>
                     <form asp-area="Portal" asp-controller="Security" asp-action="BackupCodes" method="post"
                           onsubmit="return confirm('Generate new backup codes? Any existing codes will stop working.');">
-                        <button type="submit" class="btn btn-sm btn-outline-secondary">@(Model.UnusedBackupCodes > 0 ? "Regenerate" : "Generate")</button>
+                        <button type="submit" class="btn btn-sm btn-outline">@(Model.UnusedBackupCodes > 0 ? "Regenerate" : "Generate")</button>
                     </form>
                 </div>
             </div>
@@ -79,19 +90,19 @@
 
         @if (Model.Factors.Any(f => f.Status == MfaFactorStatus.Active))
         {
-            <h6 class="small text-muted text-uppercase mt-4">Active factors</h6>
+            <h6 class="text-xs font-semibold text-muted-foreground uppercase mt-4">Active factors</h6>
             <div class="card">
-                <div class="list-group list-group-flush">
+                <div class="divide-y divide-border">
                     @foreach (var f in Model.Factors.Where(f => f.Status == MfaFactorStatus.Active))
                     {
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="flex items-center justify-between py-3 px-4">
                             <div>
-                                <div class="fw-medium">@(f.FriendlyName ?? f.Type.ToString())</div>
-                                <div class="small text-muted">Added @f.CreatedAt.ToString("yyyy-MM-dd")</div>
+                                <div class="font-medium">@(f.FriendlyName ?? f.Type.ToString())</div>
+                                <div class="text-sm text-muted-foreground">Added @f.CreatedAt.ToString("yyyy-MM-dd")</div>
                             </div>
                             <form asp-area="Portal" asp-controller="Security" asp-action="DisableFactor" asp-route-id="@f.Id" method="post"
                                   onsubmit="return confirm('Remove this factor?');">
-                                <button type="submit" class="btn btn-sm btn-soft-danger">Remove</button>
+                                <button type="submit" class="btn btn-sm btn-danger">Remove</button>
                             </form>
                         </div>
                     }

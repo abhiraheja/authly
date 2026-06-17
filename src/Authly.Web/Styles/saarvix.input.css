@@ -190,6 +190,10 @@
   .input:focus, .select:focus, .textarea:focus { border-color: rgb(var(--ring)); box-shadow: 0 0 0 3px rgb(var(--ring) / .15); }
   .input-sm, .select-sm, .textarea-sm { padding: .375rem .625rem; font-size: .8125rem; }
 
+  /* Native checkbox / radio (accent-themed) */
+  .checkbox, .radio { width: 1rem; height: 1rem; accent-color: rgb(var(--primary)); cursor: pointer; flex-shrink: 0; }
+  .radio { border-radius: 999px; }
+
   /* Switch */
   .switch { position: relative; display: inline-flex; width: 38px; height: 22px; cursor: pointer; }
   .switch input { opacity: 0; width: 0; height: 0; }

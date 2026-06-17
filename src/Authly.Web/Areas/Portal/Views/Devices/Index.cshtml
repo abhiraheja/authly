@@ -1,49 +1,51 @@
 @model IReadOnlyList<Authly.Core.Entities.UserDevice>
 
-<div class="page-title-head mb-3">
-    <h4 class="mb-1">Devices</h4>
-    <p class="text-muted mb-0">Devices you've signed in from. Trusting a device skips the extra verification step when your organization requires it for new devices.</p>
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Devices</h1>
+        <p class="text-sm text-muted-foreground mt-0.5">Devices you've signed in from. Trusting a device skips the extra verification step when your organization requires it for new devices.</p>
+    </div>
 </div>
 
-<div class="card">
+<div class="card mt-4">
     <div class="card-body">
         @if (Model.Count == 0)
         {
-            <p class="text-muted mb-0">No devices recorded yet.</p>
+            <p class="text-muted-foreground mb-0">No devices recorded yet.</p>
         }
         else
         {
-            <div class="list-group list-group-flush">
+            <div class="divide-y divide-border">
                 @foreach (var d in Model)
                 {
-                    <div class="list-group-item px-0">
-                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div class="py-3">
+                        <div class="flex justify-between items-start flex-wrap gap-2">
                             <div>
-                                <div class="fw-medium">
-                                    <i data-lucide="laptop" class="me-1"></i> @d.Label
-                                    @if (d.Trusted) { <span class="badge bg-success ms-1">Trusted</span> }
+                                <div class="font-medium flex items-center gap-1">
+                                    <i data-lucide="laptop" class="size-4"></i> @d.Label
+                                    @if (d.Trusted) { <span class="badge badge-success">Trusted</span> }
                                 </div>
-                                <div class="text-muted small">
+                                <div class="text-muted-foreground text-sm">
                                     Last seen @d.LastSeenAt.ToString("yyyy-MM-dd HH:mm")@(string.IsNullOrEmpty(d.LastIp) ? "" : $" · {d.LastIp}")
                                 </div>
                             </div>
-                            <div class="d-flex gap-2">
+                            <div class="flex gap-2">
                                 <form asp-area="Portal" asp-controller="Devices" asp-action="Trust" asp-route-id="@d.Id" method="post" class="m-0">
                                     <input type="hidden" name="trusted" value="@((!d.Trusted).ToString().ToLowerInvariant())" />
-                                    <button type="submit" class="btn btn-sm @(d.Trusted ? "btn-soft-secondary" : "btn-soft-primary")">
+                                    <button type="submit" class="btn btn-sm @(d.Trusted ? "btn-outline" : "btn-primary")">
                                         @(d.Trusted ? "Untrust" : "Trust")
                                     </button>
                                 </form>
                                 <form asp-area="Portal" asp-controller="Devices" asp-action="Forget" asp-route-id="@d.Id" method="post" class="m-0"
                                       onsubmit="return confirm('Forget this device?');">
-                                    <button type="submit" class="btn btn-sm btn-soft-danger">Forget</button>
+                                    <button type="submit" class="btn btn-sm btn-danger">Forget</button>
                                 </form>
                             </div>
                         </div>
                         <form asp-area="Portal" asp-controller="Devices" asp-action="Rename" asp-route-id="@d.Id" method="post"
-                              class="input-group input-group-sm mt-2" style="max-width:24rem;">
-                            <input name="label" class="form-control" value="@d.Label" maxlength="80" aria-label="Device name" />
-                            <button type="submit" class="btn btn-soft-secondary">Rename</button>
+                              class="flex gap-2 mt-2" style="max-width:24rem;">
+                            <input name="label" class="input input-sm" value="@d.Label" maxlength="80" aria-label="Device name" />
+                            <button type="submit" class="btn btn-sm btn-outline">Rename</button>
                         </form>
                     </div>
                 }

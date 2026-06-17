@@ -1,37 +1,37 @@
 @{
 }
 
-<div class="page-title-head mb-3">
-    <h4 class="mb-1">Try it out</h4>
-    <p class="text-muted mb-0">Verify everything works with a test login, then you're done.</p>
+<div class="flex items-center justify-between gap-3 mb-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Try it out</h1>
+        <p class="text-sm text-muted-foreground mt-0.5">Verify everything works with a test login, then you're done.</p>
+    </div>
 </div>
 
 @await Html.PartialAsync("_WizardSteps")
 
-<div class="row">
-    <div class="col-lg-8">
-        <div class="card">
-            <div class="card-header">Step 4 — Test login</div>
-            <div class="card-body">
-                <p>
-                    The <strong>Sandbox</strong> lets you validate a user's credentials against your tenant and
-                    shows the OAuth/OIDC endpoints to wire into your app — without affecting anything.
-                </p>
-                <ol class="text-muted">
-                    <li>Create a test user under <a asp-area="TenantAdmin" asp-controller="Users" asp-action="Index">Users</a> (or self-register on your hosted login page).</li>
-                    <li>Run a test login in the Sandbox to confirm the credentials resolve.</li>
-                    <li>Point your app at the discovery endpoint shown there.</li>
-                </ol>
-                <div class="d-flex gap-2">
-                    <a asp-area="TenantAdmin" asp-controller="Sandbox" asp-action="Index" class="btn btn-soft-primary">
-                        <i data-lucide="flask-conical" class="me-1"></i> Open Sandbox
-                    </a>
-                    <form asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="Finish" method="post">
-                        <button type="submit" class="btn btn-primary">
-                            <i data-lucide="check" class="me-1"></i> Finish setup
-                        </button>
-                    </form>
-                </div>
+<div class="max-w-3xl">
+    <div class="card">
+        <div class="card-header"><div class="card-title">Step 4 — Test login</div></div>
+        <div class="card-body">
+            <p>
+                The <strong>Sandbox</strong> lets you validate a user's credentials against your tenant and
+                shows the OAuth/OIDC endpoints to wire into your app — without affecting anything.
+            </p>
+            <ol class="text-muted-foreground list-decimal list-inside space-y-1 my-3">
+                <li>Create a test user under <a class="text-primary hover:underline" asp-area="TenantAdmin" asp-controller="Users" asp-action="Index">Users</a> (or self-register on your hosted login page).</li>
+                <li>Run a test login in the Sandbox to confirm the credentials resolve.</li>
+                <li>Point your app at the discovery endpoint shown there.</li>
+            </ol>
+            <div class="flex gap-2">
+                <a asp-area="TenantAdmin" asp-controller="Sandbox" asp-action="Index" class="btn btn-outline">
+                    <i data-lucide="flask-conical" class="size-4"></i> Open Sandbox
+                </a>
+                <form asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="Finish" method="post">
+                    <button type="submit" class="btn btn-primary">
+                        <i data-lucide="check" class="size-4"></i> Finish setup
+                    </button>
+                </form>
             </div>
         </div>
     </div>

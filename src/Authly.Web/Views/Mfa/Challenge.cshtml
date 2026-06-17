@@ -3,64 +3,58 @@
     Layout = "_AuthLayout";
 }
 
-<p class="text-center text-muted mb-4">Enter a verification code to finish signing in.</p>
+<p class="text-center text-muted-foreground mb-6">Enter a verification code to finish signing in.</p>
 
 @if (Model.Error is not null)
 {
-    <div class="alert alert-danger py-2 small">@Model.Error</div>
+    <div class="card card-body !py-2.5 mb-4 flex items-center gap-2 border-l-4 border-l-danger text-sm"><i data-lucide="alert-circle" class="size-4 text-coral"></i>@Model.Error</div>
 }
 
 @if (Model.Methods.Totp)
 {
-    <form asp-controller="Mfa" asp-action="VerifyTotp" method="post" class="mb-3">
-        <label class="form-label">Authenticator app code</label>
-        <input name="code" class="form-control text-center" inputmode="numeric" autocomplete="one-time-code"
+    <form asp-controller="Mfa" asp-action="VerifyTotp" method="post" class="space-y-2 mb-4">
+        <label class="label">Authenticator app code</label>
+        <input name="code" class="input text-center tracking-[.4em] text-lg" inputmode="numeric" autocomplete="one-time-code"
                maxlength="6" placeholder="123456" autofocus />
-        <div class="d-grid mt-2">
-            <button type="submit" class="btn btn-primary">Verify</button>
-        </div>
+        <button type="submit" class="btn btn-primary w-full">Verify</button>
     </form>
 }
 
 @if (Model.Methods.EmailOtp)
 {
-    <hr class="my-3" />
+    <div class="my-4 flex items-center gap-3"><div class="h-px flex-1 bg-border"></div><span class="text-xs text-muted-foreground">or</span><div class="h-px flex-1 bg-border"></div></div>
     @if (Model.EmailOtpSent)
     {
-        <form asp-controller="Mfa" asp-action="VerifyEmail" method="post" class="mb-2">
-            <label class="form-label">Emailed code</label>
-            <input name="code" class="form-control text-center" inputmode="numeric" autocomplete="one-time-code"
+        <form asp-controller="Mfa" asp-action="VerifyEmail" method="post" class="space-y-2 mb-2">
+            <label class="label">Emailed code</label>
+            <input name="code" class="input text-center tracking-[.4em] text-lg" inputmode="numeric" autocomplete="one-time-code"
                    maxlength="6" placeholder="123456" />
-            <div class="d-grid mt-2">
-                <button type="submit" class="btn btn-primary">Verify emailed code</button>
-            </div>
+            <button type="submit" class="btn btn-primary w-full">Verify emailed code</button>
         </form>
-        <form asp-controller="Mfa" asp-action="SendEmail" method="post" class="d-grid">
-            <button type="submit" class="btn btn-link btn-sm">Resend code</button>
+        <form asp-controller="Mfa" asp-action="SendEmail" method="post">
+            <button type="submit" class="btn btn-ghost btn-sm w-full">Resend code</button>
         </form>
     }
     else
     {
-        <form asp-controller="Mfa" asp-action="SendEmail" method="post" class="d-grid">
-            <button type="submit" class="btn btn-outline-secondary">Email me a code</button>
+        <form asp-controller="Mfa" asp-action="SendEmail" method="post">
+            <button type="submit" class="btn btn-outline w-full">Email me a code</button>
         </form>
     }
 }
 
 @if (Model.Methods.BackupCodes)
 {
-    <hr class="my-3" />
+    <div class="my-4 flex items-center gap-3"><div class="h-px flex-1 bg-border"></div><span class="text-xs text-muted-foreground">or</span><div class="h-px flex-1 bg-border"></div></div>
     <details>
-        <summary class="small text-muted mb-2" style="cursor:pointer">Use a backup code instead</summary>
-        <form asp-controller="Mfa" asp-action="VerifyBackup" method="post" class="mt-2">
-            <input name="code" class="form-control text-center" autocomplete="off" placeholder="xxxxx-xxxxx" />
-            <div class="d-grid mt-2">
-                <button type="submit" class="btn btn-outline-secondary">Verify backup code</button>
-            </div>
+        <summary class="text-sm text-muted-foreground mb-2 cursor-pointer">Use a backup code instead</summary>
+        <form asp-controller="Mfa" asp-action="VerifyBackup" method="post" class="space-y-2 mt-2">
+            <input name="code" class="input text-center" autocomplete="off" placeholder="xxxxx-xxxxx" />
+            <button type="submit" class="btn btn-outline w-full">Verify backup code</button>
         </form>
     </details>
 }
 
-<p class="text-center text-muted small mt-4 mb-0">
-    <a asp-controller="Account" asp-action="Login">Cancel and sign in again</a>
+<p class="text-center text-sm text-muted-foreground mt-6 mb-0">
+    <a class="text-primary hover:underline" asp-controller="Account" asp-action="Login">Cancel and sign in again</a>
 </p>

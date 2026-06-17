@@ -1,0 +1,9 @@
+# Build outputs
+**/bin
+**/obj
+# Node tooling (Tailwind deps are installed fresh in the build stage)
+**/node_modules
+# VCS / IDE
+.git
+.vs
+.vscode

@@ -3,25 +3,27 @@
     var phone = ViewData["Phone"] as string;
 }
 
-<div class="page-title-head">
-    <h4>Email &amp; phone</h4>
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Email &amp; phone</h1>
+    </div>
 </div>
 
-<p class="text-muted small">
+<p class="text-sm text-muted-foreground mt-2">
     Changing your email or phone is a two-step process: you confirm the new contact, and we alert your
     current email with a link to cancel if it wasn't you.
 </p>
 
-<div class="row g-4">
-    <div class="col-lg-6">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+    <div>
         <div class="card">
-            <div class="card-header">Email address</div>
+            <div class="card-header"><span class="card-title">Email address</span></div>
             <div class="card-body">
                 <p class="mb-3">Current: <strong>@email</strong></p>
-                <form asp-area="Portal" asp-controller="Contact" asp-action="ChangeEmail" method="post">
-                    <div class="mb-3">
-                        <label class="form-label">New email</label>
-                        <input name="newEmail" type="email" class="form-control" placeholder="new@example.com" required />
+                <form asp-area="Portal" asp-controller="Contact" asp-action="ChangeEmail" method="post" class="space-y-4">
+                    <div>
+                        <label class="label">New email</label>
+                        <input name="newEmail" type="email" class="input" placeholder="new@example.com" required />
                     </div>
                     <button type="submit" class="btn btn-primary">Change email</button>
                 </form>
@@ -29,18 +31,18 @@
         </div>
     </div>
 
-    <div class="col-lg-6">
+    <div>
         <div class="card">
-            <div class="card-header">Phone number</div>
+            <div class="card-header"><span class="card-title">Phone number</span></div>
             <div class="card-body">
                 <p class="mb-3">Current: <strong>@(string.IsNullOrEmpty(phone) ? "—" : phone)</strong></p>
-                <form asp-area="Portal" asp-controller="Contact" asp-action="ChangePhone" method="post">
-                    <div class="mb-3">
-                        <label class="form-label">New phone</label>
-                        <input name="newPhone" class="form-control" placeholder="+1 555 123 4567" required />
+                <form asp-area="Portal" asp-controller="Contact" asp-action="ChangePhone" method="post" class="space-y-4">
+                    <div>
+                        <label class="label">New phone</label>
+                        <input name="newPhone" class="input" placeholder="+1 555 123 4567" required />
                     </div>
                     <button type="submit" class="btn btn-primary">Change phone</button>
-                    <div class="form-text">A confirmation link is sent to the new number over WhatsApp.</div>
+                    <p class="mt-1 text-xs text-muted-foreground">A confirmation link is sent to the new number over WhatsApp.</p>
                 </form>
             </div>
         </div>

@@ -1,49 +1,51 @@
 @model IReadOnlyList<RecoveryContactSummary>
 @using Authly.Core.Enums
 
-<div class="page-title-head">
-    <h4>Account recovery</h4>
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Account recovery</h1>
+    </div>
 </div>
 
-<p class="text-muted small">
+<p class="text-sm text-muted-foreground mt-2">
     Add a backup email or phone. If you ever lose access, we'll send a recovery link to every contact here.
     Recovery also accepts your MFA backup codes.
 </p>
 
-<div class="row g-4">
-    <div class="col-lg-7">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mt-4">
+    <div class="lg:col-span-7">
         <div class="card">
-            <div class="card-header">Recovery contacts</div>
-            <div class="table-responsive">
-                <table class="table align-middle mb-0">
-                    <thead><tr><th>Type</th><th>Contact</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+            <div class="card-header"><span class="card-title">Recovery contacts</span></div>
+            <div class="overflow-x-auto scroll-thin">
+                <table class="table">
+                    <thead><tr><th>Type</th><th>Contact</th><th>Status</th><th class="text-right">Action</th></tr></thead>
                     <tbody>
                         @foreach (var c in Model)
                         {
                             <tr>
-                                <td class="text-capitalize">@c.Type.ToString().ToLowerInvariant()</td>
+                                <td class="capitalize">@c.Type.ToString().ToLowerInvariant()</td>
                                 <td>@c.Value</td>
                                 <td>
                                     @if (c.Verified)
                                     {
-                                        <span class="badge bg-soft-success">verified</span>
+                                        <span class="badge badge-success">verified</span>
                                     }
                                     else
                                     {
-                                        <span class="badge badge-lighten-secondary">unverified</span>
+                                        <span class="badge badge-neutral">unverified</span>
                                     }
                                 </td>
-                                <td class="text-end">
+                                <td class="text-right">
                                     <form asp-area="Portal" asp-controller="Recovery" asp-action="Remove" asp-route-id="@c.Id" method="post"
                                           onsubmit="return confirm('Remove this recovery contact?');">
-                                        <button type="submit" class="btn btn-sm btn-soft-danger">Remove</button>
+                                        <button type="submit" class="btn btn-sm btn-danger">Remove</button>
                                     </form>
                                 </td>
                             </tr>
                         }
                         @if (Model.Count == 0)
                         {
-                            <tr><td colspan="4" class="text-center text-muted py-4">No recovery contacts yet.</td></tr>
+                            <tr><td colspan="4" class="text-center text-muted-foreground py-4">No recovery contacts yet.</td></tr>
                         }
                     </tbody>
                 </table>
@@ -51,21 +53,21 @@
         </div>
     </div>
 
-    <div class="col-lg-5">
+    <div class="lg:col-span-5">
         <div class="card">
-            <div class="card-header">Add a contact</div>
+            <div class="card-header"><span class="card-title">Add a contact</span></div>
             <div class="card-body">
-                <form asp-area="Portal" asp-controller="Recovery" asp-action="Add" method="post">
-                    <div class="mb-3">
-                        <label class="form-label">Type</label>
-                        <select name="type" class="form-select">
+                <form asp-area="Portal" asp-controller="Recovery" asp-action="Add" method="post" class="space-y-4">
+                    <div>
+                        <label class="label">Type</label>
+                        <select name="type" class="select">
                             <option value="@ContactType.Email">Email</option>
                             <option value="@ContactType.Phone">Phone</option>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Contact</label>
-                        <input name="value" class="form-control" placeholder="backup@example.com or +1..." />
+                    <div>
+                        <label class="label">Contact</label>
+                        <input name="value" class="input" placeholder="backup@example.com or +1..." />
                     </div>
                     <button type="submit" class="btn btn-primary">Add contact</button>
                 </form>

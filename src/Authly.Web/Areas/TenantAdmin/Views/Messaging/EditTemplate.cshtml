@@ -4,13 +4,15 @@
     var preview = ViewData["Preview"] as RenderedPreview;
 }
 
-<div class="page-title-head mb-3">
-    <h4 class="mb-0">Edit template — <code>@Model.Key</code></h4>
-    <div class="small text-muted">@Model.Channel · @Model.Locale</div>
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Edit template — <code>@Model.Key</code></h1>
+        <p class="text-sm text-muted-foreground mt-0.5">@Model.Channel · @Model.Locale</p>
+    </div>
 </div>
 
-<div class="row g-3">
-    <div class="col-lg-7">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mt-4">
+    <div class="lg:col-span-7">
         <div class="card">
             <div class="card-body">
                 <form asp-area="TenantAdmin" asp-controller="Messaging" asp-action="SaveTemplate" method="post">
@@ -19,58 +21,58 @@
                     <input type="hidden" asp-for="Channel" />
                     <input type="hidden" asp-for="Locale" />
 
-                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+                    <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
 
                     @if (isEmail)
                     {
                         <div class="mb-3">
-                            <label asp-for="Subject" class="form-label">Subject</label>
-                            <input asp-for="Subject" class="form-control" />
+                            <label asp-for="Subject" class="label">Subject</label>
+                            <input asp-for="Subject" class="input" />
                         </div>
                     }
                     <div class="mb-3">
-                        <label asp-for="Body" class="form-label">Body @(isEmail ? "(HTML)" : "(text)")</label>
-                        <textarea asp-for="Body" class="form-control font-monospace" rows="12"></textarea>
-                        <span asp-validation-for="Body" class="text-danger small"></span>
+                        <label asp-for="Body" class="label">Body @(isEmail ? "(HTML)" : "(text)")</label>
+                        <textarea asp-for="Body" class="textarea font-mono" rows="12"></textarea>
+                        <span asp-validation-for="Body" class="text-danger text-xs"></span>
                     </div>
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" asp-for="IsActive" id="isActive" />
-                        <label class="form-check-label" for="isActive">Active</label>
+                    <div class="flex items-center gap-2 mb-3">
+                        <label class="switch"><input asp-for="IsActive" type="checkbox" id="isActive" /><span class="track"></span></label>
+                        <span>Active</span>
                     </div>
 
-                    <div class="d-flex gap-2">
+                    <div class="flex gap-2">
                         <button type="submit" name="action" value="save" class="btn btn-primary">Save</button>
-                        <button type="submit" name="action" value="preview" class="btn btn-soft-secondary">Preview</button>
-                        <a class="btn btn-link" asp-area="TenantAdmin" asp-controller="Messaging" asp-action="Templates">Cancel</a>
+                        <button type="submit" name="action" value="preview" class="btn btn-outline">Preview</button>
+                        <a class="btn btn-ghost" asp-area="TenantAdmin" asp-controller="Messaging" asp-action="Templates">Cancel</a>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <div class="col-lg-5">
+    <div class="lg:col-span-5">
         <div class="card">
             <div class="card-body">
-                <h6 class="mb-2">Available variables</h6>
-                <p class="small text-muted">Insert with <code>{{'{{'}}variable{{'}}'}}</code>. Common ones:</p>
-                <div class="small font-monospace">
+                <h6 class="mb-2 font-semibold">Available variables</h6>
+                <p class="text-sm text-muted-foreground">Insert with <code>{{'{{'}}variable{{'}}'}}</code>. Common ones:</p>
+                <div class="text-sm font-mono">
                     {{app_name}} · {{user_name}} · {{action_url}} · {{otp}} · {{expiry_hours}} · {{expiry_minutes}}
                 </div>
                 @if (preview is not null)
                 {
-                    <hr />
-                    <h6 class="mb-2">Preview</h6>
+                    <hr class="my-4 border-border" />
+                    <h6 class="mb-2 font-semibold">Preview</h6>
                     @if (preview.Subject is not null)
                     {
-                        <div class="small text-muted mb-1">Subject: <strong>@preview.Subject</strong></div>
+                        <div class="text-sm text-muted-foreground mb-1">Subject: <strong>@preview.Subject</strong></div>
                     }
                     @if (isEmail)
                     {
-                        <div class="border rounded p-2 bg-white">@Html.Raw(preview.Body)</div>
+                        <div class="border border-border rounded p-2 bg-background">@Html.Raw(preview.Body)</div>
                     }
                     else
                     {
-                        <div class="border rounded p-2 bg-light small">@preview.Body</div>
+                        <div class="border border-border rounded p-2 bg-muted text-sm">@preview.Body</div>
                     }
                 }
             </div>

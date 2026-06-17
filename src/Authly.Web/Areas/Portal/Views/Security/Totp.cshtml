@@ -1,44 +1,51 @@
 @model SecurityTotpSetupViewModel
 
-<div class="page-title-head">
-    <h4>Add authenticator app</h4>
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Add authenticator app</h1>
+    </div>
 </div>
 
-<div class="row">
-    <div class="col-lg-6">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mt-4">
+    <div class="lg:col-span-6">
         <div class="card">
             <div class="card-body">
-                <p class="text-muted small mb-3">
+                <p class="text-sm text-muted-foreground mb-3">
                     Scan the QR code with your authenticator app, then enter the 6-digit code to confirm.
                 </p>
 
                 @if (Model.Error is not null)
                 {
-                    <div class="alert alert-danger py-2 small">@Model.Error</div>
+                    <div class="card card-body !py-3 flex items-center gap-3 border-l-4 border-l-danger mb-3">
+                        <i data-lucide="alert-circle" class="size-5 text-danger shrink-0"></i>
+                        <span class="text-sm">@Model.Error</span>
+                    </div>
                 }
 
                 <div class="text-center mb-3">
-                    <div class="d-inline-block p-2 bg-white rounded border" style="max-width:200px">@Html.Raw(Model.QrSvg)</div>
+                    <div class="inline-block p-2 bg-white rounded border" style="max-width:200px">@Html.Raw(Model.QrSvg)</div>
                 </div>
 
-                <p class="text-center small text-muted">
-                    Can't scan? Enter this key manually:<br /><code>@Model.Secret</code>
+                <p class="text-center text-sm text-muted-foreground">
+                    Can't scan? Enter this key manually:<br /><code class="kbd">@Model.Secret</code>
                 </p>
 
-                <form asp-area="Portal" asp-controller="Security" asp-action="Totp" method="post">
+                <form asp-area="Portal" asp-controller="Security" asp-action="Totp" method="post" class="space-y-4">
                     <input type="hidden" asp-for="FactorId" />
-                    <div class="mb-3">
-                        <label asp-for="FriendlyName" class="form-label"></label>
-                        <input asp-for="FriendlyName" class="form-control" placeholder="e.g. My phone" />
+                    <div>
+                        <label asp-for="FriendlyName" class="label"></label>
+                        <input asp-for="FriendlyName" class="input" placeholder="e.g. My phone" />
                     </div>
-                    <div class="mb-3">
-                        <label asp-for="Code" class="form-label"></label>
-                        <input asp-for="Code" class="form-control" inputmode="numeric" autocomplete="one-time-code"
+                    <div>
+                        <label asp-for="Code" class="label"></label>
+                        <input asp-for="Code" class="input text-center tracking-[.4em]" inputmode="numeric" autocomplete="one-time-code"
                                maxlength="6" placeholder="123456" autofocus />
-                        <span asp-validation-for="Code" class="text-danger small"></span>
+                        <span asp-validation-for="Code" class="text-danger text-xs"></span>
                     </div>
-                    <button type="submit" class="btn btn-primary">Confirm</button>
-                    <a class="btn btn-link" asp-area="Portal" asp-controller="Security" asp-action="Index">Cancel</a>
+                    <div class="flex gap-2 pt-1">
+                        <button type="submit" class="btn btn-primary">Confirm</button>
+                        <a class="btn btn-ghost" asp-area="Portal" asp-controller="Security" asp-action="Index">Cancel</a>
+                    </div>
                 </form>
             </div>
         </div>

@@ -1,16 +1,19 @@
 @model IReadOnlyList<TemplateListItem>
 
-<div class="page-title-head d-flex align-items-center justify-content-between mb-3">
-    <h4 class="mb-0">Message templates</h4>
-    <a class="btn btn-soft-secondary btn-sm" asp-area="TenantAdmin" asp-controller="Messaging" asp-action="Index">
-        <i data-lucide="arrow-left" class="me-1"></i> Back to messaging
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Message templates</h1>
+        <p class="text-sm text-muted-foreground mt-0.5">Customize the email and WhatsApp messages Authly sends.</p>
+    </div>
+    <a class="btn btn-outline btn-sm" asp-area="TenantAdmin" asp-controller="Messaging" asp-action="Index">
+        <i data-lucide="arrow-left" class="size-4"></i> Back to messaging
     </a>
 </div>
 
-<div class="card">
+<div class="card mt-4">
     <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+        <div class="overflow-x-auto scroll-thin">
+            <table class="table">
                 <thead>
                     <tr><th>Template</th><th>Channel</th><th>Locale</th><th>Source</th><th></th></tr>
                 </thead>
@@ -18,30 +21,30 @@
                 @foreach (var t in Model)
                 {
                     <tr>
-                        <td class="fw-medium"><code>@t.Key</code><div class="small text-muted">@t.Subject</div></td>
+                        <td class="font-medium"><code>@t.Key</code><div class="text-xs text-muted-foreground">@t.Subject</div></td>
                         <td>@t.Channel</td>
                         <td>@t.Locale</td>
                         <td>
-                            @if (t.IsOverride) { <span class="badge bg-soft-primary">custom</span> }
-                            else { <span class="badge bg-soft-secondary">built-in</span> }
+                            @if (t.IsOverride) { <span class="badge badge-primary">custom</span> }
+                            else { <span class="badge badge-neutral">built-in</span> }
                         </td>
-                        <td class="text-end">
-                            <div class="d-flex gap-2 justify-content-end align-items-center">
-                                <form asp-area="TenantAdmin" asp-controller="Messaging" asp-action="SendTest" method="post" class="d-flex gap-1">
+                        <td class="text-right">
+                            <div class="flex gap-2 justify-end items-center">
+                                <form asp-area="TenantAdmin" asp-controller="Messaging" asp-action="SendTest" method="post" class="flex gap-1">
                                     <input type="hidden" name="key" value="@t.Key" />
                                     <input type="hidden" name="channel" value="@t.Channel" />
-                                    <input type="text" name="recipient" class="form-control form-control-sm" style="width:170px"
+                                    <input type="text" name="recipient" class="input input-sm" style="width:170px"
                                            placeholder="@(t.Channel == MessageChannel.Email ? "test@addr" : "phone")" />
-                                    <button type="submit" class="btn btn-soft-secondary btn-sm" title="Send test">Test</button>
+                                    <button type="submit" class="btn btn-outline btn-sm" title="Send test">Test</button>
                                 </form>
-                                <a class="btn btn-soft-primary btn-sm"
+                                <a class="btn btn-primary btn-sm"
                                    asp-area="TenantAdmin" asp-controller="Messaging" asp-action="EditTemplate"
                                    asp-route-key="@t.Key" asp-route-channel="@t.Channel" asp-route-locale="@t.Locale">Edit</a>
                                 @if (t.IsOverride && t.Id is { } id)
                                 {
                                     <form asp-area="TenantAdmin" asp-controller="Messaging" asp-action="DeleteTemplate" asp-route-id="@id" method="post"
                                           onsubmit="return confirm('Reset this template to the built-in default?');">
-                                        <button type="submit" class="btn btn-soft-danger btn-sm">Reset</button>
+                                        <button type="submit" class="btn btn-danger btn-sm">Reset</button>
                                     </form>
                                 }
                             </div>

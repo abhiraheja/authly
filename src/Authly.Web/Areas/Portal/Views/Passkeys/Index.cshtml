@@ -1,45 +1,50 @@
 @model IReadOnlyList<PasskeySummary>
 
-<div class="page-title-head">
-    <h4>Passkeys</h4>
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Passkeys</h1>
+    </div>
     <button type="button" id="addPasskey" class="btn btn-primary btn-sm">
-        <i data-lucide="plus" class="me-1"></i> Add a passkey
+        <i data-lucide="plus" class="size-4"></i> Add a passkey
     </button>
 </div>
 
-<p class="text-muted small">
+<p class="text-sm text-muted-foreground mt-2">
     Passkeys let you sign in with your device's fingerprint, face, or PIN — no password to remember or phish.
 </p>
 
 @Html.AntiForgeryToken()
-<div id="passkeyError" class="alert alert-danger py-2 small d-none"></div>
+<div id="passkeyError" class="card card-body !py-3 flex items-center gap-3 border-l-4 border-l-danger hidden">
+    <i data-lucide="alert-circle" class="size-5 text-danger shrink-0"></i>
+    <span class="text-sm" data-passkey-error-text></span>
+</div>
 
-<div class="row">
-    <div class="col-lg-8">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mt-4">
+    <div class="lg:col-span-8">
         <div class="card">
-            <div class="table-responsive">
-                <table class="table align-middle mb-0">
+            <div class="overflow-x-auto scroll-thin">
+                <table class="table">
                     <thead>
-                        <tr><th>Name</th><th>Added</th><th>Last used</th><th class="text-end">Action</th></tr>
+                        <tr><th>Name</th><th>Added</th><th>Last used</th><th class="text-right">Action</th></tr>
                     </thead>
                     <tbody>
                         @foreach (var p in Model)
                         {
                             <tr>
-                                <td class="fw-medium">@(p.FriendlyName ?? "Passkey")</td>
-                                <td class="text-muted">@p.CreatedAt.ToString("yyyy-MM-dd")</td>
-                                <td class="text-muted">@(p.LastUsedAt?.ToString("yyyy-MM-dd") ?? "—")</td>
-                                <td class="text-end">
+                                <td class="font-medium">@(p.FriendlyName ?? "Passkey")</td>
+                                <td class="text-muted-foreground">@p.CreatedAt.ToString("yyyy-MM-dd")</td>
+                                <td class="text-muted-foreground">@(p.LastUsedAt?.ToString("yyyy-MM-dd") ?? "—")</td>
+                                <td class="text-right">
                                     <form asp-area="Portal" asp-controller="Passkeys" asp-action="Remove" asp-route-id="@p.Id" method="post"
                                           onsubmit="return confirm('Remove this passkey?');">
-                                        <button type="submit" class="btn btn-sm btn-soft-danger">Remove</button>
+                                        <button type="submit" class="btn btn-sm btn-danger">Remove</button>
                                     </form>
                                 </td>
                             </tr>
                         }
                         @if (Model.Count == 0)
                         {
-                            <tr><td colspan="4" class="text-center text-muted py-4">No passkeys yet.</td></tr>
+                            <tr><td colspan="4" class="text-center text-muted-foreground py-4">No passkeys yet.</td></tr>
                         }
                     </tbody>
                 </table>
@@ -53,12 +58,13 @@
 <script>
     document.getElementById('addPasskey')?.addEventListener('click', function () {
         const err = document.getElementById('passkeyError');
-        err.classList.add('d-none');
+        const errText = err.querySelector('[data-passkey-error-text]');
+        err.classList.add('hidden');
         const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
         const name = prompt('Name this passkey (e.g. "MacBook Touch ID"):', 'My device');
         if (name === null) return;
         authlyPasskeyRegister('/portal/passkeys/begin', '/portal/passkeys/complete', name, token,
-            function (msg) { err.textContent = msg; err.classList.remove('d-none'); },
+            function (msg) { errText.textContent = msg; err.classList.remove('hidden'); },
             function () { window.location.reload(); });
     });
 </script>

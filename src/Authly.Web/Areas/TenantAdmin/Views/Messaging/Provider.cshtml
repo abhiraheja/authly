@@ -4,22 +4,24 @@
     var configured = Model.Id is not null;
 }
 
-<div class="page-title-head mb-3">
-    <h4 class="mb-0">@(isEmail ? "Email" : "WhatsApp") provider</h4>
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">@(isEmail ? "Email" : "WhatsApp") provider</h1>
+    </div>
 </div>
 
-<div class="card">
+<div class="card mt-4">
     <div class="card-body">
         <form asp-area="TenantAdmin" asp-controller="Messaging" asp-action="SaveProvider" method="post">
             <input type="hidden" asp-for="Id" />
             <input type="hidden" asp-for="Channel" />
 
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label asp-for="Provider" class="form-label">Provider</label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label asp-for="Provider" class="label">Provider</label>
                     @if (isEmail)
                     {
-                        <select asp-for="Provider" class="form-select">
+                        <select asp-for="Provider" class="select">
                             <option value="smtp">SMTP</option>
                             <option value="zepto">ZeptoMail</option>
                             <option value="log">Log (dev)</option>
@@ -27,89 +29,85 @@
                     }
                     else
                     {
-                        <select asp-for="Provider" class="form-select">
+                        <select asp-for="Provider" class="select">
                             <option value="msg91">MSG91</option>
                             <option value="gupshup">Gupshup</option>
                             <option value="log">Log (dev)</option>
                         </select>
                     }
                 </div>
-                <div class="col-md-6 d-flex align-items-end">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" asp-for="IsActive" id="isActive" />
-                        <label class="form-check-label" for="isActive">Active</label>
-                    </div>
+                <div class="flex items-end">
+                    <label class="switch"><input asp-for="IsActive" type="checkbox" id="isActive" /><span class="track"></span></label>
+                    <span class="ml-2">Active</span>
                 </div>
             </div>
 
             @if (isEmail)
             {
-                <hr />
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label asp-for="SenderEmail" class="form-label">Sender email</label>
-                        <input asp-for="SenderEmail" class="form-control" placeholder="no-reply@yourdomain.com" />
+                <hr class="my-4 border-border" />
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label asp-for="SenderEmail" class="label">Sender email</label>
+                        <input asp-for="SenderEmail" class="input" placeholder="no-reply@yourdomain.com" />
                     </div>
-                    <div class="col-md-6">
-                        <label asp-for="SenderName" class="form-label">Sender name</label>
-                        <input asp-for="SenderName" class="form-control" placeholder="Your App" />
+                    <div>
+                        <label asp-for="SenderName" class="label">Sender name</label>
+                        <input asp-for="SenderName" class="input" placeholder="Your App" />
                     </div>
-                    <div class="col-md-4">
-                        <label asp-for="Host" class="form-label">SMTP host</label>
-                        <input asp-for="Host" class="form-control" placeholder="smtp.provider.com" />
+                    <div>
+                        <label asp-for="Host" class="label">SMTP host</label>
+                        <input asp-for="Host" class="input" placeholder="smtp.provider.com" />
                     </div>
-                    <div class="col-md-2">
-                        <label asp-for="Port" class="form-label">Port</label>
-                        <input asp-for="Port" class="form-control" placeholder="587" />
+                    <div>
+                        <label asp-for="Port" class="label">Port</label>
+                        <input asp-for="Port" class="input" placeholder="587" />
                     </div>
-                    <div class="col-md-6 d-flex align-items-end">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" asp-for="UseSsl" id="useSsl" />
-                            <label class="form-check-label" for="useSsl">Use SSL/TLS</label>
-                        </div>
+                    <div class="flex items-end">
+                        <label class="switch"><input asp-for="UseSsl" type="checkbox" id="useSsl" /><span class="track"></span></label>
+                        <span class="ml-2">Use SSL/TLS</span>
                     </div>
-                    <div class="col-md-6">
-                        <label asp-for="Username" class="form-label">SMTP username</label>
-                        <input asp-for="Username" class="form-control" autocomplete="off" />
+                    <div>
+                        <label asp-for="Username" class="label">SMTP username</label>
+                        <input asp-for="Username" class="input" autocomplete="off" />
                     </div>
-                    <div class="col-md-6">
-                        <label asp-for="Password" class="form-label">SMTP password @(configured ? "(leave blank to keep)" : "")</label>
-                        <input asp-for="Password" type="password" class="form-control" autocomplete="new-password" />
+                    <div>
+                        <label asp-for="Password" class="label">SMTP password @(configured ? "(leave blank to keep)" : "")</label>
+                        <input asp-for="Password" type="password" class="input" autocomplete="new-password" />
                     </div>
-                    <div class="col-12">
-                        <label asp-for="ApiKey" class="form-label">API key (for ZeptoMail) @(configured ? "(leave blank to keep)" : "")</label>
-                        <input asp-for="ApiKey" type="password" class="form-control" autocomplete="new-password"
+                    <div class="md:col-span-2">
+                        <label asp-for="ApiKey" class="label">API key (for ZeptoMail) @(configured ? "(leave blank to keep)" : "")</label>
+                        <input asp-for="ApiKey" type="password" class="input" autocomplete="new-password"
                                placeholder="Zoho-enczapikey ..." />
                     </div>
                 </div>
             }
             else
             {
-                <hr />
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label asp-for="Sender" class="form-label">Sender / integrated number</label>
-                        <input asp-for="Sender" class="form-control" placeholder="15550001111" />
+                <hr class="my-4 border-border" />
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label asp-for="Sender" class="label">Sender / integrated number</label>
+                        <input asp-for="Sender" class="input" placeholder="15550001111" />
                     </div>
-                    <div class="col-md-6">
-                        <label asp-for="AccountId" class="form-label">Account / namespace id</label>
-                        <input asp-for="AccountId" class="form-control" />
+                    <div>
+                        <label asp-for="AccountId" class="label">Account / namespace id</label>
+                        <input asp-for="AccountId" class="input" />
                     </div>
-                    <div class="col-12">
-                        <label asp-for="ApiKey" class="form-label">API key / authkey @(configured ? "(leave blank to keep)" : "")</label>
-                        <input asp-for="ApiKey" type="password" class="form-control" autocomplete="new-password" />
+                    <div class="md:col-span-2">
+                        <label asp-for="ApiKey" class="label">API key / authkey @(configured ? "(leave blank to keep)" : "")</label>
+                        <input asp-for="ApiKey" type="password" class="input" autocomplete="new-password" />
                     </div>
                 </div>
             }
 
-            <div class="d-flex gap-2 mt-4">
+            <div class="flex gap-2 mt-4">
                 <button type="submit" class="btn btn-primary">Save</button>
-                <a class="btn btn-soft-secondary" asp-area="TenantAdmin" asp-controller="Messaging" asp-action="Index">Cancel</a>
+                <a class="btn btn-outline" asp-area="TenantAdmin" asp-controller="Messaging" asp-action="Index">Cancel</a>
                 @if (configured)
                 {
                     <form asp-area="TenantAdmin" asp-controller="Messaging" asp-action="DeleteProvider" asp-route-id="@Model.Id" method="post"
                           class="ms-auto" onsubmit="return confirm('Remove this provider? Delivery will fall back to local logging.');">
-                        <button type="submit" class="btn btn-soft-danger">Remove</button>
+                        <button type="submit" class="btn btn-danger">Remove</button>
                     </form>
                 }
             </div>
@@ -117,6 +115,6 @@
     </div>
 </div>
 
-<p class="small text-muted mt-3">
-    <i data-lucide="shield" class="me-1"></i> Secret fields (passwords, API keys) are encrypted at rest and never shown again after saving.
+<p class="text-sm text-muted-foreground mt-3 flex items-center gap-2">
+    <i data-lucide="shield" class="size-4"></i> Secret fields (passwords, API keys) are encrypted at rest and never shown again after saving.
 </p>

@@ -2,16 +2,16 @@
     ViewData["Title"] = "Authly";
 }
 
-<div class="text-center py-5">
-    <h1 class="display-5 fw-bold">Authly</h1>
-    <p class="lead text-muted">Free, open-source, multi-tenant Identity-as-a-Service.</p>
-    <div class="d-flex gap-2 justify-content-center mt-4">
+<div class="text-center py-12">
+    <h1 class="font-display text-4xl font-bold">Authly</h1>
+    <p class="text-lg text-muted-foreground mt-2">Free, open-source, multi-tenant Identity-as-a-Service.</p>
+    <div class="flex gap-2 justify-center mt-6">
         <a class="btn btn-primary" asp-controller="Signup" asp-action="Index">Create your workspace</a>
-        <a class="btn btn-outline-secondary" asp-area="TenantAdmin" asp-controller="Account" asp-action="Login">Admin sign in</a>
-        <a class="btn btn-outline-secondary" href="/docs">Developer Docs</a>
+        <a class="btn btn-outline" asp-area="TenantAdmin" asp-controller="Account" asp-action="Login">Admin sign in</a>
+        <a class="btn btn-outline" href="/docs">Developer Docs</a>
     </div>
     @if (ViewBag.SuperAdminEnabled is true)
     {
-        <p class="mt-4 mb-0"><a class="text-muted small" href="/superadmin/account/login">Platform super-admin console</a></p>
+        <p class="mt-6 mb-0"><a class="text-sm text-muted-foreground hover:underline" href="/superadmin/account/login">Platform super-admin console</a></p>
     }
 </div>

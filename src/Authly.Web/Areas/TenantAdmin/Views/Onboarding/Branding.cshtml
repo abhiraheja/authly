@@ -1,41 +1,41 @@
 @model OnboardingBrandingViewModel
 
-<div class="page-title-head mb-3">
-    <h4 class="mb-1">Make it yours</h4>
-    <p class="text-muted mb-0">A logo and brand color personalize your hosted login page. You can fine-tune later.</p>
+<div class="flex items-center justify-between gap-3 mb-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Make it yours</h1>
+        <p class="text-sm text-muted-foreground mt-0.5">A logo and brand color personalize your hosted login page. You can fine-tune later.</p>
+    </div>
 </div>
 
 @await Html.PartialAsync("_WizardSteps")
 
-<div class="row">
-    <div class="col-lg-8">
-        <div class="card">
-            <div class="card-header">Step 3 — Branding</div>
-            <div class="card-body">
-                <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
-                <form asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="Branding" method="post">
-                    <div class="mb-3">
-                        <label asp-for="LogoUrl" class="form-label"></label>
-                        <input asp-for="LogoUrl" class="form-control" placeholder="https://cdn.yourcompany.com/logo.svg" />
-                        <span asp-validation-for="LogoUrl" class="text-danger small"></span>
+<div class="max-w-3xl">
+    <div class="card">
+        <div class="card-header"><div class="card-title">Step 3 — Branding</div></div>
+        <div class="card-body">
+            <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
+            <form asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="Branding" method="post" class="space-y-4">
+                <div>
+                    <label asp-for="LogoUrl" class="label"></label>
+                    <input asp-for="LogoUrl" class="input" placeholder="https://cdn.yourcompany.com/logo.svg" />
+                    <span asp-validation-for="LogoUrl" class="text-danger text-xs"></span>
+                </div>
+                <div>
+                    <label asp-for="PrimaryColor" class="label"></label>
+                    <div class="flex gap-2">
+                        <input type="color" class="input h-10 w-16 p-1" value="@Model.PrimaryColor"
+                               oninput="document.getElementById('PrimaryColor').value = this.value" />
+                        <input asp-for="PrimaryColor" id="PrimaryColor" class="input" />
                     </div>
-                    <div class="mb-3">
-                        <label asp-for="PrimaryColor" class="form-label"></label>
-                        <div class="input-group">
-                            <input type="color" class="form-control form-control-color" value="@Model.PrimaryColor"
-                                   oninput="document.getElementById('PrimaryColor').value = this.value" />
-                            <input asp-for="PrimaryColor" id="PrimaryColor" class="form-control" />
-                        </div>
-                        <span asp-validation-for="PrimaryColor" class="text-danger small"></span>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <a asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="TestLogin" class="text-muted small">Skip</a>
-                        <button type="submit" class="btn btn-primary">
-                            Save &amp; continue <i data-lucide="arrow-right" class="ms-1"></i>
-                        </button>
-                    </div>
-                </form>
-            </div>
+                    <span asp-validation-for="PrimaryColor" class="text-danger text-xs"></span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <a asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="TestLogin" class="text-sm text-muted-foreground hover:underline">Skip</a>
+                    <button type="submit" class="btn btn-primary">
+                        Save &amp; continue <i data-lucide="arrow-right" class="size-4"></i>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

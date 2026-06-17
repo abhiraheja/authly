@@ -117,6 +117,7 @@ public static class DependencyInjection
         services.AddScoped<IConsentRecordRepository, ConsentRecordRepository>();
         services.AddScoped<IUserDeviceRepository, UserDeviceRepository>();
         services.AddScoped<IPlatformStateStore, PlatformStateStore>();
+        services.AddScoped<IObservabilityConfigRepository, ObservabilityConfigRepository>();
         services.AddScoped<IAccessPolicyRepository, AccessPolicyRepository>();
         services.AddScoped<Authly.Core.Logging.IAuditLogStreamSource, Logging.AuditLogStreamSource>();
 

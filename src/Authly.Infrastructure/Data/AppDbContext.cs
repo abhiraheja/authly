@@ -53,6 +53,7 @@ public class AppDbContext : DbContext
     public DbSet<OperatorRolePermission> OperatorRolePermissions => Set<OperatorRolePermission>();
     public DbSet<MemberRole> MemberRoles => Set<MemberRole>();
     public DbSet<AccountInviteToken> AccountInviteTokens => Set<AccountInviteToken>();
+    public DbSet<ObservabilityConfig> ObservabilityConfigs => Set<ObservabilityConfig>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -646,6 +647,24 @@ public class AppDbContext : DbContext
 
             e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Instance-global observability config (single row). NOT tenant-scoped — no RLS.
+        b.Entity<ObservabilityConfig>(e =>
+        {
+            e.ToTable("observability_config");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.Enabled).HasColumnName("enabled").HasDefaultValue(false);
+            e.Property(x => x.Exporter).HasColumnName("exporter").HasDefaultValue("otlp").IsRequired();
+            e.Property(x => x.OtlpEndpoint).HasColumnName("otlp_endpoint");
+            e.Property(x => x.OtlpHeadersEncrypted).HasColumnName("otlp_headers_encrypted");
+            e.Property(x => x.AzureConnectionStringEncrypted).HasColumnName("azure_connection_string_encrypted");
+            e.Property(x => x.Signals).HasColumnName("signals").HasDefaultValue("traces,metrics,logs").IsRequired();
+            e.Property(x => x.SamplingRatio).HasColumnName("sampling_ratio").HasDefaultValue(1.0);
+            e.Property(x => x.LogStreamEndpoint).HasColumnName("log_stream_endpoint");
+            e.Property(x => x.LogStreamKeyEncrypted).HasColumnName("log_stream_key_encrypted");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
         });
 
         // Platform-level key/value control-plane state (log-stream cursor, etc). NOT tenant-scoped — no RLS.

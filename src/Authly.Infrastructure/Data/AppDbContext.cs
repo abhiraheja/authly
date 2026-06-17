@@ -108,7 +108,6 @@ public class AppDbContext : DbContext
             e.Property(x => x.Status).HasColumnName("status").HasConversion<string>()
                 .HasDefaultValue(UserStatus.Active).IsRequired();
             e.Property(x => x.IsAnonymous).HasColumnName("is_anonymous").HasDefaultValue(false);
-            e.Property(x => x.IsTenantAdmin).HasColumnName("is_tenant_admin").HasDefaultValue(false);
             e.Property(x => x.FirstName).HasColumnName("first_name");
             e.Property(x => x.LastName).HasColumnName("last_name");
             e.Property(x => x.AvatarUrl).HasColumnName("avatar_url");

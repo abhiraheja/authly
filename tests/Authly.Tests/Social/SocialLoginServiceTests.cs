@@ -206,7 +206,6 @@ public class SocialLoginServiceTests
         public Task<Core.Common.PagedResult<User>> ListPagedAsync(Guid t, Core.Common.Pagination page, string? emailContains = null, CancellationToken ct = default)
             => throw new NotImplementedException();
         public Task DeleteAsync(User user, CancellationToken ct = default) { Items.Remove(user); return Task.CompletedTask; }
-        public Task<bool> AnyTenantAdminAsync(Guid t, CancellationToken ct = default) => Task.FromResult(false);
         public Task AddAsync(User user, CancellationToken ct = default) { if (user.Id == Guid.Empty) user.Id = Guid.NewGuid(); Items.Add(user); return Task.CompletedTask; }
         public Task UpdateAsync(User user, CancellationToken ct = default) => Task.CompletedTask;
     }

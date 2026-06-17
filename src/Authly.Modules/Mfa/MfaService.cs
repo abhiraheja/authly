@@ -340,8 +340,6 @@ public sealed class MfaService : IMfaService
 
     private async Task<bool> IsAdminAsync(Guid tenantId, User user, CancellationToken ct)
     {
-        if (user.IsTenantAdmin)
-            return true;
         var roles = await _userRoles.GetRoleNamesAsync(tenantId, user.Id, ct);
         return roles.Contains(SystemRbac.TenantAdmin) || roles.Contains(SystemRbac.SuperAdmin);
     }

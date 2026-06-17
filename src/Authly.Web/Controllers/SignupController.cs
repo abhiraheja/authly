@@ -56,11 +56,14 @@ public sealed class SignupController : Controller
             return View(model);
         }
 
-        // Sign the new admin straight into the tenant-admin surface (same claims as the admin login).
+        // Sign the founding owner straight into the console as their global Account, scoped to the
+        // new org and its first project (same claim shape as the account-based admin login).
         var claims = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, result.User.Id.ToString()),
-            new(ClaimTypes.Name, result.User.Email),
+            new(ClaimTypes.NameIdentifier, result.Account.Id.ToString()),
+            new(ClaimTypes.Name, result.Account.Email),
+            new(TenantAdminClaims.AccountId, result.Account.Id.ToString()),
+            new(TenantAdminClaims.OrgId, result.Organization.Id.ToString()),
             new(TenantAdminClaims.TenantId, result.Tenant.Id.ToString())
         };
         await HttpContext.SignInAsync(AuthSchemes.TenantAdmin,

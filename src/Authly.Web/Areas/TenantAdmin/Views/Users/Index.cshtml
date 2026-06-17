@@ -32,7 +32,6 @@
                         <th>Email</th>
                         <th>Name</th>
                         <th>Status</th>
-                        <th>Admin</th>
                         <th class="text-right"></th>
                     </tr>
                 </thead>
@@ -43,7 +42,6 @@
                         <td class="font-medium">@u.Email</td>
                         <td class="text-muted-foreground">@($"{u.FirstName} {u.LastName}".Trim() is { Length: > 0 } n ? n : "—")</td>
                         <td><span class="badge badge-neutral">@u.Status</span></td>
-                        <td>@(u.IsTenantAdmin ? "Yes" : "—")</td>
                         <td class="text-right">
                             <a class="btn btn-outline btn-sm"
                                asp-area="TenantAdmin" asp-controller="Users" asp-action="Details" asp-route-id="@u.Id">

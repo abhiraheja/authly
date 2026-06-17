@@ -51,7 +51,7 @@ public class MfaServiceTests
         await h.Service.SetPolicyAsync(Tenant, new TenantMfaSettings { Policy = MfaPolicy.AdminsOnly }, AuditContext.System);
 
         var admin = h.NewUser();
-        admin.IsTenantAdmin = true;
+        h.Roles.RoleNames[admin.Id] = new List<string> { Authly.Core.Authorization.SystemRbac.TenantAdmin };
 
         var decision = await h.Service.EvaluateLoginAsync(Tenant, admin);
         Assert.Equal(MfaLoginRequirement.EnrollmentRequired, decision.Requirement);
@@ -343,6 +343,8 @@ public class MfaServiceTests
 
     private sealed class FakeUserRoleRepo : IUserRoleRepository
     {
+        /// <summary>Role names per user id (used to mark a user a tenant admin via the tenant_admin role).</summary>
+        public readonly Dictionary<Guid, List<string>> RoleNames = new();
         public Task AssignAsync(UserRole a, CancellationToken ct = default) => Task.CompletedTask;
         public Task RemoveAsync(Guid t, Guid u, Guid r, CancellationToken ct = default) => Task.CompletedTask;
         public Task<IReadOnlyList<Role>> ListRolesForUserAsync(Guid t, Guid u, CancellationToken ct = default)
@@ -350,7 +352,7 @@ public class MfaServiceTests
         public Task<IReadOnlyList<Guid>> ListUserIdsForRoleAsync(Guid t, Guid r, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<Guid>>(Array.Empty<Guid>());
         public Task<IReadOnlyList<string>> GetRoleNamesAsync(Guid t, Guid u, CancellationToken ct = default)
-            => Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+            => Task.FromResult<IReadOnlyList<string>>(RoleNames.TryGetValue(u, out var r) ? r : new List<string>());
         public Task<IReadOnlyList<string>> GetPermissionNamesAsync(Guid t, Guid u, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
     }

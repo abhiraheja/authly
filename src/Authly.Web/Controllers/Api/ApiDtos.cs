@@ -7,11 +7,11 @@ namespace Authly.Web.Controllers.Api;
 
 public sealed record UserResponse(
     Guid Id, string Email, bool EmailVerified, string? FirstName, string? LastName,
-    string? Phone, string Status, bool IsTenantAdmin, DateTimeOffset CreatedAt, DateTimeOffset? LastLoginAt)
+    string? Phone, string Status, DateTimeOffset CreatedAt, DateTimeOffset? LastLoginAt)
 {
     public static UserResponse From(User u) => new(
         u.Id, u.Email, u.EmailVerified, u.FirstName, u.LastName, u.Phone,
-        u.Status.ToString(), u.IsTenantAdmin, u.CreatedAt, u.LastLoginAt);
+        u.Status.ToString(), u.CreatedAt, u.LastLoginAt);
 }
 
 public sealed record RoleResponse(Guid Id, string Name, string? Description, bool IsSystem, DateTimeOffset CreatedAt)

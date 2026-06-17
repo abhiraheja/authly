@@ -107,8 +107,6 @@ public class UserAdminServiceTests
             return Task.FromResult(new PagedResult<User>(list.Skip(page.Skip).Take(page.Limit).ToList(), list.Count));
         }
         public Task DeleteAsync(User user, CancellationToken ct = default) { Items.Remove(user); return Task.CompletedTask; }
-        public Task<bool> AnyTenantAdminAsync(Guid tenantId, CancellationToken ct = default)
-            => Task.FromResult(Items.Any(u => u.TenantId == tenantId && u.IsTenantAdmin));
         public Task AddAsync(User user, CancellationToken ct = default)
         {
             if (user.Id == Guid.Empty) user.Id = Guid.NewGuid();

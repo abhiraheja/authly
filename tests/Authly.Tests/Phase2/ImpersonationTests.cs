@@ -87,7 +87,6 @@ internal sealed class FakeUserRepo : IUserRepository
     public Task<Authly.Core.Common.PagedResult<User>> ListPagedAsync(Guid tenantId, Authly.Core.Common.Pagination page, string? emailContains = null, CancellationToken ct = default) => throw new NotImplementedException();
     public Task DeleteAsync(User user, CancellationToken ct = default) => Task.CompletedTask;
     public Task<bool> EmailExistsAsync(Guid tenantId, string email, CancellationToken ct = default) => Task.FromResult(false);
-    public Task<bool> AnyTenantAdminAsync(Guid tenantId, CancellationToken ct = default) => Task.FromResult(false);
     public Task AddAsync(User user, CancellationToken ct = default) => Task.CompletedTask;
     public Task UpdateAsync(User user, CancellationToken ct = default) => Task.CompletedTask;
 }

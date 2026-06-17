@@ -48,8 +48,8 @@ Phase 1  Identity: Org + Account         ✅ DONE (feat/identity-org-account 01d
 Phase 2  Operator RBAC + guard           ✅ DONE (feat/operator-rbac)
 Phase 3  Org→Project selector + new-project   ✅ DONE (feat/console-selector)
 Phase 4  Members UI + employee invite    ✅ DONE (feat/members-invite)
-Phase 5  Cleanup (IsTenantAdmin / legacy admin)   ← NEXT
-Phase 6  Remove SuperAdmin + self-host cleanup (monitoring → account surface)
+Phase 5  Cleanup (IsTenantAdmin / legacy admin)   ✅ DONE (feat/cleanup-legacy-admin)
+Phase 6  Remove SuperAdmin + self-host cleanup (monitoring → account surface)   ← NEXT
 Phase 7  Pluggable observability (OpenTelemetry)
 ```
 - **UI re-skin** ek **parallel track** hai: Phase 0 foundation ke baad existing screens
@@ -182,12 +182,14 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 ## Phase 5 — Cleanup (legacy admin)
 **Goal:** remove the pre-Account admin path. **Source:** doc 06 §9-P5, doc 02 §IsTenantAdmin.
 
-**Tasks**
-- [ ] Remove `User.IsTenantAdmin`, `IUserRepository.AnyTenantAdminAsync`, `ITenantAdminService`/`TenantAdminService`, first-admin bootstrap.
-- [ ] Migration: drop `users.is_tenant_admin`.
-- [ ] Keep end-user `EnsureSystemRolesAsync(tenantId)` on project-create.
+**Status: ✅ DONE** (branch `feat/cleanup-legacy-admin`; 266 tests green; build clean.)
 
-**Tests:** update any tests referencing the removed flag/service.
+**Tasks**
+- [x] Removed `User.IsTenantAdmin` (+ AppDbContext mapping), `IUserRepository.AnyTenantAdminAsync` (+ impl), the entire `Authly.Modules.TenantAdmins` module (`ITenantAdminService`/`TenantAdminService` + first-admin bootstrap) + DI registration. `ITenantAdminService` had no consumers — console login is account-based since Phase 1.
+- [x] Migration `DropIsTenantAdmin` (drops `users.is_tenant_admin`).
+- [x] Consumers updated: `MfaService.IsAdminAsync` now role-only (`tenant_admin`/`super_admin`); `UserResponse` API DTO drops the `IsTenantAdmin` field; TenantAdmin Users/Index view drops the "Admin" column. End-user `RbacService.EnsureSystemRolesAsync(tenantId)` (incl. the `tenant_admin` role) on project-create is **kept**.
+
+**Tests:** ✅ MFA AdminsOnly test now marks the admin via the `tenant_admin` role (seedable `FakeUserRoleRepo`); removed `AnyTenantAdminAsync` from all in-memory user-repo fakes. Build + 266 green.
 
 ---
 
@@ -224,7 +226,7 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 1. `AddOrganizationsAndAccounts` (+ `tenants.organization_id`) — P1
 2. `AddOperatorRbac` — P2
 3. `AddAccountInviteTokens` — P4 ✅
-4. `DropIsTenantAdmin` — P5
+4. `DropIsTenantAdmin` — P5 ✅
 5. `RemoveSuperAdminAndCloudTables` (drop `super_admins`, `announcements`, `self_hosted_instances`) — P6
 6. `AddObservabilityConfig` — P7
 

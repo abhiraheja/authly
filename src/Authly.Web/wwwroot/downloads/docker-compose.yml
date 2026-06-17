@@ -1,0 +1,230 @@
+# ============================================================================
+#  Authly — self-host stack (no source code required)
+# ============================================================================
+#  This single file runs the whole platform straight from the published Docker
+#  Hub image — you do NOT need the GitHub source or a Dockerfile.
+#
+#  Quick start
+#  -----------
+#    1. Install Docker (Engine 24+ or Docker Desktop).
+#    2. Put this file in an empty folder.
+#    3. (Recommended) create a .env file next to it — see "Configuration" below.
+#    4. Run:
+#         docker compose up -d
+#    5. Open http://localhost:8080  →  click "Sign up" to create the first
+#       workspace; that account becomes its administrator.
+#
+#  Configuration (.env file, all optional — dev-safe defaults are baked in)
+#  ------------------------------------------------------------------------
+#    ENCRYPTION_KEY=<32-byte base64>   # REQUIRED for production. openssl rand -base64 32
+#    POSTGRES_PASSWORD=<strong>        # bundled DB password
+#    APP_PORT=8080                     # host port for the app
+#
+#  Useful commands
+#  ---------------
+#    docker compose pull               # grab the latest image
+#    docker compose up -d              # start everything (detached)
+#    docker compose logs -f app        # follow app logs (watch migrations)
+#    docker compose down               # stop, keep data
+#    docker compose down -v            # stop and wipe the database volume
+#
+#  Endpoints:  App :8080  ·  Grafana :3000  ·  Prometheus :9090  ·  Loki :3100
+# ============================================================================
+
+services:
+  app:
+    image: abhiraheja/authly:latest
+    pull_policy: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - DATABASE_URL=Host=postgres;Database=${POSTGRES_DB:-authly};Username=${POSTGRES_USER:-authly};Password=${POSTGRES_PASSWORD:-authly}
+      - REDIS_URL=redis:6379
+      # 32-byte base64 key. The default is DEV ONLY — set your own for production:
+      #   openssl rand -base64 32
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-3J8mZ1qg9X0vQpYb2sR7tU4wK6nL5cD8eF1aH0iJ2kM=}
+      # Optional extras
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
+      - RETENTION_LOGIN_HISTORY_DAYS=${RETENTION_LOGIN_HISTORY_DAYS:-90}
+      - RETENTION_AUDIT_DAYS=${RETENTION_AUDIT_DAYS:-365}
+      - LOG_STREAM_ENDPOINT=${LOG_STREAM_ENDPOINT:-}
+      - LOG_STREAM_KEY=${LOG_STREAM_KEY:-}
+      # Observability: env fallback OTLP endpoint (in-app page can override at runtime).
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-authly}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-authly}
+      - POSTGRES_DB=${POSTGRES_DB:-authly}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-authly}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+
+  # --- Observability (Grafana / Prometheus / Loki / Tempo / OTel Collector) --
+  # Config is carried inline via the top-level `configs:` block, so this file is
+  # fully self-contained — no extra files to download.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    configs:
+      - source: otel_collector_config
+        target: /etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    depends_on:
+      - tempo
+      - loki
+      - prometheus
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:latest
+    command: ["-config.file=/etc/tempo.yaml"]
+    configs:
+      - source: tempo_config
+        target: /etc/tempo.yaml
+    volumes:
+      - tempo-data:/var/tempo
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:latest
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    configs:
+      - source: grafana_datasources
+        target: /etc/grafana/provisioning/datasources/datasources.yaml
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - tempo
+      - loki
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  tempo-data:
+  grafana-data:
+
+configs:
+  otel_collector_config:
+    content: |
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:4317
+            http:
+              endpoint: 0.0.0.0:4318
+      processors:
+        batch: {}
+      exporters:
+        otlp/tempo:
+          endpoint: tempo:4317
+          tls:
+            insecure: true
+        prometheus:
+          endpoint: 0.0.0.0:8889
+        otlphttp/loki:
+          endpoint: http://loki:3100/otlp
+      service:
+        pipelines:
+          traces:
+            receivers: [otlp]
+            processors: [batch]
+            exporters: [otlp/tempo]
+          metrics:
+            receivers: [otlp]
+            processors: [batch]
+            exporters: [prometheus]
+          logs:
+            receivers: [otlp]
+            processors: [batch]
+            exporters: [otlphttp/loki]
+
+  tempo_config:
+    content: |
+      server:
+        http_listen_port: 3200
+      distributor:
+        receivers:
+          otlp:
+            protocols:
+              grpc:
+                endpoint: 0.0.0.0:4317
+      storage:
+        trace:
+          backend: local
+          local:
+            path: /var/tempo/blocks
+          wal:
+            path: /var/tempo/wal
+
+  prometheus_config:
+    content: |
+      global:
+        scrape_interval: 15s
+      scrape_configs:
+        - job_name: otel-collector
+          static_configs:
+            - targets: ['otel-collector:8889']
+
+  grafana_datasources:
+    content: |
+      apiVersion: 1
+      datasources:
+        - name: Tempo
+          type: tempo
+          access: proxy
+          url: http://tempo:3200
+          isDefault: false
+        - name: Prometheus
+          type: prometheus
+          access: proxy
+          url: http://prometheus:9090
+          isDefault: true
+        - name: Loki
+          type: loki
+          access: proxy
+          url: http://loki:3100
+          isDefault: false

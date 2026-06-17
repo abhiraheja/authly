@@ -1,40 +1,137 @@
+# Full local stack for Authly: app + PostgreSQL + Redis + observability
+# (OTel Collector → Tempo / Prometheus / Loki → Grafana).
+#
+#   docker compose up -d            # everything
+#   docker compose up -d app        # just the app + its deps (postgres, redis)
+#
+# Configuration is driven by a .env file in this directory (copy .env.example → .env).
+# Every value below has a dev-safe default via ${VAR:-default}, so the stack also runs
+# with no .env at all — but DO set your own ENCRYPTION_KEY for anything real.
+#
+#   App      → http://localhost:8080      (Hangfire dashboard at /hangfire)
+#   Grafana  → http://localhost:3000      (anonymous admin)
+
 services:
   app:
     build: .
-    ports:
-      - "8080:8080"
+    image: abhiraheja/authly:latest
+    # env_file is applied first; the explicit `environment` block below overrides it and
+    # supplies defaults for anything the .env doesn't set.
+    env_file:
+      - path: .env
+        required: false
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - DATABASE_URL=Host=postgres;Database=authly;Username=authly;Password=authly
+      # --- Core (required) ---------------------------------------------------
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      - DATABASE_URL=Host=postgres;Database=${POSTGRES_DB:-authly};Username=${POSTGRES_USER:-authly};Password=${POSTGRES_PASSWORD:-authly}
       - REDIS_URL=redis:6379
-      # 32-byte base64 key — DEV ONLY. Override in production via env/vault.
-      - ENCRYPTION_KEY=3J8mZ1qg9X0vQpYb2sR7tU4wK6nL5cD8eF1aH0iJ2kM=
+      # 32-byte base64 key. The default is DEV ONLY — generate your own for production:
+      #   openssl rand -base64 32
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-3J8mZ1qg9X0vQpYb2sR7tU4wK6nL5cD8eF1aH0iJ2kM=}
+      # --- Optional ----------------------------------------------------------
+      # Extra trusted browser origins for SPA CORS (comma/space separated). Client app
+      # redirect URIs are already allowed automatically; this is for non-app infra only.
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
+      # Retention windows (days) for the maintenance jobs.
+      - RETENTION_LOGIN_HISTORY_DAYS=${RETENTION_LOGIN_HISTORY_DAYS:-90}
+      - RETENTION_AUDIT_DAYS=${RETENTION_AUDIT_DAYS:-365}
+      # Audit-log streaming fallback (the in-app Observability page can override these).
+      - LOG_STREAM_ENDPOINT=${LOG_STREAM_ENDPOINT:-}
+      - LOG_STREAM_KEY=${LOG_STREAM_KEY:-}
+      # --- Observability -----------------------------------------------------
+      # Env fallback OTLP endpoint; the in-app Observability page can override at runtime.
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+    ports:
+      - "${APP_PORT:-8080}:8080"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_started
+      otel-collector:
+        condition: service_started
+    restart: unless-stopped
 
   postgres:
     image: postgres:16
     environment:
-      - POSTGRES_USER=authly
-      - POSTGRES_PASSWORD=authly
-      - POSTGRES_DB=authly
+      - POSTGRES_USER=${POSTGRES_USER:-authly}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-authly}
+      - POSTGRES_DB=${POSTGRES_DB:-authly}
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U authly"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-authly}"]
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
 
   redis:
     image: redis:7
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
+    restart: unless-stopped
+
+  # --- Observability stack ---------------------------------------------------
+  # App → OTLP → OTel Collector → Tempo (traces) + Prometheus (metrics) + Loki (logs) → Grafana.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./observability/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    depends_on:
+      - tempo
+      - loki
+      - prometheus
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:latest
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./observability/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:latest
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    volumes:
+      - ./observability/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - tempo
+      - loki
+      - prometheus
+    restart: unless-stopped
 
 volumes:
   pgdata:
+  tempo-data:
+  grafana-data:

@@ -9,6 +9,8 @@ public interface IOrganizationMembershipRepository
     Task<OrganizationMembership?> GetAsync(Guid accountId, Guid organizationId, CancellationToken ct = default);
     Task<IReadOnlyList<OrganizationMembership>> ListByAccountAsync(Guid accountId, CancellationToken ct = default);
     Task<IReadOnlyList<OrganizationMembership>> ListByOrganizationAsync(Guid organizationId, CancellationToken ct = default);
+    /// <summary>Members of the org with their <see cref="OrganizationMembership.Account"/> eagerly loaded (for the directory UI).</summary>
+    Task<IReadOnlyList<OrganizationMembership>> ListByOrganizationWithAccountsAsync(Guid organizationId, CancellationToken ct = default);
     Task AddAsync(OrganizationMembership membership, CancellationToken ct = default);
     Task UpdateAsync(OrganizationMembership membership, CancellationToken ct = default);
 }

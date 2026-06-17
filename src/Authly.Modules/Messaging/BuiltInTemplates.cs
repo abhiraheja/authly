@@ -17,9 +17,12 @@ public static class MessageTemplateKeys
     public const string ContactChangeAlert = "contact_change_alert";
     public const string AccountRecovery = "account_recovery";
 
+    // Phase 4 — operator (employee) invite to the console. Distinct from the end-user verify/reset flows.
+    public const string OperatorInvite = "operator_invite";
+
     public static readonly IReadOnlyList<string> All =
         new[] { VerifyEmail, ResetPassword, Otp, MagicLink, Welcome, SecurityAlert,
-                VerifyNewContact, ContactChangeAlert, AccountRecovery };
+                VerifyNewContact, ContactChangeAlert, AccountRecovery, OperatorInvite };
 }
 
 /// <summary>The rendered-ready content of a template (before variable substitution).</summary>
@@ -102,6 +105,13 @@ public static class BuiltInTemplates
             "<p>We received a request to recover access to your account. Use the link below to continue:</p>" +
             "<p><a href=\"{{action_url}}\">Recover account</a></p>" +
             "<p>This link expires in {{expiry_hours}} hour(s). If you didn't request this, you can ignore this message.</p>"),
+
+        [(MessageTemplateKeys.OperatorInvite, MessageChannel.Email)] = new(
+            "You've been invited to {{org_name}} on {{app_name}}",
+            "<p>Hi {{user_name}},</p>" +
+            "<p>You've been invited to join <strong>{{org_name}}</strong> on {{app_name}}. Accept the invite to set up your access:</p>" +
+            "<p><a href=\"{{action_url}}\">Accept invite</a></p>" +
+            "<p>This link expires in {{expiry_hours}} hours. If you weren't expecting this, you can ignore this email.</p>"),
     };
 
     public static TemplateContent? Find(string key, MessageChannel channel)

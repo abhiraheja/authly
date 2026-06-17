@@ -1,0 +1,51 @@
+@model InviteMemberViewModel
+
+<div class="flex items-center gap-3">
+    <a class="btn btn-ghost btn-icon btn-sm" asp-area="TenantAdmin" asp-controller="Members" asp-action="Index" aria-label="Back"><i data-lucide="arrow-left" class="size-4"></i></a>
+    <div>
+        <h1 class="font-display text-xl font-bold">Invite member</h1>
+        <p class="text-sm text-muted-foreground mt-0.5">We'll email them a link to set up their console access.</p>
+    </div>
+</div>
+
+<div class="card max-w-2xl">
+    <div class="card-body">
+        <form asp-area="TenantAdmin" asp-controller="Members" asp-action="Invite" method="post" class="space-y-4">
+            <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
+
+            <div>
+                <label asp-for="Email" class="label"></label>
+                <input asp-for="Email" class="input" placeholder="teammate@example.com" autofocus />
+                <span asp-validation-for="Email" class="text-danger text-xs"></span>
+            </div>
+
+            <div>
+                <span class="label">Operator roles</span>
+                @if (Model.AvailableRoles.Count == 0)
+                {
+                    <p class="text-sm text-muted-foreground">No operator roles defined yet.</p>
+                }
+                else
+                {
+                    <div class="flex flex-wrap gap-4 mt-1">
+                    @foreach (var role in Model.AvailableRoles)
+                    {
+                        <label class="flex items-center gap-2 text-sm" for="role_@role.Id">
+                            <input type="checkbox" name="RoleIds" value="@role.Id" id="role_@role.Id"
+                                   @(Model.RoleIds.Contains(role.Id) ? "checked" : "") />
+                            <code class="text-xs">@role.Name</code>
+                            @if (role.IsSystem) { <span class="badge badge-neutral">system</span> }
+                        </label>
+                    }
+                    </div>
+                    <p class="mt-1 text-xs text-muted-foreground">You can adjust roles after they accept.</p>
+                }
+            </div>
+
+            <div class="flex gap-2 pt-1">
+                <button type="submit" class="btn btn-primary"><i data-lucide="send" class="size-4"></i> Send invite</button>
+                <a class="btn btn-outline" asp-area="TenantAdmin" asp-controller="Members" asp-action="Index">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>

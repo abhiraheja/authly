@@ -36,6 +36,7 @@ public sealed class TenantResolutionMiddleware
         if (!path.StartsWithSegments("/superadmin")
             && !path.StartsWithSegments("/hangfire")
             && !path.StartsWithSegments("/signup")
+            && !path.StartsWithSegments("/invite")
             && !path.StartsWithSegments("/api"))
         {
             var host = context.Request.Host.Host;

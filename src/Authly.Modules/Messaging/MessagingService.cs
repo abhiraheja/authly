@@ -22,6 +22,7 @@ public sealed class MessagingService : IMessagingService
         [MessageTemplateKeys.ResetPassword] = "action_url",
         [MessageTemplateKeys.MagicLink] = "action_url",
         [MessageTemplateKeys.Otp] = "otp",
+        [MessageTemplateKeys.OperatorInvite] = "action_url",
     };
 
     private readonly IMessagingProviderRepository _providers;

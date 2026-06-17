@@ -175,6 +175,8 @@ public class ApplicationServiceTests
             => Task.FromResult(Applications.FirstOrDefault(a => a.ClientId == clientId));
         public Task<IReadOnlyList<Application>> ListByTenantAsync(Guid tenantId, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<Application>>(Applications.Where(a => a.TenantId == tenantId).ToList());
+        public Task<IReadOnlyList<string>> ListAllRedirectUrisAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<string>>(Applications.SelectMany(a => a.RedirectUris).ToList());
         public Task AddAsync(Application application, CancellationToken ct = default)
         {
             if (application.Id == Guid.Empty) application.Id = Guid.NewGuid();

@@ -16,6 +16,13 @@ public interface IApplicationRepository
 
     Task<IReadOnlyList<Application>> ListByTenantAsync(Guid tenantId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Every registered redirect URI across all tenants. Used to derive the browser CORS web-origin
+    /// allowlist for SPA clients — the <c>applications</c> table is not RLS-scoped, so this is a
+    /// deliberate cross-tenant read. Returns raw URIs; the caller reduces them to origins.
+    /// </summary>
+    Task<IReadOnlyList<string>> ListAllRedirectUrisAsync(CancellationToken ct = default);
+
     Task AddAsync(Application application, CancellationToken ct = default);
     Task UpdateAsync(Application application, CancellationToken ct = default);
     Task DeleteAsync(Application application, CancellationToken ct = default);

@@ -26,22 +26,27 @@ var superAdminEnabled = builder.Configuration.GetValue("SUPERADMIN_ENABLED", tru
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
 
-// CORS for browser-based (SPA) OAuth/OIDC clients. The authorize redirect is a top-level
-// navigation (no CORS), but the discovery, token and userinfo calls are XHRs from the SPA origin
-// and need Access-Control-Allow-Origin. Allowed origins are derived dynamically from the redirect
-// URIs tenant admins register for their applications (see ApplicationCorsPolicyProvider), so a
-// customer just adds their URL in the admin panel — no env config or redeploy. CORS_ALLOWED_ORIGINS
-// remains as an optional extra for trusted, non-application infrastructure.
-var corsStaticOrigins = (builder.Configuration["CORS_ALLOWED_ORIGINS"] ?? string.Empty)
+// Registered client web-origins (derived from each application's redirect URIs) drive both the
+// SPA CORS policy and the CSP form-action directive — a single dynamic source of truth, so adding a
+// redirect URI in the admin panel automatically permits that origin for the cross-origin XHRs
+// (CORS) and the cross-origin login/logout redirects (CSP). No per-customer config or redeploy.
+// CORS_ALLOWED_ORIGINS remains an optional extra for trusted, non-application infrastructure.
+var clientStaticOrigins = (builder.Configuration["CORS_ALLOWED_ORIGINS"] ?? string.Empty)
     .Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
     .ToList();
 builder.Services.AddMemoryCache();
-builder.Services.AddCors();
-builder.Services.AddSingleton<Microsoft.AspNetCore.Cors.Infrastructure.ICorsPolicyProvider>(sp =>
-    new Authly.Web.Infrastructure.Cors.ApplicationCorsPolicyProvider(
-        sp.GetRequiredService<IOptions<Microsoft.AspNetCore.Cors.Infrastructure.CorsOptions>>(),
+builder.Services.AddScoped<Authly.Web.Infrastructure.Clients.IClientOriginProvider>(sp =>
+    new Authly.Web.Infrastructure.Clients.ClientOriginProvider(
+        sp.GetRequiredService<IApplicationRepository>(),
         sp.GetRequiredService<IMemoryCache>(),
-        corsStaticOrigins));
+        clientStaticOrigins));
+
+// CORS for browser-based (SPA) OAuth/OIDC clients: the discovery, token and userinfo calls are XHRs
+// from the SPA origin and need Access-Control-Allow-Origin (the authorize redirect itself is a
+// top-level navigation, no CORS). Policy origins come from the client-origin provider above.
+builder.Services.AddCors();
+builder.Services.AddSingleton<Microsoft.AspNetCore.Cors.Infrastructure.ICorsPolicyProvider,
+    Authly.Web.Infrastructure.Cors.ApplicationCorsPolicyProvider>();
 
 // Management API: error-envelope filter is resolved per request via [ServiceFilter].
 builder.Services.AddScoped<ApiExceptionFilter>();

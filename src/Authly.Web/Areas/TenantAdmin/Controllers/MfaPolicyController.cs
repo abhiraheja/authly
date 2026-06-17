@@ -1,6 +1,7 @@
 using Authly.Core.Interfaces;
 using Authly.Modules.Mfa;
 using Authly.Web.Models;
+using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Authly.Web.Areas.TenantAdmin.Controllers;
@@ -14,6 +15,7 @@ public sealed class MfaPolicyController : TenantAdminControllerBase
     public MfaPolicyController(IMfaService mfa, ITenantContext tenant) : base(tenant)
         => _mfa = mfa;
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -27,6 +29,7 @@ public sealed class MfaPolicyController : TenantAdminControllerBase
         });
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(MfaPolicyViewModel model, CancellationToken ct)

@@ -48,4 +48,7 @@ public interface IAuthUrlBuilder
     string BuildContactChangeVerifyUrl(Guid tenantId, string rawToken);
     string BuildContactChangeCancelUrl(Guid tenantId, string rawToken);
     string BuildRecoveryUrl(Guid tenantId, string rawToken);
+
+    /// <summary>Phase 4 — the public, tenant-less operator-invite accept link.</summary>
+    string BuildInviteAcceptUrl(string rawToken);
 }

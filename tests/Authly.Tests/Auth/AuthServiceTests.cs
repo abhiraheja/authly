@@ -316,6 +316,7 @@ public class AuthServiceTests
         public string BuildContactChangeVerifyUrl(Guid tenantId, string rawToken) => $"https://test/change/verify?token={rawToken}";
         public string BuildContactChangeCancelUrl(Guid tenantId, string rawToken) => $"https://test/change/cancel?token={rawToken}";
         public string BuildRecoveryUrl(Guid tenantId, string rawToken) => $"https://test/recover?token={rawToken}";
+        public string BuildInviteAcceptUrl(string rawToken) => $"https://test/invite/accept?token={rawToken}";
     }
 
     private sealed class CapturingMessageQueue : IMessageQueue

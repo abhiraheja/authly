@@ -1,0 +1,65 @@
+@model OrganizationSettingsViewModel
+
+<div>
+    <h1 class="font-display text-xl font-bold">Organization</h1>
+    <p class="text-sm text-muted-foreground mt-0.5">Settings for the organization your projects belong to.</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+    <div class="card">
+        <div class="card-header"><h2 class="card-title">General</h2></div>
+        <div class="card-body">
+            <form asp-area="TenantAdmin" asp-controller="Organization" asp-action="Rename" method="post" class="space-y-4">
+                <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
+
+                <div>
+                    <label asp-for="Name" class="label"></label>
+                    <input asp-for="Name" class="input" />
+                    <span asp-validation-for="Name" class="text-danger text-xs"></span>
+                </div>
+
+                <div>
+                    <span class="label">Slug</span>
+                    <input class="input" value="@Model.Slug" disabled />
+                    <p class="mt-1 text-xs text-muted-foreground">The slug is fixed once created.</p>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Save changes</button>
+            </form>
+        </div>
+    </div>
+
+    <div>
+        <div class="card">
+            <div class="card-body">
+                <dl class="grid grid-cols-12 gap-y-2 text-sm">
+                    <dt class="col-span-6 text-muted-foreground">Projects</dt>
+                    <dd class="col-span-6">@Model.ProjectCount</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mt-4 border-l-4 border-l-danger">
+            <div class="card-body">
+                <h2 class="text-danger font-semibold">Delete organization</h2>
+                @if (Model.ProjectCount > 0)
+                {
+                    <p class="text-muted-foreground text-sm mt-1">
+                        This organization still has @Model.ProjectCount project(s). Delete or move them before the organization can be deleted.
+                    </p>
+                }
+                else
+                {
+                    <p class="text-muted-foreground text-sm mt-1">
+                        Permanently deletes the organization and removes everyone's access. This can't be undone.
+                    </p>
+                    <form asp-area="TenantAdmin" asp-controller="Organization" asp-action="Delete" method="post"
+                          onsubmit="return confirm('Permanently delete this organization?');" class="mt-2 space-y-2">
+                        <input type="text" name="confirmName" class="input" placeholder="Type &quot;@Model.Name&quot; to confirm" autocomplete="off" />
+                        <button type="submit" class="btn btn-danger btn-sm">Delete organization</button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+</div>

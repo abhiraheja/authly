@@ -10,4 +10,5 @@ public interface IOrganizationRepository
     Task<bool> SlugExistsAsync(string slug, CancellationToken ct = default);
     Task AddAsync(Organization organization, CancellationToken ct = default);
     Task UpdateAsync(Organization organization, CancellationToken ct = default);
+    Task DeleteAsync(Organization organization, CancellationToken ct = default);
 }

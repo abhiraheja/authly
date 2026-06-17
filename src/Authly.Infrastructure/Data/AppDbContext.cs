@@ -55,6 +55,7 @@ public class AppDbContext : DbContext
     public DbSet<OperatorPermission> OperatorPermissions => Set<OperatorPermission>();
     public DbSet<OperatorRolePermission> OperatorRolePermissions => Set<OperatorRolePermission>();
     public DbSet<MemberRole> MemberRoles => Set<MemberRole>();
+    public DbSet<AccountInviteToken> AccountInviteTokens => Set<AccountInviteToken>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -262,6 +263,25 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
             // Removing a membership cascades its role grants.
             e.HasOne<OrganizationMembership>().WithMany().HasForeignKey(x => x.OrganizationMembershipId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<AccountInviteToken>(e =>
+        {
+            e.ToTable("account_invite_tokens");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.AccountId).HasColumnName("account_id").IsRequired();
+            e.Property(x => x.OrganizationId).HasColumnName("organization_id").IsRequired();
+            e.Property(x => x.TokenHash).HasColumnName("token_hash").IsRequired();
+            e.Property(x => x.ExpiresAt).HasColumnName("expires_at").IsRequired();
+            e.Property(x => x.Used).HasColumnName("used").HasDefaultValue(false);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => x.TokenHash).IsUnique().HasDatabaseName("idx_invite_token_hash");
+            e.HasIndex(x => new { x.AccountId, x.OrganizationId }).HasDatabaseName("idx_invite_account_org");
+
+            e.HasOne(x => x.Account).WithMany().HasForeignKey(x => x.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

@@ -16,6 +16,9 @@ public interface IApplicationService
 
     Task<Application?> GetAsync(Guid tenantId, Guid id, CancellationToken ct = default);
 
+    /// <summary>Updates the editable fields (name, redirect URIs, scopes) of an existing client. Credentials are unchanged.</summary>
+    Task<Application> UpdateAsync(Guid tenantId, Guid id, UpdateApplicationRequest request, AuditContext actor, CancellationToken ct = default);
+
     Task<IReadOnlyList<ApplicationSecret>> ListSecretsAsync(Guid tenantId, Guid id, CancellationToken ct = default);
 
     /// <summary>Issues a new secret for a confidential client and revokes prior ones. Returns the raw secret once.</summary>

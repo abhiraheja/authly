@@ -7,7 +7,10 @@
 
 <div class="page-title-head d-flex align-items-center justify-content-between mb-3">
     <h4 class="mb-0">@Model.Name</h4>
-    <a class="btn btn-soft-secondary btn-sm" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index">Back</a>
+    <div class="d-flex gap-2">
+        <a class="btn btn-soft-primary btn-sm" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Edit" asp-route-id="@Model.Id">Edit</a>
+        <a class="btn btn-soft-secondary btn-sm" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index">Back</a>
+    </div>
 </div>
 
 @if (newSecret is not null)

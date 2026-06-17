@@ -65,6 +65,55 @@ public sealed class ApplicationsController : TenantAdminControllerBase
         return View(app);
     }
 
+    [HttpGet("{id:guid}/edit")]
+    public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
+    {
+        var app = await _apps.GetAsync(TenantId, id, ct);
+        if (app is null) return NotFound();
+
+        ViewData["Title"] = $"Edit {app.Name}";
+        ViewData["ApplicationId"] = app.Id;
+        return View(new EditApplicationViewModel
+        {
+            Name = app.Name,
+            RedirectUris = string.Join('\n', app.RedirectUris),
+            Scopes = string.Join(' ', app.AllowedScopes)
+        });
+    }
+
+    [HttpPost("{id:guid}/edit")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(Guid id, EditApplicationViewModel model, CancellationToken ct)
+    {
+        ViewData["ApplicationId"] = id;
+        if (!ModelState.IsValid)
+        {
+            ViewData["Title"] = "Edit application";
+            return View(model);
+        }
+
+        var redirectUris = (model.RedirectUris ?? string.Empty)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+        var scopes = (model.Scopes ?? string.Empty)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+        try
+        {
+            await _apps.UpdateAsync(TenantId, id,
+                new UpdateApplicationRequest(model.Name, redirectUris, scopes),
+                CurrentAudit(), ct);
+            TempData["Success"] = "Application updated.";
+        }
+        catch (ApplicationNotFoundException)
+        {
+            return NotFound();
+        }
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
     [HttpPost("{id:guid}/rotate-secret")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RotateSecret(Guid id, CancellationToken ct)

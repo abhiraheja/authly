@@ -11,6 +11,15 @@ public sealed record CreateApplicationRequest(
     IReadOnlyList<string> Scopes);
 
 /// <summary>
+/// Editable fields of an existing OAuth client. The type, client id, grant types and secret are
+/// immutable here — only the display name, redirect URIs and requested scopes can change.
+/// </summary>
+public sealed record UpdateApplicationRequest(
+    string Name,
+    IReadOnlyList<string> RedirectUris,
+    IReadOnlyList<string> Scopes);
+
+/// <summary>
 /// Result of creating/rotating credentials. <see cref="ClientSecret"/> is the raw secret and is
 /// returned to the caller exactly once (shown to the tenant, then unrecoverable). Null for public
 /// clients, which have no secret.

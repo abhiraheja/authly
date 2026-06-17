@@ -27,14 +27,16 @@ public sealed class AuthorizationController : Controller
     private readonly IUserRepository _users;
     private readonly IRbacService _rbac;
     private readonly ITokenClaimAssembler _claims;
+    private readonly ITenantContext _tenant;
 
     public AuthorizationController(IApplicationRepository applications, IUserRepository users, IRbacService rbac,
-        ITokenClaimAssembler claims)
+        ITokenClaimAssembler claims, ITenantContext tenant)
     {
         _applications = applications;
         _users = users;
         _rbac = rbac;
         _claims = claims;
+        _tenant = tenant;
     }
 
     // --- Authorization endpoint (Authorization Code + PKCE) ---
@@ -51,6 +53,14 @@ public sealed class AuthorizationController : Controller
         var application = await _applications.GetByClientIdAsync(request.ClientId!, ct);
         if (application is null)
             return Forbid(properties: ErrorProps(Errors.InvalidClient, "Unknown client."),
+                authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+
+        // Fail fast on a tenant/client mismatch: if the request resolved a tenant (custom domain or
+        // the dev ?tenant= override) that isn't the client's own tenant, reject *before* rendering
+        // another workspace's branded login. The post-login claim check below is the hard guarantee;
+        // this just avoids showing a login page the request can never complete.
+        if (_tenant.HasTenant && _tenant.TenantId != application.TenantId)
+            return Forbid(properties: ErrorProps(Errors.InvalidRequest, "This application belongs to a different workspace."),
                 authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
 
         // Require an authenticated end-user; otherwise hand off to the branded login and return here.

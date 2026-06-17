@@ -28,12 +28,6 @@ public class User
     /// <summary>Guest / anonymous auth — upgradeable to a full account later.</summary>
     public bool IsAnonymous { get; set; }
 
-    /// <summary>
-    /// Grants access to the tenant admin surface. A coarse pre-RBAC flag (Phase 4 replaces it
-    /// with the <c>tenant_admin</c> role). Not user-editable.
-    /// </summary>
-    public bool IsTenantAdmin { get; set; }
-
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
     public string? AvatarUrl { get; set; }

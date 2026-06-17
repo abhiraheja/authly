@@ -15,7 +15,6 @@ using Authly.Modules.Security;
 using Authly.Modules.Social;
 using Authly.Modules.Users;
 using Authly.Modules.SuperAdmins;
-using Authly.Modules.TenantAdmins;
 using Authly.Modules.Tenants;
 using Authly.Modules.Webhooks;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,7 +37,6 @@ public static class DependencyInjection
         services.AddScoped<Members.IMemberDirectoryService, Members.MemberDirectoryService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IApplicationService, ApplicationService>();
-        services.AddScoped<ITenantAdminService, TenantAdminService>();
         services.AddScoped<IRbacService, RbacService>();
         services.AddScoped<IApiKeyService, ApiKeyService>();
         services.AddScoped<IUserAdminService, UserAdminService>();

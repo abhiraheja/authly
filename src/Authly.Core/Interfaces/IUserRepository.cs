@@ -22,9 +22,6 @@ public interface IUserRepository
     /// <summary>Removes a user permanently (hard delete). Status-based soft delete is preferred for most flows.</summary>
     Task DeleteAsync(User user, CancellationToken ct = default);
     Task<bool> EmailExistsAsync(Guid tenantId, string email, CancellationToken ct = default);
-
-    /// <summary>True if the tenant already has at least one tenant admin (used for first-admin bootstrap).</summary>
-    Task<bool> AnyTenantAdminAsync(Guid tenantId, CancellationToken ct = default);
     Task AddAsync(User user, CancellationToken ct = default);
     Task UpdateAsync(User user, CancellationToken ct = default);
 }

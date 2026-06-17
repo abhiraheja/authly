@@ -133,6 +133,7 @@ internal sealed class CapturingUrlBuilder : IAuthUrlBuilder
     public string BuildContactChangeVerifyUrl(Guid t, string raw) { LastVerify = raw; return $"https://test/change/verify?token={raw}"; }
     public string BuildContactChangeCancelUrl(Guid t, string raw) { LastCancel = raw; return $"https://test/change/cancel?token={raw}"; }
     public string BuildRecoveryUrl(Guid t, string raw) { LastRecovery = raw; return $"https://test/recover?token={raw}"; }
+    public string BuildInviteAcceptUrl(string raw) => $"https://test/invite/accept?token={raw}";
 }
 
 internal sealed class RecordingAudit : IAuditLogger

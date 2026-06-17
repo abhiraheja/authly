@@ -30,4 +30,10 @@ public sealed class OrganizationRepository : IOrganizationRepository
         _db.Organizations.Update(organization);
         await _db.SaveChangesAsync(ct);
     }
+
+    public async Task DeleteAsync(Organization organization, CancellationToken ct = default)
+    {
+        _db.Organizations.Remove(organization);
+        await _db.SaveChangesAsync(ct);
+    }
 }

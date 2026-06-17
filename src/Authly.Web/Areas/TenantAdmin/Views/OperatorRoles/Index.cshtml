@@ -1,0 +1,45 @@
+@model IReadOnlyList<OperatorRole>
+
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Operator roles</h1>
+        <p class="text-sm text-muted-foreground mt-0.5">Roles that gate what employees can do in the console. Separate from your apps' end-user roles.</p>
+    </div>
+    <a class="btn btn-primary btn-sm" asp-area="TenantAdmin" asp-controller="OperatorRoles" asp-action="Create">
+        <i data-lucide="plus" class="size-4"></i> New role
+    </a>
+</div>
+
+<div class="card">
+    <div class="overflow-x-auto scroll-thin">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Kind</th>
+                    <th class="text-right"></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var role in Model)
+            {
+                <tr>
+                    <td class="font-medium"><code class="text-xs text-muted-foreground">@role.Name</code></td>
+                    <td class="text-muted-foreground">@(role.Description ?? "—")</td>
+                    <td>
+                        @if (role.IsSystem) { <span class="badge badge-neutral">system</span> }
+                        else { <span class="badge badge-primary">custom</span> }
+                    </td>
+                    <td class="text-right">
+                        <a class="btn btn-outline btn-sm"
+                           asp-area="TenantAdmin" asp-controller="OperatorRoles" asp-action="Details" asp-route-id="@role.Id">
+                            Manage
+                        </a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

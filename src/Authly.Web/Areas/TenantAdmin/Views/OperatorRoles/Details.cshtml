@@ -1,0 +1,82 @@
+@model OperatorRole
+@{
+    var allPermissions = ViewData["AllPermissions"] as IReadOnlyList<OperatorPermission> ?? new List<OperatorPermission>();
+    var assigned = ViewData["AssignedPermissionIds"] as HashSet<Guid> ?? new HashSet<Guid>();
+    var byResource = allPermissions.GroupBy(p => p.Resource).OrderBy(g => g.Key);
+}
+
+<div class="flex items-center gap-3">
+    <a class="btn btn-ghost btn-icon btn-sm" asp-area="TenantAdmin" asp-controller="OperatorRoles" asp-action="Index" aria-label="Back"><i data-lucide="arrow-left" class="size-4"></i></a>
+    <h1 class="font-display text-xl font-bold"><code>@Model.Name</code></h1>
+</div>
+
+@if (Model.IsSystem)
+{
+    <div class="card card-body !py-3 flex items-center gap-3 border-l-4 border-l-primary mt-4">
+        <i data-lucide="info" class="size-5 text-primary shrink-0"></i>
+        <span class="text-sm">This is a system role. You may adjust its permissions, but it can't be renamed or deleted.</span>
+    </div>
+}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+    <div class="lg:col-span-2">
+        <div class="card">
+            <div class="card-header"><h2 class="card-title">Permissions</h2></div>
+            <div class="card-body">
+                <form asp-area="TenantAdmin" asp-controller="OperatorRoles" asp-action="SetPermissions" asp-route-id="@Model.Id" method="post">
+                    @if (allPermissions.Count == 0)
+                    {
+                        <p class="text-sm text-muted-foreground">No operator permissions defined for this organization yet.</p>
+                    }
+                    else
+                    {
+                        foreach (var group in byResource)
+                        {
+                            <div class="mb-4">
+                                <div class="font-medium capitalize mb-2">@group.Key</div>
+                                <div class="flex flex-wrap gap-4">
+                                @foreach (var p in group.OrderBy(x => x.Action))
+                                {
+                                    <label class="flex items-center gap-2 text-sm" for="perm_@p.Id">
+                                        <input type="checkbox" name="permissionIds"
+                                               value="@p.Id" id="perm_@p.Id" @(assigned.Contains(p.Id) ? "checked" : "") />
+                                        <span>@p.Action</span>
+                                    </label>
+                                }
+                                </div>
+                            </div>
+                        }
+                        <button type="submit" class="btn btn-primary btn-sm">Save permissions</button>
+                    }
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="card">
+            <div class="card-body">
+                <dl class="grid grid-cols-12 gap-y-2 text-sm">
+                    <dt class="col-span-5 text-muted-foreground">Description</dt>
+                    <dd class="col-span-7">@(Model.Description ?? "—")</dd>
+                    <dt class="col-span-5 text-muted-foreground">Created</dt>
+                    <dd class="col-span-7">@Model.CreatedAt.ToString("yyyy-MM-dd")</dd>
+                </dl>
+            </div>
+        </div>
+
+        @if (!Model.IsSystem)
+        {
+            <div class="card mt-4 border-l-4 border-l-danger">
+                <div class="card-body">
+                    <h2 class="text-danger font-semibold">Danger zone</h2>
+                    <p class="text-muted-foreground text-sm mt-1">Deleting a role removes it from all assigned members.</p>
+                    <form asp-area="TenantAdmin" asp-controller="OperatorRoles" asp-action="Delete" asp-route-id="@Model.Id" method="post"
+                          onsubmit="return confirm('Delete this role?');" class="mt-2">
+                        <button type="submit" class="btn btn-danger btn-sm">Delete role</button>
+                    </form>
+                </div>
+            </div>
+        }
+    </div>
+</div>

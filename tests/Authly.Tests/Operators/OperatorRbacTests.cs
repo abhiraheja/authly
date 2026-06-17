@@ -2,6 +2,7 @@ using Authly.Core.Authorization;
 using Authly.Core.Entities;
 using Authly.Core.Enums;
 using Authly.Core.Interfaces;
+using Authly.Modules.Authorization;
 using Authly.Modules.Operators;
 
 namespace Authly.Tests.Operators;
@@ -12,7 +13,7 @@ public class OperatorRbacServiceTests
     public async Task EnsureSystemRoles_seeds_catalogue_and_roles_and_is_idempotent()
     {
         var roles = new InMemoryOperatorRoleRepo();
-        var svc = new OperatorRbacService(roles, new InMemoryMemberRoleRepo());
+        var svc = new OperatorRbacService(roles, new InMemoryMemberRoleRepo(), new NoopAudit());
         var orgId = Guid.NewGuid();
 
         await svc.EnsureSystemRolesAsync(orgId);
@@ -33,6 +34,97 @@ public class OperatorRbacServiceTests
         Assert.Equal(permCount, roles.Permissions.Count);
         Assert.Equal(roleCount, roles.Roles.Count);
     }
+}
+
+public class OperatorRoleManagementTests
+{
+    private static (OperatorRbacService svc, InMemoryOperatorRoleRepo roles, InMemoryMemberRoleRepo memberRoles, Guid orgId) Build()
+    {
+        var roles = new InMemoryOperatorRoleRepo();
+        var memberRoles = new InMemoryMemberRoleRepo();
+        return (new OperatorRbacService(roles, memberRoles, new NoopAudit()), roles, memberRoles, Guid.NewGuid());
+    }
+
+    [Fact]
+    public async Task Create_role_then_set_permissions_filters_foreign_ids()
+    {
+        var (svc, roles, _, org) = Build();
+        await svc.EnsureSystemRolesAsync(org);
+
+        var role = await svc.CreateRoleAsync(org, new CreateRoleRequest("support", "Support staff"), AuditContextStub());
+        Assert.False(role.IsSystem);
+
+        var orgPerm = roles.Permissions.First(p => p.OrganizationId == org).Id;
+        await svc.SetRolePermissionsAsync(org, role.Id, new[] { orgPerm, Guid.NewGuid() }, AuditContextStub());
+
+        var saved = await svc.GetRoleAsync(org, role.Id);
+        Assert.NotNull(saved);
+        Assert.Equal(new[] { orgPerm }, saved!.PermissionIds);
+    }
+
+    [Fact]
+    public async Task Create_role_with_duplicate_name_throws()
+    {
+        var (svc, _, _, org) = Build();
+        await svc.CreateRoleAsync(org, new CreateRoleRequest("support", null), AuditContextStub());
+        await Assert.ThrowsAsync<RoleNameAlreadyExistsException>(
+            () => svc.CreateRoleAsync(org, new CreateRoleRequest("support", null), AuditContextStub()));
+    }
+
+    [Fact]
+    public async Task Delete_system_role_is_protected()
+    {
+        var (svc, roles, _, org) = Build();
+        await svc.EnsureSystemRolesAsync(org);
+        var owner = roles.Roles.Single(r => r.Name == OperatorRbac.OrgOwner);
+        await Assert.ThrowsAsync<SystemRoleProtectedException>(() => svc.DeleteRoleAsync(org, owner.Id, AuditContextStub()));
+    }
+
+    [Fact]
+    public async Task Assign_and_remove_member_role()
+    {
+        var (svc, roles, memberRoles, org) = Build();
+        await svc.EnsureSystemRolesAsync(org);
+        var viewer = roles.Roles.Single(r => r.Name == OperatorRbac.Viewer);
+        var membershipId = Guid.NewGuid();
+
+        await svc.AssignRoleToMemberAsync(org, membershipId, viewer.Id, AuditContextStub());
+        Assert.Single(memberRoles.Assignments, a => a.OrganizationMembershipId == membershipId && a.OperatorRoleId == viewer.Id);
+
+        await svc.RemoveRoleFromMemberAsync(org, membershipId, viewer.Id, AuditContextStub());
+        Assert.DoesNotContain(memberRoles.Assignments, a => a.OrganizationMembershipId == membershipId && a.OperatorRoleId == viewer.Id);
+    }
+
+    [Fact]
+    public async Task Cannot_strip_the_last_owner_role()
+    {
+        var (svc, roles, _, org) = Build();
+        await svc.EnsureSystemRolesAsync(org);
+        var owner = roles.Roles.Single(r => r.Name == OperatorRbac.OrgOwner);
+        var onlyOwner = Guid.NewGuid();
+
+        await svc.AssignRoleToMemberAsync(org, onlyOwner, owner.Id, AuditContextStub());
+        await Assert.ThrowsAsync<LastOwnerProtectedException>(
+            () => svc.RemoveRoleFromMemberAsync(org, onlyOwner, owner.Id, AuditContextStub()));
+    }
+
+    [Fact]
+    public async Task Can_strip_owner_role_when_another_owner_exists()
+    {
+        var (svc, roles, _, org) = Build();
+        await svc.EnsureSystemRolesAsync(org);
+        var owner = roles.Roles.Single(r => r.Name == OperatorRbac.OrgOwner);
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        await svc.AssignRoleToMemberAsync(org, a, owner.Id, AuditContextStub());
+        await svc.AssignRoleToMemberAsync(org, b, owner.Id, AuditContextStub());
+
+        // Two owners → one can be demoted.
+        await svc.RemoveRoleFromMemberAsync(org, a, owner.Id, AuditContextStub());
+    }
+
+    private static Authly.Modules.Common.AuditContext AuditContextStub() => Authly.Modules.Common.AuditContext.System;
 }
 
 public class ConsoleAccessServiceTests
@@ -81,6 +173,13 @@ public class ConsoleAccessServiceTests
     }
 }
 
+internal sealed class NoopAudit : Authly.Modules.Audit.IAuditLogger
+{
+    public Task LogAsync(string @event, Authly.Modules.Common.AuditContext actor, Guid? tenantId = null, string? resourceType = null,
+        Guid? resourceId = null, string result = "success", object? metadata = null, CancellationToken ct = default)
+        => Task.CompletedTask;
+}
+
 // --- In-memory / stub repos ---
 
 internal sealed class InMemoryOperatorRoleRepo : IOperatorRoleRepository
@@ -115,6 +214,8 @@ internal sealed class InMemoryMemberRoleRepo : IMemberRoleRepository
     public Task AssignAsync(MemberRole a, CancellationToken ct = default) { Assignments.Add(a); return Task.CompletedTask; }
     public Task RemoveAsync(Guid membershipId, Guid roleId, CancellationToken ct = default)
     { Assignments.RemoveAll(m => m.OrganizationMembershipId == membershipId && m.OperatorRoleId == roleId); return Task.CompletedTask; }
+    public Task RemoveAllForMembershipAsync(Guid membershipId, CancellationToken ct = default)
+    { Assignments.RemoveAll(m => m.OrganizationMembershipId == membershipId); return Task.CompletedTask; }
     public Task<IReadOnlyList<OperatorRole>> ListRolesForMembershipAsync(Guid membershipId, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<OperatorRole>>(Assignments.Where(m => m.OrganizationMembershipId == membershipId).Select(m => m.OperatorRole).ToList());
     public Task<IReadOnlyList<string>> GetRoleNamesAsync(Guid membershipId, CancellationToken ct = default)
@@ -133,6 +234,7 @@ internal sealed class StubMembershipRepo : IOrganizationMembershipRepository
     public Task<OrganizationMembership?> GetByIdAsync(Guid id, CancellationToken ct = default) => throw new NotImplementedException();
     public Task<IReadOnlyList<OrganizationMembership>> ListByAccountAsync(Guid accountId, CancellationToken ct = default) => throw new NotImplementedException();
     public Task<IReadOnlyList<OrganizationMembership>> ListByOrganizationAsync(Guid organizationId, CancellationToken ct = default) => throw new NotImplementedException();
+    public Task<IReadOnlyList<OrganizationMembership>> ListByOrganizationWithAccountsAsync(Guid organizationId, CancellationToken ct = default) => throw new NotImplementedException();
     public Task AddAsync(OrganizationMembership m, CancellationToken ct = default) => throw new NotImplementedException();
     public Task UpdateAsync(OrganizationMembership m, CancellationToken ct = default) => throw new NotImplementedException();
 }

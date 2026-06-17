@@ -12,6 +12,9 @@ public interface IMemberRoleRepository
     Task AssignAsync(MemberRole assignment, CancellationToken ct = default);
     Task RemoveAsync(Guid organizationMembershipId, Guid operatorRoleId, CancellationToken ct = default);
 
+    /// <summary>Removes every operator-role grant from a membership (e.g. when the member is removed).</summary>
+    Task RemoveAllForMembershipAsync(Guid organizationMembershipId, CancellationToken ct = default);
+
     Task<IReadOnlyList<OperatorRole>> ListRolesForMembershipAsync(Guid organizationMembershipId, CancellationToken ct = default);
 
     /// <summary>The membership's operator-role names (e.g. <c>org_owner</c>).</summary>

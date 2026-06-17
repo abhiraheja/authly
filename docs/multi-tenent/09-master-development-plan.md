@@ -43,9 +43,9 @@ Do populations (kabhi mat milao):
 ## 2. Pehle kya? — recommended order (dependency-driven)
 
 ```
-Phase 0  UI Foundation (SAARVIX)         ← pehle: baaki sab isi pe bane, no rework
-Phase 1  Identity: Org + Account         ← backbone (sab features ispe khade)
-Phase 2  Operator RBAC + guard
+Phase 0  UI Foundation (SAARVIX)         ✅ DONE (main 2c952a9)
+Phase 1  Identity: Org + Account         ✅ DONE (feat/identity-org-account 01dfc2c)
+Phase 2  Operator RBAC + guard           ← NEXT
 Phase 3  Org→Project selector + new-project
 Phase 4  Members UI + employee invite
 Phase 5  Cleanup (IsTenantAdmin / legacy admin)
@@ -67,22 +67,24 @@ Phase 7  Pluggable observability (OpenTelemetry)
 ## Phase 0 — UI Foundation (SAARVIX)
 **Goal:** ek baar SAARVIX foundation khada karo; aage sab isi pe bane. **Source:** doc 08.
 
-**Tasks**
-- [ ] `saarvix-ui` skill repo mein available (done ✅).
-- [ ] Tailwind build: `package.json` + `tailwind.config.js` (SAARVIX `tw-config.js` token
-      mappings + ≤8px radius remap port). `content` = `**/*.cshtml`.
-- [ ] Input CSS = SAARVIX `theme.css` tokens (`:root` light+dark) + `@layer components`.
-      Output → `wwwroot/css/saarvix.css`. MSBuild pre-build `npm run build:css` + Dockerfile build stage.
-- [ ] `app.js` → `wwwroot/js/saarvix-app.js` (toasts/dropdowns/tabs/overlays data-attr API). **`shell.js` drop.**
-- [ ] Razor shell layouts re-implement (SAARVIX sidebar+topbar, server-side nav + `IsActive()`):
-      `_AdminLayout.cshtml` (TenantAdmin), `_PortalLayout.cshtml` (Portal),
-      `_AuthLayout.cshtml` (full-screen, no shell). Topbar mein selector + theme toggle + profile (placeholder selector; P3 mein wire).
-- [ ] Reusable Razor partials/tag-helpers: button, card, input, table, badge, modal, drawer, tabs.
-- [ ] **Bootstrap remove** (CDN + `wwwroot/lib/bootstrap`). **jquery-validation-unobtrusive rakho**, message classes re-style.
-- [ ] Re-skin existing **TenantAdmin** screens (Applications, Users, Roles, Branding, Messaging, Webhooks, ApiKeys, Onboarding, Sandbox, Security, AccessPolicies…). **SuperAdmin re-skin mat karo** (P6 mein delete).
-- [ ] Re-skin **Connect/Account** (login, register, consent, MFA, forgot/reset, magic-link) + **Portal**.
+**Status: ✅ DONE** (on `main`, commit `2c952a9`). One sub-task deferred.
 
-**Verify:** `npm run build:css` clean; app runs; light+dark; responsive ≤1024; koi `data-bs-`/`btn-`/`col-`残 nahi; Lucide render.
+**Tasks**
+- [x] `saarvix-ui` skill repo mein available (done ✅).
+- [x] Tailwind build: `package.json` + `tailwind.config.js` (SAARVIX `tw-config.js` token
+      mappings + ≤8px radius remap port). `content` = `**/*.cshtml`.
+- [x] Input CSS = SAARVIX `theme.css` tokens (`:root` light+dark) + `@layer components`.
+      Output → `wwwroot/css/saarvix.css`. MSBuild pre-build `npm run build:css` + Dockerfile build stage.
+- [x] `app.js` → `wwwroot/js/saarvix-app.js` (toasts/dropdowns/tabs/overlays data-attr API). **`shell.js` drop.**
+- [x] Razor shell layouts re-implement (SAARVIX sidebar+topbar, server-side nav + `IsActive()`):
+      `_AdminLayout.cshtml` (TenantAdmin), `_PortalLayout.cshtml` (Portal),
+      `_AuthLayout.cshtml` (full-screen, no shell). Topbar mein selector placeholder + theme toggle + profile (P3 mein wire).
+- [ ] Reusable Razor partials/tag-helpers: button, card, input, table, badge, modal, drawer, tabs. — **DEFERRED** (views use SAARVIX component classes directly; optional DRY pass later).
+- [x] **Bootstrap remove** (CDN + `wwwroot/lib/bootstrap`). **jquery-validation-unobtrusive rakha** (`_ValidationScriptsPartial` ab jQuery khud load karta hai), message classes re-styled.
+- [x] Re-skin existing **TenantAdmin** screens (Applications, Users, Roles, Branding, Messaging, Webhooks, ApiKeys, Onboarding, Sandbox, Security, AccessPolicies…). **SuperAdmin re-skin nahi kiya** (P6 mein delete).
+- [x] Re-skin **Connect/Account** (login, register, consent, MFA, forgot/reset, magic-link) + **Portal**.
+
+**Verify:** ✅ `npm run build:css` clean; app runs; saarvix.css served (200); light+dark via tokens; no `data-bs-`/`btn-soft`/`form-control` residue outside SuperAdmin; Lucide renders. *(Pixel-level pass of authenticated console screens pending tenant-admin creds.)*
 
 ---
 
@@ -90,26 +92,30 @@ Phase 7  Pluggable observability (OpenTelemetry)
 **Goal:** global Account + Organization + membership; projects org ke andar; account-based
 signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 
+**Status: ✅ DONE** (branch `feat/identity-org-account`, commit `01dfc2c`; 247 tests green; signup + account-login smoke-verified vs Postgres).
+
 **Entities (new)** — `src/Authly.Core/Entities/`
-- [ ] `Account` (global; `Email` unique, `PasswordHash?` nullable, `Status`, names, `EmailVerified`, timestamps).
-- [ ] `Organization` (`Name`, `Slug` global-unique, `OwnerAccountId`, `Settings` jsonb).
-- [ ] `OrganizationMembership` (`AccountId`, `OrganizationId`, `Status` Invited|Active|Disabled, `InvitedByAccountId?`). Unique `(AccountId, OrganizationId)`.
-- [ ] `Tenant.OrganizationId` (required FK, Restrict, index). `Tenant.Slug` global-unique rahe.
-- [ ] Enums: `AccountStatus`, `MembershipStatus`.
+- [x] `Account` (global; `Email` unique, `PasswordHash?` nullable, `Status`, names, `EmailVerified`, timestamps).
+- [x] `Organization` (`Name`, `Slug` global-unique, `OwnerAccountId` **nullable** — platform-provisioned orgs ka owner null, `Settings` jsonb).
+- [x] `OrganizationMembership` (`AccountId`, `OrganizationId`, `Status` Invited|Active|Disabled, `InvitedByAccountId?`). Unique `(AccountId, OrganizationId)`.
+- [x] `Tenant.OrganizationId` (required FK, Restrict, index `idx_tenants_organization`). `Tenant.Slug` global-unique rahe.
+- [x] Enums: `AccountStatus`, `MembershipStatus`.
 
 **Data / DI**
-- [ ] AppDbContext: DbSets + config (mirror `SuperAdmin` block; snake_case, `gen_random_uuid()`/`NOW()`, enums `HasConversion<string>()`). **In tables pe RLS NAHI.**
-- [ ] Migration `AddOrganizationsAndAccounts` (+ `tenants.organization_id` NOT NULL, no backfill).
-- [ ] Repos: `AccountRepository`, `OrganizationRepository`, `OrganizationMembershipRepository` (mirror `SuperAdminRepository`); register in `Infrastructure/DependencyInjection.cs`.
+- [x] AppDbContext: DbSets + config (mirror `SuperAdmin` block; snake_case, `gen_random_uuid()`/`NOW()`, enums `HasConversion<string>()`). **In tables pe RLS NAHI.**
+- [x] Migration `AddOrganizationsAndAccounts` (+ `tenants.organization_id` NOT NULL, no backfill; dev DB drop+recreate to apply).
+- [x] Repos: `AccountRepository`, `OrganizationRepository`, `OrganizationMembershipRepository` (mirror `SuperAdminRepository`); registered in `Infrastructure/DependencyInjection.cs`. (+ `ITenantRepository.ListByOrganizationAsync`, `CreateTenantRequest.OrganizationId`.)
 
 **Auth / signup / login**
-- [ ] `AuthConstants`: add `TenantAdminClaims.AccountId`, `OrgId` (keep `TenantId` = active project).
-- [ ] `IAccountService.ValidateCredentialsAsync` (mirror `SuperAdminService`). Argon2id via existing `IPasswordHasher`.
-- [ ] `TenantSignupService` → create Account + Organization + first Tenant(OrgId) + `OrganizationMembership(Active)` (+ owner role in P2). Result `(Account, Organization, Tenant)`.
-- [ ] `SignupController` + `TenantAdmin/AccountController` → sign in as Account (claims AccountId/OrgId/TenantId); login **tenant-agnostic** (remove "tenant required" gate).
-- [ ] `TenantResolutionMiddleware` /tenantadmin fallback → read active-project `TenantId` claim (trivial; already does).
+- [x] `AuthConstants`: added `TenantAdminClaims.AccountId`, `OrgId` (keep `TenantId` = active project).
+- [x] `IAccountService.ValidateCredentialsAsync` (mirror `SuperAdminService`). Argon2id via existing `IPasswordHasher`.
+- [x] `TenantSignupService` → create Account + Organization + first Tenant(OrgId) + `OrganizationMembership(Active)` + end-user system roles (+ operator owner role in P2). Result `(Account, Organization, Tenant)`.
+- [x] `SignupController` + `TenantAdmin/AccountController` → sign in as Account (claims AccountId/OrgId/TenantId); login **tenant-agnostic** ("tenant required" gate removed; active org→first project from membership). *(Legacy SuperAdmin create-tenant auto-provisions a platform-owned org for the new NOT-NULL FK.)*
+- [x] `TenantResolutionMiddleware` /tenantadmin fallback → reads active-project `TenantId` claim (already did).
 
-**Tests:** rewrite `TenantSignupTests` (Account+Org+Tenant+Membership created; slug dedup; audits). Build+test green (behaves like today: one org/one project each).
+**Tests:** ✅ `TenantSignupTests` rewritten (Account+Org+Tenant(OrgId)+Membership(Active) created; org & project slug dedup; duplicate-email rejected; end-user roles seeded; audits). Build + 247 tests green.
+
+> **Deferred to Phase 2 (operator RBAC):** operator `MemberRole(org_owner)` seeding on org-create and the `TenantAdminControllerBase` guard rewrite (still TenantId-equality; `CurrentUserId` now = account id). Selector = Phase 3.
 
 ---
 
@@ -224,13 +230,13 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 ---
 
 ## 5. Definition of Done (whole effort)
-- [ ] Signup → Account+Organization+first Project; login account-based, tenant-agnostic.
-- [ ] Console: org→project selector switches; "New project" self-serve; non-member access rejected.
-- [ ] Employees invited as operators with custom operator roles; permissions gate console actions; end-user `User`/RBAC untouched.
+- [x] Signup → Account+Organization+first Project; login account-based, tenant-agnostic. *(Phase 1)*
+- [ ] Console: org→project selector switches; "New project" self-serve; non-member access rejected. *(Phase 2–3)*
+- [ ] Employees invited as operators with custom operator roles; permissions gate console actions; end-user `User`/RBAC untouched. *(Phase 2/4)*
 - [ ] SuperAdmin gone; monitoring on account surface; tenant delete in project settings; cloud-only features removed.
 - [ ] Observability opt-in (OpenTelemetry); nothing ships unconfigured; local Grafana stack works.
-- [ ] Entire UI on SAARVIX (compiled Tailwind), light+dark, responsive; no Bootstrap residue.
-- [ ] All tests green; docs 02/03 noted as superseded by 06/04.
+- [x] Entire UI on SAARVIX (compiled Tailwind), light+dark, responsive; no Bootstrap residue *(except SuperAdmin, deleted P6)*. *(Phase 0)*
+- [ ] All tests green *(247 green now)*; docs 02/03 noted as superseded by 06/04.
 
 ---
 

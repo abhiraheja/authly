@@ -1,9 +1,47 @@
 @inject Authly.Web.Infrastructure.Branding.CurrentBranding Branding
+@using Authly.Core.Enums
 @{
     var brand = await Branding.GetAsync();
     var brandName = await Branding.GetDisplayNameAsync();
-    var split = brand.Layout == Authly.Core.Enums.BrandingLayout.Split;
+
+    var split = brand.Layout is BrandingLayout.FormLeft or BrandingLayout.FormRight;
+    var panelLeft = brand.Layout == BrandingLayout.FormRight;   // panel on the left, form on the right
+    var overBackground = brand.Layout == BrandingLayout.CenteredOverBackground;
+
     var primaryChannels = brand.PrimaryColorRgb.Replace(",", "");
+    var radius = brand.CornerRadius;
+
+    // The fill used by the branded panel (split) or the whole page (centered-over-background).
+    string PanelFill()
+    {
+        switch (brand.Background)
+        {
+            case BrandingBackground.Solid:
+                return $"background:{brand.PrimaryColor};";
+            case BrandingBackground.Image when !string.IsNullOrEmpty(brand.BackgroundImageUrl):
+                var size = brand.BackgroundFit switch
+                {
+                    BackgroundFit.Contain => "contain",
+                    BackgroundFit.Tile => "auto",
+                    _ => "cover"
+                };
+                var repeat = brand.BackgroundFit == BackgroundFit.Tile ? "repeat" : "no-repeat";
+                return $"background-image:url('{brand.BackgroundImageUrl}');background-size:{size};background-repeat:{repeat};background-position:{brand.BackgroundPosition};";
+            default: // Gradient (also the fallback when Image has no URL)
+                return $"background:linear-gradient(135deg,{brand.GradientFrom},{brand.GradientTo});";
+        }
+    }
+
+    var hasImageOverlay = brand.Background == BrandingBackground.Image
+        && !string.IsNullOrEmpty(brand.BackgroundImageUrl) && brand.OverlayOpacity > 0;
+    var overlayAlpha = (brand.OverlayOpacity / 100.0).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    var cardShadow = brand.CardShadow switch
+    {
+        CardShadow.None => "none",
+        CardShadow.Strong => "0 20px 50px -12px rgba(0,0,0,.35)",
+        _ => "0 10px 30px -10px rgba(0,0,0,.18)"
+    };
 }
 <!DOCTYPE html>
 <html lang="en" class="@(brand.DarkMode ? "dark" : "")">
@@ -14,19 +52,50 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
     <link rel="stylesheet" href="~/css/saarvix.css" asp-append-version="true" />
-    @* Per-tenant theming: override the SAARVIX primary/ring channels + font. *@
+    @* Per-tenant theming: primary/ring channels, font, corner radius, and card surface. *@
     <style>
         :root, .dark { --primary: @primaryChannels; --ring: @primaryChannels; }
         body { font-family: @Html.Raw(brand.FontFamily); }
+        .auth-shell .card, .auth-card { border-radius: @(radius)px; }
+        .auth-shell .input, .auth-shell .btn { border-radius: @(Math.Max(0, radius - 2))px; }
+        .auth-card {
+            padding: 2rem;
+            box-shadow: @cardShadow;
+        @if (brand.CardStyle == CardStyle.Glass)
+        {
+            <text>
+            background: rgb(var(--card) / .72);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgb(255 255 255 / .25);
+            </text>
+        }
+        else
+        {
+            <text>
+            background: rgb(var(--card));
+            border: 1px solid rgb(var(--border));
+            </text>
+        }
+        }
     </style>
 </head>
 <body>
-<div class="min-h-screen grid @(split ? "lg:grid-cols-2" : "")">
+<div class="auth-shell min-h-screen grid @(split ? "lg:grid-cols-2" : "")">
     @if (split)
     {
-        <aside class="relative hidden lg:flex flex-col justify-between p-10 bg-gradient-to-br from-primary via-primary to-teal text-white overflow-hidden">
-            <div class="absolute -top-20 -right-20 size-72 rounded-full bg-white/10 blur-2xl"></div>
-            <div class="flex items-center gap-2.5 relative">
+        <aside class="brand-panel relative hidden lg:flex flex-col justify-between p-10 text-white overflow-hidden @(panelLeft ? "" : "lg:order-last")"
+               style="@PanelFill()">
+            @if (hasImageOverlay)
+            {
+                <div class="absolute inset-0" style="background:rgba(0,0,0,@overlayAlpha);"></div>
+            }
+            else if (brand.Background != BrandingBackground.Image)
+            {
+                <div class="absolute -top-20 -right-20 size-72 rounded-full bg-white/10 blur-2xl"></div>
+            }
+
+            <div class="relative flex items-center gap-2.5">
                 @if (brand.LogoUrl is not null)
                 {
                     <img src="@brand.LogoUrl" alt="@brandName" class="max-h-9" />
@@ -37,16 +106,35 @@
                     <span class="font-display text-xl font-bold tracking-tight">@brandName</span>
                 }
             </div>
-            @if (!string.IsNullOrEmpty(brand.Tagline))
-            {
-                <div class="relative">
-                    <p class="font-display text-2xl font-bold leading-tight">@brand.Tagline</p>
-                </div>
-            }
+
+            <div class="relative space-y-5">
+                @if (!string.IsNullOrEmpty(brand.Tagline))
+                {
+                    <p class="font-display text-3xl font-bold leading-tight">@brand.Tagline</p>
+                }
+                @if (brand.FeatureBullets.Count > 0)
+                {
+                    <ul class="space-y-2.5">
+                        @foreach (var bullet in brand.FeatureBullets)
+                        {
+                            <li class="flex items-center gap-2.5 text-sm text-white/90">
+                                <span class="grid size-5 shrink-0 place-items-center rounded-full bg-white/20"><i data-lucide="check" class="size-3"></i></span>
+                                @bullet
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
         </aside>
     }
-    <div class="flex items-center justify-center p-6 bg-background">
-        <div class="w-full max-w-sm">
+
+    <div class="relative flex items-center justify-center p-6 @(overBackground ? "" : "bg-background")"
+         style="@(overBackground ? PanelFill() : "")">
+        @if (overBackground && hasImageOverlay)
+        {
+            <div class="absolute inset-0" style="background:rgba(0,0,0,@overlayAlpha);"></div>
+        }
+        <div class="relative w-full max-w-sm">
             <div class="flex items-center gap-2.5 mb-8 @(split ? "lg:hidden" : "")">
                 @if (brand.LogoUrl is not null)
                 {
@@ -55,10 +143,16 @@
                 else
                 {
                     <span class="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground"><i data-lucide="shield-check" class="size-5"></i></span>
-                    <span class="font-display font-bold">@brandName</span>
+                    <span class="font-display font-bold @(overBackground ? "text-white" : "")">@brandName</span>
                 }
             </div>
-            @RenderBody()
+            <div class="auth-card">
+                @RenderBody()
+            </div>
+            @if (!string.IsNullOrEmpty(brand.FooterText))
+            {
+                <p class="mt-6 text-center text-xs @(overBackground ? "text-white/80" : "text-muted-foreground")">@brand.FooterText</p>
+            }
         </div>
     </div>
 </div>

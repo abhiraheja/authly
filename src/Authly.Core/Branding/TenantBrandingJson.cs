@@ -26,17 +26,45 @@ public static class TenantBrandingJson
             if (root.ValueKind != JsonValueKind.Object) return TenantBranding.Default;
 
             var b = new TenantBranding();
+
+            // identity
             if (TryString(root, "logo_url", out var logo)) b.LogoUrl = logo;
-            if (TryString(root, "primary_color", out var primary) && !string.IsNullOrWhiteSpace(primary)) b.PrimaryColor = primary;
-            if (TryString(root, "button_text_color", out var btn) && !string.IsNullOrWhiteSpace(btn)) b.ButtonTextColor = btn;
-            if (TryString(root, "font_family", out var font) && !string.IsNullOrWhiteSpace(font)) b.FontFamily = font;
-            if (TryString(root, "layout", out var layout)
-                && Enum.TryParse<BrandingLayout>(layout, ignoreCase: true, out var parsed))
-                b.Layout = parsed;
-            if (root.TryGetProperty("dark_mode", out var dark)
-                && (dark.ValueKind == JsonValueKind.True || dark.ValueKind == JsonValueKind.False))
-                b.DarkMode = dark.GetBoolean();
+            if (TryNonEmpty(root, "primary_color", out var primary)) b.PrimaryColor = primary;
+            if (TryNonEmpty(root, "button_text_color", out var btn)) b.ButtonTextColor = btn;
+            if (TryNonEmpty(root, "font_family", out var font)) b.FontFamily = font;
+            if (TryBool(root, "dark_mode", out var dark)) b.DarkMode = dark;
+
+            // layout (with legacy back-compat: "centered" -> CenteredPlain, "split" -> FormRight)
+            if (TryString(root, "layout", out var layout) && !string.IsNullOrWhiteSpace(layout))
+                b.Layout = ParseLayout(layout!);
+
+            // background
+            if (TryString(root, "background", out var bg) && Enum.TryParse<BrandingBackground>(bg, true, out var pBg))
+                b.Background = pBg;
+            if (TryNonEmpty(root, "gradient_from", out var gFrom)) b.GradientFrom = gFrom;
+            if (TryNonEmpty(root, "gradient_to", out var gTo)) b.GradientTo = gTo;
+            if (TryString(root, "background_image_url", out var bgImg)) b.BackgroundImageUrl = bgImg;
+            if (TryString(root, "background_fit", out var fit) && Enum.TryParse<BackgroundFit>(fit, true, out var pFit))
+                b.BackgroundFit = pFit;
+            if (TryNonEmpty(root, "background_position", out var pos)) b.BackgroundPosition = pos;
+            if (TryInt(root, "overlay_opacity", out var overlay)) b.OverlayOpacity = Math.Clamp(overlay, 0, 100);
+
+            // text
+            if (TryNonEmpty(root, "heading", out var heading)) b.Heading = heading;
+            if (TryNonEmpty(root, "subtitle", out var subtitle)) b.Subtitle = subtitle;
+            if (TryString(root, "heading_size", out var hs) && Enum.TryParse<HeadingSize>(hs, true, out var pHs))
+                b.HeadingSize = pHs;
             if (TryString(root, "tagline", out var tagline)) b.Tagline = tagline;
+            if (TryStringArray(root, "feature_bullets", out var bullets)) b.FeatureBullets = bullets;
+            if (TryString(root, "footer_text", out var footer)) b.FooterText = footer;
+
+            // card / shape
+            if (TryString(root, "card_style", out var cs) && Enum.TryParse<CardStyle>(cs, true, out var pCs))
+                b.CardStyle = pCs;
+            if (TryString(root, "card_shadow", out var sh) && Enum.TryParse<CardShadow>(sh, true, out var pSh))
+                b.CardShadow = pSh;
+            if (TryInt(root, "corner_radius", out var radius)) b.CornerRadius = Math.Clamp(radius, 0, 16);
+
             return b;
         }
         catch (JsonException)
@@ -52,10 +80,36 @@ public static class TenantBrandingJson
         ["primary_color"] = b.PrimaryColor,
         ["button_text_color"] = b.ButtonTextColor,
         ["font_family"] = b.FontFamily,
-        ["layout"] = b.Layout.ToString().ToLowerInvariant(),
         ["dark_mode"] = b.DarkMode,
-        ["tagline"] = b.Tagline
+        ["layout"] = b.Layout.ToString().ToLowerInvariant(),
+        ["background"] = b.Background.ToString().ToLowerInvariant(),
+        ["gradient_from"] = b.GradientFrom,
+        ["gradient_to"] = b.GradientTo,
+        ["background_image_url"] = b.BackgroundImageUrl,
+        ["background_fit"] = b.BackgroundFit.ToString().ToLowerInvariant(),
+        ["background_position"] = b.BackgroundPosition,
+        ["overlay_opacity"] = b.OverlayOpacity,
+        ["heading"] = b.Heading,
+        ["subtitle"] = b.Subtitle,
+        ["heading_size"] = b.HeadingSize.ToString().ToLowerInvariant(),
+        ["tagline"] = b.Tagline,
+        ["feature_bullets"] = b.FeatureBullets,
+        ["footer_text"] = b.FooterText,
+        ["card_style"] = b.CardStyle.ToString().ToLowerInvariant(),
+        ["card_shadow"] = b.CardShadow.ToString().ToLowerInvariant(),
+        ["corner_radius"] = b.CornerRadius
     }, Options);
+
+    private static BrandingLayout ParseLayout(string value)
+    {
+        var v = value.Trim().ToLowerInvariant();
+        return v switch
+        {
+            "centered" => BrandingLayout.CenteredPlain,   // legacy value
+            "split" => BrandingLayout.FormRight,          // legacy value (panel left, form right)
+            _ => Enum.TryParse<BrandingLayout>(value, true, out var parsed) ? parsed : BrandingLayout.CenteredPlain
+        };
+    }
 
     private static bool TryString(JsonElement root, string name, out string? value)
     {
@@ -65,6 +119,58 @@ public static class TenantBrandingJson
             return true;
         }
         value = null;
+        return false;
+    }
+
+    private static bool TryNonEmpty(JsonElement root, string name, out string value)
+    {
+        if (TryString(root, name, out var s) && !string.IsNullOrWhiteSpace(s))
+        {
+            value = s!;
+            return true;
+        }
+        value = "";
+        return false;
+    }
+
+    private static bool TryBool(JsonElement root, string name, out bool value)
+    {
+        if (root.TryGetProperty(name, out var el)
+            && (el.ValueKind == JsonValueKind.True || el.ValueKind == JsonValueKind.False))
+        {
+            value = el.GetBoolean();
+            return true;
+        }
+        value = false;
+        return false;
+    }
+
+    private static bool TryInt(JsonElement root, string name, out int value)
+    {
+        if (root.TryGetProperty(name, out var el) && el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out var n))
+        {
+            value = n;
+            return true;
+        }
+        value = 0;
+        return false;
+    }
+
+    private static bool TryStringArray(JsonElement root, string name, out List<string> value)
+    {
+        value = new List<string>();
+        if (root.TryGetProperty(name, out var el) && el.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in el.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.String)
+                {
+                    var s = item.GetString();
+                    if (!string.IsNullOrWhiteSpace(s)) value.Add(s!);
+                }
+            }
+            return true;
+        }
         return false;
     }
 }

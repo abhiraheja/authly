@@ -30,9 +30,24 @@ public sealed class BrandingController : TenantAdminControllerBase
             PrimaryColor = b.PrimaryColor,
             ButtonTextColor = b.ButtonTextColor,
             FontFamily = b.FontFamily,
-            Layout = b.Layout,
             DarkMode = b.DarkMode,
+            Layout = b.Layout,
+            Background = b.Background,
+            GradientFrom = b.GradientFrom,
+            GradientTo = b.GradientTo,
+            BackgroundImageUrl = b.BackgroundImageUrl,
+            BackgroundFit = b.BackgroundFit,
+            BackgroundPosition = b.BackgroundPosition,
+            OverlayOpacity = b.OverlayOpacity,
+            Heading = b.Heading,
+            Subtitle = b.Subtitle,
+            HeadingSize = b.HeadingSize,
             Tagline = b.Tagline,
+            FeatureBulletsText = string.Join("\n", b.FeatureBullets),
+            FooterText = b.FooterText,
+            CardStyle = b.CardStyle,
+            CardShadow = b.CardShadow,
+            CornerRadius = b.CornerRadius,
             CustomDomain = await _branding.GetCustomDomainAsync(TenantId, ct)
         });
     }
@@ -53,9 +68,26 @@ public sealed class BrandingController : TenantAdminControllerBase
                 PrimaryColor = model.PrimaryColor,
                 ButtonTextColor = model.ButtonTextColor,
                 FontFamily = model.FontFamily,
-                Layout = model.Layout,
                 DarkMode = model.DarkMode,
-                Tagline = model.Tagline
+                Layout = model.Layout,
+                Background = model.Background,
+                GradientFrom = model.GradientFrom,
+                GradientTo = model.GradientTo,
+                BackgroundImageUrl = model.BackgroundImageUrl,
+                BackgroundFit = model.BackgroundFit,
+                BackgroundPosition = model.BackgroundPosition,
+                OverlayOpacity = model.OverlayOpacity,
+                Heading = model.Heading,
+                Subtitle = model.Subtitle,
+                HeadingSize = model.HeadingSize,
+                Tagline = model.Tagline,
+                FeatureBullets = (model.FeatureBulletsText ?? "")
+                    .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .ToList(),
+                FooterText = model.FooterText,
+                CardStyle = model.CardStyle,
+                CardShadow = model.CardShadow,
+                CornerRadius = model.CornerRadius
             }, CurrentAudit(), ct);
 
             await _branding.SetCustomDomainAsync(TenantId, model.CustomDomain, CurrentAudit(), ct);

@@ -1,12 +1,20 @@
 @model UserLoginViewModel
+@inject Authly.Web.Infrastructure.Branding.CurrentBranding Branding
 @{
     Layout = "_AuthLayout";
     var socialOptions = ViewData["SocialOptions"] as IReadOnlyList<Authly.Modules.Social.SocialLoginOption>
         ?? new List<Authly.Modules.Social.SocialLoginOption>();
+    var brand = await Branding.GetAsync();
+    var headingClass = brand.HeadingSize switch
+    {
+        Authly.Core.Enums.HeadingSize.Small => "text-xl",
+        Authly.Core.Enums.HeadingSize.Large => "text-3xl",
+        _ => "text-2xl"
+    };
 }
 
-<h2 class="font-display text-2xl font-bold">Welcome back</h2>
-<p class="text-sm text-muted-foreground mt-1 mb-6">Sign in to your account.</p>
+<h2 class="font-display @headingClass font-bold">@brand.Heading</h2>
+<p class="text-sm text-muted-foreground mt-1 mb-6">@brand.Subtitle</p>
 
 @if (TempData["Success"] is string success)
 {
@@ -19,16 +27,17 @@
 
 @if (socialOptions.Count > 0)
 {
-    <div class="space-y-2 mb-4">
+    <div class="space-y-2.5 mb-4">
         @foreach (var opt in socialOptions)
         {
-            <a class="btn btn-outline w-full" asp-controller="Social" asp-action="Start"
+            <a class="btn btn-outline w-full justify-center gap-2.5 font-semibold" asp-controller="Social" asp-action="Start"
                asp-route-provider="@opt.Provider" asp-route-returnUrl="@Model.ReturnUrl">
+                <partial name="_SocialIcon" model="@opt.Provider" />
                 Continue with @opt.DisplayName
             </a>
         }
     </div>
-    <div class="my-4 flex items-center gap-3"><div class="h-px flex-1 bg-border"></div><span class="text-xs text-muted-foreground">or</span><div class="h-px flex-1 bg-border"></div></div>
+    <div class="my-4 flex items-center gap-3"><div class="h-px flex-1 bg-border"></div><span class="text-xs text-muted-foreground">or continue with email</span><div class="h-px flex-1 bg-border"></div></div>
 }
 
 <form asp-controller="Account" asp-action="Login" method="post" class="space-y-4">
@@ -43,17 +52,23 @@
 
     <div>
         <label asp-for="Password" class="label">Password</label>
-        <input asp-for="Password" class="input" autocomplete="current-password" placeholder="••••••••" />
+        <div class="relative">
+            <input asp-for="Password" id="passwordInput" class="input pr-10" autocomplete="current-password" placeholder="••••••••" />
+            <button type="button" id="togglePassword" aria-label="Show password"
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <i data-lucide="eye" class="size-4"></i>
+            </button>
+        </div>
         <span asp-validation-for="Password" class="text-danger text-xs"></span>
     </div>
 
     <div class="flex justify-end">
-        <a asp-controller="Account" asp-action="ForgotPassword" class="text-sm text-primary hover:underline">Forgot password?</a>
+        <a asp-controller="Account" asp-action="ForgotPassword" class="text-sm font-medium text-primary hover:underline">Forgot password?</a>
     </div>
 
     <partial name="_Captcha" />
 
-    <button type="submit" class="btn btn-primary w-full">Sign in</button>
+    <button type="submit" class="btn btn-primary btn-lg w-full">Sign in</button>
 </form>
 
 <div class="my-4 flex items-center gap-3"><div class="h-px flex-1 bg-border"></div><span class="text-xs text-muted-foreground">or</span><div class="h-px flex-1 bg-border"></div></div>
@@ -79,6 +94,15 @@
 @section Scripts {
 <script src="~/js/authly-webauthn.js" asp-append-version="true"></script>
 <script>
+    document.getElementById('togglePassword')?.addEventListener('click', function () {
+        const input = document.getElementById('passwordInput');
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        this.innerHTML = '<i data-lucide="' + (show ? 'eye-off' : 'eye') + '" class="size-4"></i>';
+        this.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        lucide.createIcons();
+    });
+
     document.getElementById('passkeyBtn')?.addEventListener('click', function () {
         const email = document.querySelector('[name="Email"]').value.trim();
         const err = document.getElementById('passkeyError');

@@ -13,6 +13,8 @@ public sealed class TenantBranding
     /// <summary>The platform default (Authly indigo, Inter, centered, light).</summary>
     public static TenantBranding Default => new();
 
+    // --- identity -----------------------------------------------------------
+
     /// <summary>Absolute https(s) URL of the tenant's logo. Null falls back to the shield mark + name.</summary>
     public string? LogoUrl { get; set; }
 
@@ -25,24 +27,80 @@ public sealed class TenantBranding
     /// <summary>CSS font-family stack for the hosted pages. The platform uses Inter by default.</summary>
     public string FontFamily { get; set; } = "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 
-    /// <summary>Layout of the hosted pages.</summary>
-    public BrandingLayout Layout { get; set; } = BrandingLayout.Centered;
-
     /// <summary>When true the hosted pages default to dark mode.</summary>
     public bool DarkMode { get; set; }
 
-    /// <summary>Optional one-line tagline shown beneath the brand on split layouts.</summary>
+    // --- layout -------------------------------------------------------------
+
+    /// <summary>Where the form sits and what fills the rest of the page.</summary>
+    public BrandingLayout Layout { get; set; } = BrandingLayout.CenteredPlain;
+
+    // --- background (the branded panel, or the full page on centered-over-bg) -----
+
+    /// <summary>What fills the branded panel / full-page background.</summary>
+    public BrandingBackground Background { get; set; } = BrandingBackground.Gradient;
+
+    /// <summary>Start color of the gradient background. Hex. Defaults to the primary color at render time when blank.</summary>
+    public string GradientFrom { get; set; } = "#5b6df5";
+
+    /// <summary>End color of the gradient background. Hex.</summary>
+    public string GradientTo { get; set; } = "#1b9bc0";
+
+    /// <summary>Absolute https(s) URL of the background image (used when <see cref="Background"/> is Image).</summary>
+    public string? BackgroundImageUrl { get; set; }
+
+    /// <summary>How the background image is sized.</summary>
+    public BackgroundFit BackgroundFit { get; set; } = BackgroundFit.Cover;
+
+    /// <summary>CSS <c>background-position</c> keyword (e.g. <c>center</c>, <c>top</c>). Sanitized on save.</summary>
+    public string BackgroundPosition { get; set; } = "center";
+
+    /// <summary>Darkening scrim over the background image, 0–100 (% black). Improves text legibility.</summary>
+    public int OverlayOpacity { get; set; } = 35;
+
+    // --- text content -------------------------------------------------------
+
+    /// <summary>Main heading on the form (e.g. <c>Welcome back</c>).</summary>
+    public string Heading { get; set; } = "Welcome back";
+
+    /// <summary>Sub-heading beneath the form heading.</summary>
+    public string Subtitle { get; set; } = "Sign in to your account.";
+
+    /// <summary>Relative size of the form heading.</summary>
+    public HeadingSize HeadingSize { get; set; } = HeadingSize.Medium;
+
+    /// <summary>Optional one-line tagline shown beneath the brand on the panel (split layouts).</summary>
     public string? Tagline { get; set; }
 
+    /// <summary>Optional feature bullets ("checkmark" list) shown on the branded panel.</summary>
+    public List<string> FeatureBullets { get; set; } = new();
+
+    /// <summary>Optional footer line (e.g. a copyright notice) shown beneath the form.</summary>
+    public string? FooterText { get; set; }
+
+    // --- card / shape -------------------------------------------------------
+
+    /// <summary>Surface treatment of the form card.</summary>
+    public CardStyle CardStyle { get; set; } = CardStyle.Solid;
+
+    /// <summary>Drop-shadow strength of the form card.</summary>
+    public CardShadow CardShadow { get; set; } = CardShadow.Soft;
+
+    /// <summary>Corner radius in px applied to cards, inputs and buttons (0–16).</summary>
+    public int CornerRadius { get; set; } = 8;
+
+    // --- computed -----------------------------------------------------------
+
     /// <summary>
-    /// <see cref="PrimaryColor"/> expressed as a CSS <c>r, g, b</c> triplet for Bootstrap's
-    /// <c>--bs-primary-rgb</c> variable (used in rgba() soft backgrounds). Falls back to the
-    /// platform indigo if the hex can't be parsed.
+    /// <see cref="PrimaryColor"/> expressed as a CSS <c>r, g, b</c> triplet for the SAARVIX
+    /// <c>--primary</c> variable. Falls back to the platform indigo if the hex can't be parsed.
     /// </summary>
     public string PrimaryColorRgb => HexToRgb(PrimaryColor) ?? "91, 109, 245";
 
-    private static string? HexToRgb(string hex)
+    /// <summary>Converts a hex color to a CSS <c>r, g, b</c> triplet, or null if it can't be parsed.</summary>
+    public static string? HexToRgb(string? hex)
     {
+        if (string.IsNullOrWhiteSpace(hex)) return null;
         var h = hex.TrimStart('#');
         if (h.Length == 3) h = string.Concat(h[0], h[0], h[1], h[1], h[2], h[2]);
         if (h.Length != 6
@@ -54,12 +112,33 @@ public sealed class TenantBranding
     }
 
     /// <summary>True when nothing has been customized away from the platform default.</summary>
-    public bool IsDefault =>
-        LogoUrl is null
-        && PrimaryColor == Default.PrimaryColor
-        && ButtonTextColor == Default.ButtonTextColor
-        && FontFamily == Default.FontFamily
-        && Layout == BrandingLayout.Centered
-        && !DarkMode
-        && string.IsNullOrEmpty(Tagline);
+    public bool IsDefault
+    {
+        get
+        {
+            var d = Default;
+            return LogoUrl is null
+                && PrimaryColor == d.PrimaryColor
+                && ButtonTextColor == d.ButtonTextColor
+                && FontFamily == d.FontFamily
+                && !DarkMode
+                && Layout == d.Layout
+                && Background == d.Background
+                && GradientFrom == d.GradientFrom
+                && GradientTo == d.GradientTo
+                && BackgroundImageUrl is null
+                && BackgroundFit == d.BackgroundFit
+                && BackgroundPosition == d.BackgroundPosition
+                && OverlayOpacity == d.OverlayOpacity
+                && Heading == d.Heading
+                && Subtitle == d.Subtitle
+                && HeadingSize == d.HeadingSize
+                && string.IsNullOrEmpty(Tagline)
+                && FeatureBullets.Count == 0
+                && string.IsNullOrEmpty(FooterText)
+                && CardStyle == d.CardStyle
+                && CardShadow == d.CardShadow
+                && CornerRadius == d.CornerRadius;
+        }
+    }
 }

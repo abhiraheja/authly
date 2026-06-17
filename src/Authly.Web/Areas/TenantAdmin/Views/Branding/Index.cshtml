@@ -6,7 +6,8 @@
 
 <div class="flex items-center justify-between gap-3">
     <div>
-        <h1 class="font-display text-xl font-bold">Branding &amp; custom domain</h1>
+        <h1 class="font-display text-xl font-bold">Branding &amp; login page</h1>
+        <p class="text-sm text-muted-foreground">Customize how your hosted login, register and MFA pages look.</p>
     </div>
 </div>
 
@@ -15,32 +16,38 @@
 <form asp-area="TenantAdmin" asp-controller="Branding" asp-action="Index" method="post" class="mt-4">
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div class="lg:col-span-7 space-y-4">
+
+            @* ---------- Layout & identity ---------- *@
             <div class="card">
-                <div class="card-header"><div class="card-title">Login page appearance</div></div>
+                <div class="card-header"><div class="card-title">Layout &amp; identity</div></div>
                 <div class="card-body space-y-4">
+                    <div>
+                        <label asp-for="Layout" class="label"></label>
+                        <select asp-for="Layout" asp-items="@LayoutOptions()" class="input"></select>
+                        <p class="mt-1 text-xs text-muted-foreground">Where the form sits and what fills the rest of the page.</p>
+                    </div>
+
                     <div>
                         <label asp-for="LogoUrl" class="label"></label>
                         <input asp-for="LogoUrl" class="input" placeholder="https://cdn.yourcompany.com/logo.svg" />
                         <span asp-validation-for="LogoUrl" class="text-danger text-xs"></span>
-                        <p class="mt-1 text-xs text-muted-foreground">Shown on the hosted login/register/MFA pages. Falls back to your workspace name.</p>
+                        <p class="mt-1 text-xs text-muted-foreground">Falls back to your workspace name.</p>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label asp-for="PrimaryColor" class="label"></label>
                             <div class="flex gap-2">
-                                <input type="color" class="input h-10 w-16 p-1" value="@Model.PrimaryColor"
-                                       oninput="document.getElementById('PrimaryColor').value = this.value" />
-                                <input asp-for="PrimaryColor" id="PrimaryColor" class="input" />
+                                <input type="color" class="input h-10 w-16 p-1" value="@Model.PrimaryColor" data-color-for="PrimaryColor" />
+                                <input asp-for="PrimaryColor" class="input" />
                             </div>
                             <span asp-validation-for="PrimaryColor" class="text-danger text-xs"></span>
                         </div>
                         <div>
                             <label asp-for="ButtonTextColor" class="label"></label>
                             <div class="flex gap-2">
-                                <input type="color" class="input h-10 w-16 p-1" value="@Model.ButtonTextColor"
-                                       oninput="document.getElementById('ButtonTextColor').value = this.value" />
-                                <input asp-for="ButtonTextColor" id="ButtonTextColor" class="input" />
+                                <input type="color" class="input h-10 w-16 p-1" value="@Model.ButtonTextColor" data-color-for="ButtonTextColor" />
+                                <input asp-for="ButtonTextColor" class="input" />
                             </div>
                             <span asp-validation-for="ButtonTextColor" class="text-danger text-xs"></span>
                         </div>
@@ -52,20 +59,6 @@
                         <p class="mt-1 text-xs text-muted-foreground">A CSS font-family stack. Leave blank for the default.</p>
                     </div>
 
-                    <div>
-                        <label class="label">Layout</label>
-                        <div class="flex flex-wrap items-center gap-4">
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="radio" asp-for="Layout" id="layoutCentered" value="@BrandingLayout.Centered" />
-                                <span>Centered card</span>
-                            </label>
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="radio" asp-for="Layout" id="layoutSplit" value="@BrandingLayout.Split" />
-                                <span>Split (branded panel)</span>
-                            </label>
-                        </div>
-                    </div>
-
                     <div class="flex items-center gap-3">
                         <label class="switch">
                             <input asp-for="DarkMode" type="checkbox" />
@@ -73,15 +66,121 @@
                         </label>
                         <label asp-for="DarkMode" class="label !mb-0"></label>
                     </div>
+                </div>
+            </div>
 
+            @* ---------- Background ---------- *@
+            <div class="card">
+                <div class="card-header"><div class="card-title">Background</div></div>
+                <div class="card-body space-y-4">
+                    <p class="text-xs text-muted-foreground -mt-1">Fills the branded panel (split layouts) or the whole page (centered over background).</p>
                     <div>
-                        <label asp-for="Tagline" class="label"></label>
-                        <input asp-for="Tagline" class="input" placeholder="Welcome back to Acme" />
-                        <p class="mt-1 text-xs text-muted-foreground">Shown beside the brand on the split layout.</p>
+                        <label asp-for="Background" class="label"></label>
+                        <select asp-for="Background" asp-items="@Html.GetEnumSelectList<BrandingBackground>()" class="input"></select>
+                    </div>
+
+                    <div data-bg="Gradient" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label asp-for="GradientFrom" class="label"></label>
+                            <div class="flex gap-2">
+                                <input type="color" class="input h-10 w-16 p-1" value="@Model.GradientFrom" data-color-for="GradientFrom" />
+                                <input asp-for="GradientFrom" class="input" />
+                            </div>
+                            <span asp-validation-for="GradientFrom" class="text-danger text-xs"></span>
+                        </div>
+                        <div>
+                            <label asp-for="GradientTo" class="label"></label>
+                            <div class="flex gap-2">
+                                <input type="color" class="input h-10 w-16 p-1" value="@Model.GradientTo" data-color-for="GradientTo" />
+                                <input asp-for="GradientTo" class="input" />
+                            </div>
+                            <span asp-validation-for="GradientTo" class="text-danger text-xs"></span>
+                        </div>
+                    </div>
+
+                    <div data-bg="Image" class="space-y-4">
+                        <div>
+                            <label asp-for="BackgroundImageUrl" class="label"></label>
+                            <input asp-for="BackgroundImageUrl" class="input" placeholder="https://cdn.yourcompany.com/login-bg.jpg" />
+                            <span asp-validation-for="BackgroundImageUrl" class="text-danger text-xs"></span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label asp-for="BackgroundFit" class="label"></label>
+                                <select asp-for="BackgroundFit" asp-items="@Html.GetEnumSelectList<BackgroundFit>()" class="input"></select>
+                            </div>
+                            <div>
+                                <label asp-for="BackgroundPosition" class="label"></label>
+                                <input asp-for="BackgroundPosition" class="input" placeholder="center" />
+                                <p class="mt-1 text-xs text-muted-foreground">e.g. center, top, 50% 20%.</p>
+                            </div>
+                        </div>
+                        <div>
+                            <label asp-for="OverlayOpacity" class="label">Overlay (darken for legibility) — <span id="overlayVal">@Model.OverlayOpacity</span>%</label>
+                            <input asp-for="OverlayOpacity" type="range" min="0" max="100" step="5" class="w-full" />
+                        </div>
                     </div>
                 </div>
             </div>
 
+            @* ---------- Text content ---------- *@
+            <div class="card">
+                <div class="card-header"><div class="card-title">Text content</div></div>
+                <div class="card-body space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="sm:col-span-2">
+                            <label asp-for="Heading" class="label"></label>
+                            <input asp-for="Heading" class="input" placeholder="Welcome back" />
+                            <span asp-validation-for="Heading" class="text-danger text-xs"></span>
+                        </div>
+                        <div>
+                            <label asp-for="HeadingSize" class="label"></label>
+                            <select asp-for="HeadingSize" asp-items="@Html.GetEnumSelectList<HeadingSize>()" class="input"></select>
+                        </div>
+                    </div>
+                    <div>
+                        <label asp-for="Subtitle" class="label"></label>
+                        <input asp-for="Subtitle" class="input" placeholder="Sign in to your account." />
+                        <span asp-validation-for="Subtitle" class="text-danger text-xs"></span>
+                    </div>
+                    <div>
+                        <label asp-for="Tagline" class="label"></label>
+                        <input asp-for="Tagline" class="input" placeholder="Run your whole revenue desk from one screen." />
+                        <p class="mt-1 text-xs text-muted-foreground">Large headline on the branded panel (split layouts).</p>
+                    </div>
+                    <div>
+                        <label asp-for="FeatureBulletsText" class="label"></label>
+                        <textarea asp-for="FeatureBulletsText" rows="4" class="input" placeholder="One feature per line&#10;Omnichannel inbox&#10;AI agents that qualify leads"></textarea>
+                        <p class="mt-1 text-xs text-muted-foreground">Checkmark list on the branded panel. One per line, up to 6.</p>
+                    </div>
+                    <div>
+                        <label asp-for="FooterText" class="label"></label>
+                        <input asp-for="FooterText" class="input" placeholder="© 2026 Acme. All rights reserved." />
+                        <span asp-validation-for="FooterText" class="text-danger text-xs"></span>
+                    </div>
+                </div>
+            </div>
+
+            @* ---------- Card & shape ---------- *@
+            <div class="card">
+                <div class="card-header"><div class="card-title">Card &amp; shape</div></div>
+                <div class="card-body grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label asp-for="CardStyle" class="label"></label>
+                        <select asp-for="CardStyle" asp-items="@Html.GetEnumSelectList<CardStyle>()" class="input"></select>
+                    </div>
+                    <div>
+                        <label asp-for="CardShadow" class="label"></label>
+                        <select asp-for="CardShadow" asp-items="@Html.GetEnumSelectList<CardShadow>()" class="input"></select>
+                    </div>
+                    <div>
+                        <label asp-for="CornerRadius" class="label">Corner radius — <span id="radiusVal">@Model.CornerRadius</span>px</label>
+                        <input asp-for="CornerRadius" type="range" min="0" max="16" step="1" class="w-full" />
+                    </div>
+                </div>
+            </div>
+
+            @* ---------- Custom domain ---------- *@
             <div class="card">
                 <div class="card-header"><div class="card-title">Custom domain</div></div>
                 <div class="card-body">
@@ -89,8 +188,7 @@
                     <input asp-for="CustomDomain" class="input" placeholder="auth.yourcompany.com" />
                     <span asp-validation-for="CustomDomain" class="text-danger text-xs"></span>
                     <p class="mt-1 text-xs text-muted-foreground">
-                        Point a CNAME for this host at the platform, then enter it here. Your end-users will see
-                        login pages on your own domain. Leave blank to remove.
+                        Point a CNAME for this host at the platform, then enter it here. Leave blank to remove.
                     </p>
                 </div>
             </div>
@@ -98,41 +196,158 @@
             <button type="submit" class="btn btn-primary">Save branding</button>
         </div>
 
+        @* ---------- Live preview ---------- *@
         <div class="lg:col-span-5">
-            <div class="card">
-                <div class="card-header"><div class="card-title">Preview</div></div>
+            <div class="card lg:sticky lg:top-4">
+                <div class="card-header"><div class="card-title">Live preview</div></div>
                 <div class="card-body">
-                    <div id="brandPreview" class="rounded-lg border border-border p-4 text-center">
-                        <div id="previewLogoWrap" class="mb-3 inline-flex items-center gap-2 font-bold text-lg">
-                            <span id="previewMark" class="grid place-items-center size-9 rounded-lg text-white"
-                                  style="background:@Model.PrimaryColor;">
-                                <i data-lucide="shield-check" class="size-5"></i>
-                            </span>
-                            <span>Your workspace</span>
+                    <div id="pvRoot" class="flex w-full overflow-hidden rounded-lg border border-border" style="height:360px;">
+                        <div id="pvPanel" class="relative hidden w-1/2 flex-col justify-between p-4 text-white overflow-hidden">
+                            <div id="pvOverlay" class="absolute inset-0 hidden"></div>
+                            <div id="pvPanelBrand" class="relative font-bold">Your workspace</div>
+                            <div class="relative space-y-2">
+                                <div id="pvTagline" class="font-bold text-lg leading-tight"></div>
+                                <ul id="pvBullets" class="space-y-1.5 text-xs"></ul>
+                            </div>
                         </div>
-                        <p class="text-muted-foreground text-sm mb-3">Sign in to your account.</p>
-                        <button type="button" id="previewBtn" class="btn w-full"
-                                style="background:@Model.PrimaryColor;color:@Model.ButtonTextColor;border:0;">Sign in</button>
+                        <div id="pvFormArea" class="relative flex flex-1 items-center justify-center p-4">
+                            <div id="pvFormOverlay" class="absolute inset-0 hidden"></div>
+                            <div id="pvCard" class="relative w-full max-w-[220px] p-4">
+                                <div id="pvHeading" class="font-bold">Welcome back</div>
+                                <div id="pvSubtitle" class="text-xs text-muted-foreground mt-0.5 mb-3">Sign in to your account.</div>
+                                <div class="h-7 rounded border border-border bg-background mb-2"></div>
+                                <div class="h-7 rounded border border-border bg-background mb-3"></div>
+                                <button type="button" id="pvBtn" class="w-full text-xs font-medium py-1.5">Sign in</button>
+                            </div>
+                        </div>
                     </div>
-                    <p class="mt-2 text-xs text-muted-foreground">An approximation; the live page also applies your font and layout.</p>
+                    <p class="mt-2 text-xs text-muted-foreground">An approximation; the live page also applies your font.</p>
                 </div>
             </div>
         </div>
     </div>
 </form>
 
+@functions {
+    // Friendlier labels than the raw enum names for the layout dropdown.
+    private static Microsoft.AspNetCore.Mvc.Rendering.SelectListItem[] LayoutOptions() => new[]
+    {
+        new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem("Centered card", nameof(BrandingLayout.CenteredPlain)),
+        new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem("Centered over background", nameof(BrandingLayout.CenteredOverBackground)),
+        new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem("Form left, panel right", nameof(BrandingLayout.FormLeft)),
+        new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem("Form right, panel left", nameof(BrandingLayout.FormRight))
+    };
+}
+
 @section Scripts {
 <script>
-    const primary = document.getElementById('PrimaryColor');
-    const btnText = document.getElementById('ButtonTextColor');
-    const previewBtn = document.getElementById('previewBtn');
-    const previewMark = document.getElementById('previewMark');
-    function sync() {
-        previewBtn.style.background = primary.value;
-        previewBtn.style.color = btnText.value;
-        previewMark.style.background = primary.value;
+(function () {
+    const $ = id => document.getElementById(id);
+    const val = name => { const el = document.querySelector(`[name="${name}"]`); return el ? el.value : ''; };
+    const checked = name => { const el = document.querySelector(`[name="${name}"]`); return el ? el.checked : false; };
+
+    // Mirror native color pickers into their paired text inputs.
+    document.querySelectorAll('[data-color-for]').forEach(picker => {
+        picker.addEventListener('input', () => {
+            const target = document.querySelector(`[name="${picker.getAttribute('data-color-for')}"]`);
+            if (target) { target.value = picker.value; render(); }
+        });
+    });
+
+    function panelFill() {
+        const bg = val('Background');
+        if (bg === 'Solid') return { css: val('PrimaryColor'), image: false };
+        if (bg === 'Image') {
+            const url = val('BackgroundImageUrl');
+            if (url) {
+                const fit = val('BackgroundFit');
+                const size = fit === 'Contain' ? 'contain' : (fit === 'Tile' ? 'auto' : 'cover');
+                const repeat = fit === 'Tile' ? 'repeat' : 'no-repeat';
+                return { image: true, url, size, repeat, pos: val('BackgroundPosition') || 'center' };
+            }
+        }
+        return { css: `linear-gradient(135deg, ${val('GradientFrom')}, ${val('GradientTo')})`, image: false };
     }
-    primary.addEventListener('input', sync);
-    btnText.addEventListener('input', sync);
+
+    function applyFill(el, overlayEl) {
+        const f = panelFill();
+        el.style.background = '';
+        el.style.backgroundImage = '';
+        if (f.image) {
+            el.style.backgroundImage = `url('${f.url}')`;
+            el.style.backgroundSize = f.size;
+            el.style.backgroundRepeat = f.repeat;
+            el.style.backgroundPosition = f.pos;
+            const o = parseInt(val('OverlayOpacity') || '0', 10);
+            if (o > 0) { overlayEl.classList.remove('hidden'); overlayEl.style.background = `rgba(0,0,0,${o / 100})`; }
+            else overlayEl.classList.add('hidden');
+        } else {
+            el.style.background = f.css;
+            overlayEl.classList.add('hidden');
+        }
+    }
+
+    function render() {
+        const layout = val('Layout');
+        const split = layout === 'FormLeft' || layout === 'FormRight';
+        const over = layout === 'CenteredOverBackground';
+        const primary = val('PrimaryColor');
+        const btnText = val('ButtonTextColor');
+        const radius = parseInt(val('CornerRadius') || '8', 10);
+
+        // panel
+        const panel = $('pvPanel'), formArea = $('pvFormArea'), root = $('pvRoot');
+        panel.classList.toggle('hidden', !split);
+        panel.style.order = layout === 'FormRight' ? '0' : '2';
+        if (split) applyFill(panel, $('pvOverlay'));
+
+        // form area background
+        if (over) { applyFill(formArea, $('pvFormOverlay')); }
+        else { formArea.style.background = ''; formArea.style.backgroundImage = ''; $('pvFormOverlay').classList.add('hidden'); }
+
+        // panel text
+        $('pvTagline').textContent = val('Tagline') || '';
+        const bullets = (val('FeatureBulletsText') || '').split('\n').map(s => s.trim()).filter(Boolean).slice(0, 6);
+        $('pvBullets').innerHTML = bullets.map(b => `<li class="flex items-center gap-1.5"><span style="display:inline-grid;place-items:center;width:14px;height:14px;border-radius:9999px;background:rgba(255,255,255,.25)">✓</span>${b.replace(/</g,'&lt;')}</li>`).join('');
+
+        // card
+        const card = $('pvCard');
+        card.style.borderRadius = radius + 'px';
+        if (val('CardStyle') === 'Glass') {
+            card.style.background = 'rgba(255,255,255,.72)';
+            card.style.backdropFilter = 'blur(8px)';
+            card.style.border = '1px solid rgba(255,255,255,.3)';
+        } else {
+            card.style.background = 'rgb(var(--card))';
+            card.style.border = '1px solid rgb(var(--border))';
+            card.style.backdropFilter = '';
+        }
+        const shadow = val('CardShadow');
+        card.style.boxShadow = shadow === 'None' ? 'none' : (shadow === 'Strong' ? '0 20px 50px -12px rgba(0,0,0,.35)' : '0 10px 30px -10px rgba(0,0,0,.18)');
+
+        // text
+        $('pvHeading').textContent = val('Heading') || 'Welcome back';
+        const hs = val('HeadingSize');
+        $('pvHeading').style.fontSize = hs === 'Small' ? '1rem' : (hs === 'Large' ? '1.6rem' : '1.25rem');
+        $('pvSubtitle').textContent = val('Subtitle') || 'Sign in to your account.';
+
+        // button
+        const btn = $('pvBtn');
+        btn.style.background = primary; btn.style.color = btnText;
+        btn.style.borderRadius = Math.max(0, radius - 2) + 'px'; btn.style.border = '0';
+
+        // toggle background sub-sections + slider read-outs
+        const bg = val('Background');
+        document.querySelectorAll('[data-bg]').forEach(el => el.classList.toggle('hidden', el.getAttribute('data-bg') !== bg));
+        $('overlayVal').textContent = val('OverlayOpacity');
+        $('radiusVal').textContent = val('CornerRadius');
+    }
+
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+        el.addEventListener('input', render);
+        el.addEventListener('change', render);
+    });
+    render();
+})();
 </script>
 }

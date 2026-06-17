@@ -33,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<Accounts.IAccountService, Accounts.AccountService>();
         services.AddScoped<Operators.IOperatorRbacService, Operators.OperatorRbacService>();
         services.AddScoped<Operators.IConsoleAccessService, Operators.ConsoleAccessService>();
+        services.AddScoped<Provisioning.IConsoleProvisioningService, Provisioning.ConsoleProvisioningService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IApplicationService, ApplicationService>();
         services.AddScoped<ITenantAdminService, TenantAdminService>();

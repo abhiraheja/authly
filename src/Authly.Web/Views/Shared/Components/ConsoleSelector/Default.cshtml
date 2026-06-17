@@ -1,0 +1,49 @@
+@model Authly.Web.Components.ConsoleSelectorModel
+
+<div class="relative hidden sm:block">
+    <button class="btn btn-outline btn-sm" type="button" data-dropdown="wsMenu" title="Switch workspace">
+        <i data-lucide="folder" class="size-4"></i>
+        <span class="max-w-[16rem] truncate">@Model.ActiveOrgName <span class="text-muted-foreground">/</span> @Model.ActiveProjectName</span>
+        <i data-lucide="chevrons-up-down" class="size-3.5 opacity-60"></i>
+    </button>
+
+    <div id="wsMenu" data-dropdown-menu class="menu hidden absolute left-0 mt-1 w-72 max-h-[70vh] overflow-y-auto scroll-thin">
+        @if (Model.Orgs.Count > 1)
+        {
+            <p class="px-2.5 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Organization</p>
+            @foreach (var org in Model.Orgs)
+            {
+                <form asp-area="TenantAdmin" asp-controller="Workspace" asp-action="SwitchOrg" method="post">
+                    <input type="hidden" name="organizationId" value="@org.Id" />
+                    <button type="submit" class="menu-item w-full @(org.IsActive ? "text-primary font-medium" : "")">
+                        <i data-lucide="building-2" class="size-4"></i>
+                        <span class="flex-1 text-left truncate">@org.Name</span>
+                        @if (org.IsActive) { <i data-lucide="check" class="size-4"></i> }
+                    </button>
+                </form>
+            }
+            <div class="menu-sep"></div>
+        }
+
+        <p class="px-2.5 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Projects</p>
+        @foreach (var project in Model.Projects)
+        {
+            <form asp-area="TenantAdmin" asp-controller="Workspace" asp-action="SwitchProject" method="post">
+                <input type="hidden" name="projectId" value="@project.Id" />
+                <button type="submit" class="menu-item w-full @(project.IsActive ? "text-primary font-medium" : "")">
+                    <i data-lucide="box" class="size-4"></i>
+                    <span class="flex-1 text-left truncate">@project.Name</span>
+                    @if (project.IsActive) { <i data-lucide="check" class="size-4"></i> }
+                </button>
+            </form>
+        }
+
+        @if (Model.CanCreateProject)
+        {
+            <div class="menu-sep"></div>
+            <a class="menu-item text-primary" asp-area="TenantAdmin" asp-controller="Workspace" asp-action="NewProject">
+                <i data-lucide="plus" class="size-4"></i> New project
+            </a>
+        }
+    </div>
+</div>

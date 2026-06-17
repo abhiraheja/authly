@@ -70,12 +70,8 @@
                 <i data-lucide="menu" class="size-5"></i>
             </button>
 
-            <!-- Org → project selector placeholder (wired in Phase 3) -->
-            <button class="btn btn-outline btn-sm hidden sm:inline-flex" type="button" title="Project selector (coming soon)" disabled>
-                <i data-lucide="folder" class="size-4"></i>
-                <span>Default project</span>
-                <i data-lucide="chevrons-up-down" class="size-3.5 opacity-60"></i>
-            </button>
+            <!-- Two-level org → project selector (doc 06 §6) -->
+            @await Component.InvokeAsync("ConsoleSelector")
 
             <div class="ms-auto flex items-center gap-2">
                 <button class="btn btn-ghost btn-icon" type="button" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">

@@ -1,0 +1,34 @@
+@model Authly.Web.Areas.TenantAdmin.Controllers.NewProjectViewModel
+@{
+    ViewData["Title"] = "New project";
+}
+
+<div class="flex items-center gap-3">
+    <a class="btn btn-ghost btn-icon btn-sm" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index" aria-label="Back"><i data-lucide="arrow-left" class="size-4"></i></a>
+    <div>
+        <h1 class="font-display text-xl font-bold">New project</h1>
+        <p class="text-sm text-muted-foreground mt-0.5">A project is an isolated environment (e.g. dev, staging, prod) inside your organization.</p>
+    </div>
+</div>
+
+<div class="card max-w-xl">
+    <div class="card-body">
+        <form asp-area="TenantAdmin" asp-controller="Workspace" asp-action="NewProject" method="post" class="space-y-4">
+            <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
+
+            <div>
+                <label asp-for="Name" class="label"></label>
+                <input asp-for="Name" class="input" placeholder="Production" autofocus />
+                <span asp-validation-for="Name" class="text-danger text-xs"></span>
+                <p class="mt-1 text-xs text-muted-foreground">You'll be switched into the new project automatically.</p>
+            </div>
+
+            <div class="flex gap-2 pt-1">
+                <button type="submit" class="btn btn-primary"><i data-lucide="plus" class="size-4"></i> Create project</button>
+                <a class="btn btn-outline" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

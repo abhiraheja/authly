@@ -46,8 +46,8 @@ Do populations (kabhi mat milao):
 Phase 0  UI Foundation (SAARVIX)         ✅ DONE (main 2c952a9)
 Phase 1  Identity: Org + Account         ✅ DONE (feat/identity-org-account 01dfc2c)
 Phase 2  Operator RBAC + guard           ✅ DONE (feat/operator-rbac)
-Phase 3  Org→Project selector + new-project   ← NEXT
-Phase 4  Members UI + employee invite
+Phase 3  Org→Project selector + new-project   ✅ DONE (feat/console-selector)
+Phase 4  Members UI + employee invite    ← NEXT
 Phase 5  Cleanup (IsTenantAdmin / legacy admin)
 Phase 6  Remove SuperAdmin + self-host cleanup (monitoring → account surface)
 Phase 7  Pluggable observability (OpenTelemetry)
@@ -145,13 +145,17 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 ## Phase 3 — Org→Project selector + new project
 **Goal:** Google-style two-level selector + self-serve project create. **Source:** doc 06 §6, doc 02 §4.
 
-**Tasks**
-- [ ] `IConsoleProvisioningService.CreateProjectAsync(orgId, name)` — extract slug-dedup `CreateWorkspaceAsync` from `TenantSignupService`; seeds end-user system roles for the new project.
-- [ ] `WorkspaceController` (NOT base-derived; own membership check): `POST switch-org`, `POST switch-project`, `GET/POST new-project` (gated `project.create`) → re-issue cookie (new OrgId/TenantId) → auto-switch.
-- [ ] `ConsoleSelectorViewComponent` + wire into the SAARVIX topbar (Phase 0 placeholder → real): org (if >1) → project list (active checked) → "+ New project".
-- [ ] **Built in SAARVIX** (mirror Google "Select a project" modal).
+**Status: ✅ DONE** (branch `feat/console-selector`; 253 tests green; selector + new-project auto-switch + switch-project smoke-verified vs Postgres).
 
-**Tests:** switch rejects non-member org/project; new-project creates Tenant in active org + auto-switch.
+**Tasks**
+- [x] `IConsoleProvisioningService.CreateProjectAsync(orgId, name, actor)` — extracted slug-dedup project creation from `TenantSignupService` (now reused by signup); seeds end-user system roles + binds tenant context only when the request is tenant-less.
+- [x] `WorkspaceController` (NOT base-derived; own membership check): `POST switch-org`, `POST switch-project`, `GET/POST new-project` (gated `project.create` via `IConsoleAccessService`) → re-issue cookie (new OrgId/TenantId) → auto-switch.
+- [x] `ConsoleSelectorViewComponent` + wired into the SAARVIX topbar (Phase 0 placeholder → real): org (if >1) → project list (active checked) → "+ New project".
+- [x] **Built in SAARVIX** (topbar dropdown via the data-attr menu API).
+
+**Tests:** ✅ provisioning (create/seed/bind, slug dedup, no-slug error); switch-org/switch-project reject non-members + new-project auto-switch verified at runtime (controller flows exercised vs Postgres). Build + 253 green.
+
+> `TenantContext` is set-once-per-request, so provisioning only binds context when none is set (console requests already have one; role/permission tables aren't RLS-protected, so seeding carries an explicit tenant_id).
 
 ---
 
@@ -235,7 +239,7 @@ signup/login. **Source:** doc 06 §4–§7 (authoritative), doc 02 (context).
 
 ## 5. Definition of Done (whole effort)
 - [x] Signup → Account+Organization+first Project; login account-based, tenant-agnostic. *(Phase 1)*
-- [ ] Console: org→project selector switches; "New project" self-serve; non-member access rejected. *(Phase 2–3)*
+- [x] Console: org→project selector switches; "New project" self-serve; non-member access rejected. *(Phase 3)*
 - [~] Employees invited as operators with custom operator roles; **permissions gate console actions ✅ (Phase 2)**; end-user `User`/RBAC untouched ✅. Invite flow + role-CRUD UI = Phase 4.
 - [ ] SuperAdmin gone; monitoring on account surface; tenant delete in project settings; cloud-only features removed.
 - [ ] Observability opt-in (OpenTelemetry); nothing ships unconfigured; local Grafana stack works.

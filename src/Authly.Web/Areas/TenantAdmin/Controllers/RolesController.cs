@@ -1,6 +1,7 @@
 using Authly.Core.Interfaces;
 using Authly.Modules.Authorization;
 using Authly.Web.Areas.TenantAdmin.Models;
+using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Authly.Web.Areas.TenantAdmin.Controllers;
@@ -14,6 +15,7 @@ public sealed class RolesController : TenantAdminControllerBase
     public RolesController(IRbacService rbac, ITenantContext tenant) : base(tenant)
         => _rbac = rbac;
 
+    [RequireOperatorPermission("role.read")]
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -23,6 +25,7 @@ public sealed class RolesController : TenantAdminControllerBase
         return View(await _rbac.ListRolesAsync(TenantId, ct));
     }
 
+    [RequireOperatorPermission("role.read")]
     [HttpGet("create")]
     public IActionResult Create()
     {
@@ -30,6 +33,7 @@ public sealed class RolesController : TenantAdminControllerBase
         return View(new CreateRoleViewModel());
     }
 
+    [RequireOperatorPermission("role.manage")]
     [HttpPost("create")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateRoleViewModel model, CancellationToken ct)
@@ -51,6 +55,7 @@ public sealed class RolesController : TenantAdminControllerBase
         }
     }
 
+    [RequireOperatorPermission("role.read")]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
@@ -63,6 +68,7 @@ public sealed class RolesController : TenantAdminControllerBase
         return View(role.Role);
     }
 
+    [RequireOperatorPermission("role.manage")]
     [HttpPost("{id:guid}/permissions")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SetPermissions(Guid id, Guid[] permissionIds, CancellationToken ct)
@@ -80,6 +86,7 @@ public sealed class RolesController : TenantAdminControllerBase
         return RedirectToAction(nameof(Details), new { id });
     }
 
+    [RequireOperatorPermission("role.manage")]
     [HttpPost("{id:guid}/delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)

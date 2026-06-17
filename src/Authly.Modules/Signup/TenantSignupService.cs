@@ -1,8 +1,10 @@
+using Authly.Core.Authorization;
 using Authly.Core.Entities;
 using Authly.Core.Enums;
 using Authly.Core.Interfaces;
 using AccountEntity = Authly.Core.Entities.Account;
 using Authly.Modules.Audit;
+using Authly.Modules.Operators;
 using Authly.Modules.Auth;
 using Authly.Modules.Authorization;
 using Authly.Modules.Common;
@@ -50,6 +52,7 @@ public sealed class TenantSignupService : ITenantSignupService
     private readonly ITenantService _tenants;
     private readonly ITenantContext _tenantContext;
     private readonly IRbacService _rbac;
+    private readonly IOperatorRbacService _operatorRbac;
     private readonly IPasswordHasher _hasher;
     private readonly IAuditLogger _audit;
 
@@ -60,6 +63,7 @@ public sealed class TenantSignupService : ITenantSignupService
         ITenantService tenants,
         ITenantContext tenantContext,
         IRbacService rbac,
+        IOperatorRbacService operatorRbac,
         IPasswordHasher hasher,
         IAuditLogger audit)
     {
@@ -69,6 +73,7 @@ public sealed class TenantSignupService : ITenantSignupService
         _tenants = tenants;
         _tenantContext = tenantContext;
         _rbac = rbac;
+        _operatorRbac = operatorRbac;
         _hasher = hasher;
         _audit = audit;
     }
@@ -108,16 +113,21 @@ public sealed class TenantSignupService : ITenantSignupService
         //    without an ambient tenant (tenants table is not RLS-protected). De-duplicate the slug.
         var tenant = await CreateFirstProjectAsync(request.CompanyName, organization.Id, ct);
 
-        // 4) Founding membership — the owner is immediately Active (operator owner role lands in Phase 2).
-        await _memberships.AddAsync(new OrganizationMembership
+        // 4) Founding membership — the owner is immediately Active.
+        var membership = new OrganizationMembership
         {
             AccountId = account.Id,
             OrganizationId = organization.Id,
             Status = MembershipStatus.Active,
             CreatedAt = now
-        }, ct);
+        };
+        await _memberships.AddAsync(membership, ct);
 
-        // 5) Bind RLS context to the new project and seed its end-user (app) system roles so the
+        // 5) Seed the org's operator-RBAC catalogue + system roles, and grant the founder org_owner.
+        await _operatorRbac.EnsureSystemRolesAsync(organization.Id, ct);
+        await _operatorRbac.AssignSystemRoleAsync(organization.Id, membership.Id, OperatorRbac.OrgOwner, account.Id, ct);
+
+        // 6) Bind RLS context to the new project and seed its end-user (app) system roles so the
         //    project is immediately usable for hosted login.
         _tenantContext.SetTenant(tenant.Id);
         await _rbac.EnsureSystemRolesAsync(tenant.Id, ct);

@@ -15,7 +15,7 @@ public class TenantSignupTests
 {
     private static (TenantSignupService svc, FakeAccountRepo accounts, FakeOrgRepo orgs,
         FakeMembershipRepo memberships, FakeTenantService tenants, FakeTenantContext ctx,
-        FakeSignupRbac rbac, FakeSignupAudit audit) Build()
+        FakeSignupRbac rbac, FakeOperatorRbac operatorRbac, FakeSignupAudit audit) Build()
     {
         var accounts = new FakeAccountRepo();
         var orgs = new FakeOrgRepo();
@@ -23,10 +23,11 @@ public class TenantSignupTests
         var tenants = new FakeTenantService();
         var ctx = new FakeTenantContext();
         var rbac = new FakeSignupRbac();
+        var operatorRbac = new FakeOperatorRbac();
         var audit = new FakeSignupAudit();
         var hasher = new FakeHasher();
-        var svc = new TenantSignupService(accounts, orgs, memberships, tenants, ctx, rbac, hasher, audit);
-        return (svc, accounts, orgs, memberships, tenants, ctx, rbac, audit);
+        var svc = new TenantSignupService(accounts, orgs, memberships, tenants, ctx, rbac, operatorRbac, hasher, audit);
+        return (svc, accounts, orgs, memberships, tenants, ctx, rbac, operatorRbac, audit);
     }
 
     private static TenantSignupRequest Req(string company = "Acme Inc.", string email = "owner@acme.test")
@@ -35,7 +36,7 @@ public class TenantSignupTests
     [Fact]
     public async Task Provisions_account_organization_project_and_membership()
     {
-        var (svc, accounts, orgs, memberships, _, ctx, rbac, audit) = Build();
+        var (svc, accounts, orgs, memberships, _, ctx, rbac, operatorRbac, audit) = Build();
 
         var result = await svc.SignUpAsync(Req(), new RequestInfo("1.2.3.4", "agent"));
 
@@ -63,6 +64,10 @@ public class TenantSignupTests
         Assert.Contains(result.Tenant.Id, rbac.SeededTenants);
         Assert.Equal(result.Tenant.Id, ctx.TenantId);
 
+        // Operator RBAC seeded for the org + founder granted org_owner against their membership
+        Assert.Contains(result.Organization.Id, operatorRbac.SeededOrgs);
+        Assert.Equal((membership.Id, "org_owner"), operatorRbac.Assignments.Single());
+
         // Audit trail
         Assert.Contains("account.created", audit.Events);
         Assert.Contains("organization.created", audit.Events);
@@ -72,7 +77,7 @@ public class TenantSignupTests
     [Fact]
     public async Task Rejects_a_duplicate_account_email()
     {
-        var (svc, accounts, _, _, _, _, _, _) = Build();
+        var (svc, accounts, _, _, _, _, _, _, _) = Build();
         accounts.TakenEmails.Add("owner@acme.test");
 
         await Assert.ThrowsAsync<EmailAlreadyExistsException>(() => svc.SignUpAsync(Req(), new RequestInfo(null, null)));
@@ -81,7 +86,7 @@ public class TenantSignupTests
     [Fact]
     public async Task Disambiguates_a_taken_project_slug()
     {
-        var (svc, _, _, _, tenants, _, _, _) = Build();
+        var (svc, _, _, _, tenants, _, _, _, _) = Build();
         tenants.TakenSlugs.Add("acme-inc");        // first project slug already exists
 
         var result = await svc.SignUpAsync(Req(), new RequestInfo(null, null));
@@ -92,7 +97,7 @@ public class TenantSignupTests
     [Fact]
     public async Task Disambiguates_a_taken_organization_slug()
     {
-        var (svc, _, orgs, _, _, _, _, _) = Build();
+        var (svc, _, orgs, _, _, _, _, _, _) = Build();
         orgs.TakenSlugs.Add("acme-inc");           // first org slug already exists
 
         var result = await svc.SignUpAsync(Req(), new RequestInfo(null, null));
@@ -103,7 +108,7 @@ public class TenantSignupTests
     [Fact]
     public async Task Gives_up_with_a_clear_error_when_no_project_slug_is_free()
     {
-        var (svc, _, _, _, tenants, _, _, _) = Build();
+        var (svc, _, _, _, tenants, _, _, _, _) = Build();
         tenants.RejectEverything = true;
 
         await Assert.ThrowsAsync<TenantSignupException>(() => svc.SignUpAsync(Req(), new RequestInfo(null, null)));
@@ -226,6 +231,16 @@ internal sealed class FakeSignupRbac : IRbacService
     public Task<IReadOnlyList<Role>> ListUserRolesAsync(Guid t, Guid u, CancellationToken ct = default) => throw new NotImplementedException();
     public Task RemoveRoleAsync(Guid t, Guid u, Guid r, AuditContext a, CancellationToken ct = default) => throw new NotImplementedException();
     public Task<UserAuthorization> GetUserAuthorizationAsync(Guid t, Guid u, CancellationToken ct = default) => throw new NotImplementedException();
+}
+
+internal sealed class FakeOperatorRbac : Authly.Modules.Operators.IOperatorRbacService
+{
+    public readonly List<Guid> SeededOrgs = new();
+    public readonly List<(Guid MembershipId, string Role)> Assignments = new();
+
+    public Task EnsureSystemRolesAsync(Guid organizationId, CancellationToken ct = default) { SeededOrgs.Add(organizationId); return Task.CompletedTask; }
+    public Task AssignSystemRoleAsync(Guid organizationId, Guid membershipId, string roleName, Guid? grantedByAccountId, CancellationToken ct = default)
+    { Assignments.Add((membershipId, roleName)); return Task.CompletedTask; }
 }
 
 internal sealed class FakeSignupAudit : IAuditLogger

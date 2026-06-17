@@ -26,6 +26,7 @@ public sealed class UsersController : TenantAdminControllerBase
         _import = import;
     }
 
+    [RequireOperatorPermission("enduser.read")]
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -33,6 +34,7 @@ public sealed class UsersController : TenantAdminControllerBase
         return View(await _users.ListByTenantAsync(TenantId, ct));
     }
 
+    [RequireOperatorPermission("enduser.read")]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
@@ -53,6 +55,7 @@ public sealed class UsersController : TenantAdminControllerBase
         });
     }
 
+    [RequireOperatorPermission("enduser.manage")]
     [HttpPost("{id:guid}/roles/assign")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Assign(Guid id, Guid roleId, CancellationToken ct)
@@ -70,6 +73,7 @@ public sealed class UsersController : TenantAdminControllerBase
         return RedirectToAction(nameof(Details), new { id });
     }
 
+    [RequireOperatorPermission("enduser.manage")]
     [HttpPost("{id:guid}/roles/remove")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Remove(Guid id, Guid roleId, CancellationToken ct)
@@ -92,6 +96,7 @@ public sealed class UsersController : TenantAdminControllerBase
     /// the impersonator's identity (so the portal shows a banner and the act is reversible). The
     /// admin's own TenantAdmin cookie is untouched, so "stop" returns them straight here.
     /// </summary>
+    [RequireOperatorPermission("enduser.manage")]
     [HttpPost("{id:guid}/impersonate")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Impersonate(Guid id, CancellationToken ct)
@@ -114,6 +119,7 @@ public sealed class UsersController : TenantAdminControllerBase
         }
     }
 
+    [RequireOperatorPermission("enduser.read")]
     [HttpGet("import")]
     public IActionResult Import()
     {
@@ -121,6 +127,7 @@ public sealed class UsersController : TenantAdminControllerBase
         return View();
     }
 
+    [RequireOperatorPermission("enduser.manage")]
     [HttpPost("import")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Import(ImportSource source, string? json, CancellationToken ct)

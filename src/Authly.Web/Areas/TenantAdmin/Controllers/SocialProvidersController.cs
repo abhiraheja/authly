@@ -1,5 +1,6 @@
 using Authly.Core.Interfaces;
 using Authly.Modules.Social;
+using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Authly.Web.Areas.TenantAdmin.Controllers;
@@ -13,6 +14,7 @@ public sealed class SocialProvidersController : TenantAdminControllerBase
     public SocialProvidersController(ISocialLoginService social, ITenantContext tenant) : base(tenant)
         => _social = social;
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -20,6 +22,7 @@ public sealed class SocialProvidersController : TenantAdminControllerBase
         return View(await _social.ListProvidersAsync(TenantId, ct));
     }
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("edit")]
     public async Task<IActionResult> Edit(string provider, Guid? id, CancellationToken ct)
     {
@@ -40,6 +43,7 @@ public sealed class SocialProvidersController : TenantAdminControllerBase
         return View(input);
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(SocialProviderInput input, CancellationToken ct)
@@ -58,6 +62,7 @@ public sealed class SocialProvidersController : TenantAdminControllerBase
         }
     }
 
+    [RequireOperatorPermission("project.write")]
     [HttpPost("{id:guid}/delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)

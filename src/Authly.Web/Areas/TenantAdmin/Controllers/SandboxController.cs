@@ -2,6 +2,7 @@ using Authly.Core.Interfaces;
 using Authly.Modules.Auth;
 using Authly.Modules.Common;
 using Authly.Web.Areas.TenantAdmin.Models;
+using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Authly.Web.Areas.TenantAdmin.Controllers;
@@ -19,6 +20,7 @@ public sealed class SandboxController : TenantAdminControllerBase
 
     public SandboxController(IAuthService auth, ITenantContext tenant) : base(tenant) => _auth = auth;
 
+    [RequireOperatorPermission("project.read")]
     [HttpGet("")]
     public IActionResult Index()
     {
@@ -27,6 +29,7 @@ public sealed class SandboxController : TenantAdminControllerBase
         return View(new SandboxLoginViewModel());
     }
 
+    [RequireOperatorPermission("project.read")]
     [HttpPost("")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(SandboxLoginViewModel model, CancellationToken ct)

@@ -256,6 +256,8 @@ public class AppDbContext : DbContext
             e.Property(x => x.GrantTypes).HasColumnName("grant_types").HasColumnType("text[]").IsRequired();
             e.Property(x => x.RedirectUris).HasColumnName("redirect_uris").HasColumnType("text[]")
                 .HasDefaultValueSql("'{}'");
+            e.Property(x => x.PostLogoutRedirectUris).HasColumnName("post_logout_redirect_uris").HasColumnType("text[]")
+                .HasDefaultValueSql("'{}'");
             e.Property(x => x.AllowedScopes).HasColumnName("allowed_scopes").HasColumnType("text[]")
                 .HasDefaultValueSql("'{}'");
             e.Property(x => x.TokenLifetime).HasColumnName("token_lifetime").HasDefaultValue(3600);

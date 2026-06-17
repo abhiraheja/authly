@@ -26,6 +26,9 @@ public class Application
     /// <summary>Allowed redirect URIs (authorization-code clients).</summary>
     public List<string> RedirectUris { get; set; } = new();
 
+    /// <summary>Allowed post-logout redirect URIs (RP-initiated end-session returns here).</summary>
+    public List<string> PostLogoutRedirectUris { get; set; } = new();
+
     /// <summary>Scopes this client is permitted to request.</summary>
     public List<string> AllowedScopes { get; set; } = new();
 

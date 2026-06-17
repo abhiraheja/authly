@@ -48,7 +48,7 @@ public sealed class ApplicationService : IApplicationService
         // 1) Register the protocol client in the OAuth server.
         await _clients.CreateClientAsync(new OAuthClientDescriptor(
             clientId, request.Name, rawSecret, isConfidential,
-            grantTypes, request.RedirectUris, scopes), ct);
+            grantTypes, request.RedirectUris, scopes, request.PostLogoutRedirectUris), ct);
 
         // 2) Persist the tenant-facing mirror.
         var now = DateTimeOffset.UtcNow;
@@ -60,6 +60,7 @@ public sealed class ApplicationService : IApplicationService
             Type = request.Type,
             GrantTypes = grantTypes.ToList(),
             RedirectUris = request.RedirectUris.ToList(),
+            PostLogoutRedirectUris = request.PostLogoutRedirectUris.ToList(),
             AllowedScopes = scopes.ToList(),
             CreatedAt = now,
             UpdatedAt = now
@@ -92,15 +93,16 @@ public sealed class ApplicationService : IApplicationService
 
         var scopes = NormalizeScopes(app.Type, request.Scopes);
 
-        // 1) Update the protocol registration (name, redirect URIs, scope permissions). The secret
-        //    is preserved — the descriptor carries no secret on update.
+        // 1) Update the protocol registration (name, redirect URIs, post-logout redirect URIs, scope
+        //    permissions). The secret is preserved — the descriptor carries no secret on update.
         await _clients.UpdateClientAsync(new OAuthClientDescriptor(
             app.ClientId, request.Name, null, app.IsConfidential,
-            app.GrantTypes, request.RedirectUris, scopes), ct);
+            app.GrantTypes, request.RedirectUris, scopes, request.PostLogoutRedirectUris), ct);
 
         // 2) Update the tenant-facing mirror.
         app.Name = request.Name;
         app.RedirectUris = request.RedirectUris.ToList();
+        app.PostLogoutRedirectUris = request.PostLogoutRedirectUris.ToList();
         app.AllowedScopes = scopes.ToList();
         app.UpdatedAt = DateTimeOffset.UtcNow;
         await _repo.UpdateAsync(app, ct);

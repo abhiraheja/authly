@@ -19,7 +19,7 @@ public class ApplicationServiceTests
         var h = new Harness();
         var result = await h.Service.CreateAsync(Tenant,
             new CreateApplicationRequest("Web App", ApplicationType.Web,
-                new[] { "https://app.example.com/callback" }, new[] { "openid", "email" }),
+                new[] { "https://app.example.com/callback" }, new[] { "openid", "email" }, Array.Empty<string>()),
             AuditContext.System);
 
         Assert.NotNull(result.ClientSecret);
@@ -42,7 +42,7 @@ public class ApplicationServiceTests
         var h = new Harness();
         var result = await h.Service.CreateAsync(Tenant,
             new CreateApplicationRequest("SPA", ApplicationType.Spa,
-                new[] { "https://spa.example.com/callback" }, new[] { "openid" }),
+                new[] { "https://spa.example.com/callback" }, new[] { "openid" }, Array.Empty<string>()),
             AuditContext.System);
 
         Assert.Null(result.ClientSecret);
@@ -56,7 +56,7 @@ public class ApplicationServiceTests
         var h = new Harness();
         var result = await h.Service.CreateAsync(Tenant,
             new CreateApplicationRequest("Service", ApplicationType.Machine,
-                Array.Empty<string>(), new[] { "api" }),
+                Array.Empty<string>(), new[] { "api" }, Array.Empty<string>()),
             AuditContext.System);
 
         Assert.Contains("client_credentials", result.Application.GrantTypes);
@@ -71,7 +71,7 @@ public class ApplicationServiceTests
         var h = new Harness();
         var created = await h.Service.CreateAsync(Tenant,
             new CreateApplicationRequest("Web App", ApplicationType.Web,
-                new[] { "https://app.example.com/cb" }, new[] { "openid" }),
+                new[] { "https://app.example.com/cb" }, new[] { "openid" }, Array.Empty<string>()),
             AuditContext.System);
 
         var newSecret = await h.Service.RotateSecretAsync(Tenant, created.Application.Id, AuditContext.System);
@@ -90,7 +90,7 @@ public class ApplicationServiceTests
         var h = new Harness();
         var created = await h.Service.CreateAsync(Tenant,
             new CreateApplicationRequest("SPA", ApplicationType.Spa,
-                new[] { "https://spa.example.com/cb" }, new[] { "openid" }),
+                new[] { "https://spa.example.com/cb" }, new[] { "openid" }, Array.Empty<string>()),
             AuditContext.System);
 
         await Assert.ThrowsAsync<PublicClientHasNoSecretException>(() =>
@@ -103,18 +103,20 @@ public class ApplicationServiceTests
         var h = new Harness();
         var created = await h.Service.CreateAsync(Tenant,
             new CreateApplicationRequest("Web App", ApplicationType.Web,
-                new[] { "https://app.example.com/cb" }, new[] { "openid" }),
+                new[] { "https://app.example.com/cb" }, new[] { "openid" }, Array.Empty<string>()),
             AuditContext.System);
 
         var updated = await h.Service.UpdateAsync(Tenant, created.Application.Id,
             new UpdateApplicationRequest("Renamed App",
                 new[] { "https://app.example.com/cb", "https://staging.example.com/cb" },
-                new[] { "email" }),
+                new[] { "email" },
+                new[] { "https://app.example.com/" }),
             AuditContext.System);
 
         Assert.Equal("Renamed App", updated.Name);
         Assert.Equal(2, updated.RedirectUris.Count);
         Assert.Contains("https://staging.example.com/cb", updated.RedirectUris);
+        Assert.Contains("https://app.example.com/", updated.PostLogoutRedirectUris);  // separate from callbacks
         Assert.Contains("email", updated.AllowedScopes);
         Assert.Contains("openid", updated.AllowedScopes);          // re-added for interactive clients
         Assert.Contains("offline_access", updated.AllowedScopes);
@@ -123,6 +125,7 @@ public class ApplicationServiceTests
         Assert.Equal(created.Application.ClientId, sentToClient.ClientId);
         Assert.Null(sentToClient.ClientSecret);                     // secret left untouched on update
         Assert.Contains("https://staging.example.com/cb", sentToClient.RedirectUris);
+        Assert.Contains("https://app.example.com/", sentToClient.PostLogoutRedirectUris);
         Assert.Contains("application.updated", h.Audit.Events);
     }
 
@@ -132,7 +135,7 @@ public class ApplicationServiceTests
         var h = new Harness();
         await Assert.ThrowsAsync<ApplicationNotFoundException>(() =>
             h.Service.UpdateAsync(Tenant, Guid.NewGuid(),
-                new UpdateApplicationRequest("X", Array.Empty<string>(), Array.Empty<string>()),
+                new UpdateApplicationRequest("X", Array.Empty<string>(), Array.Empty<string>(), Array.Empty<string>()),
                 AuditContext.System));
     }
 
@@ -142,7 +145,7 @@ public class ApplicationServiceTests
         var h = new Harness();
         var created = await h.Service.CreateAsync(Tenant,
             new CreateApplicationRequest("Web App", ApplicationType.Web,
-                new[] { "https://app.example.com/cb" }, new[] { "openid" }),
+                new[] { "https://app.example.com/cb" }, new[] { "openid" }, Array.Empty<string>()),
             AuditContext.System);
 
         await h.Service.DeleteAsync(Tenant, created.Application.Id, AuditContext.System);

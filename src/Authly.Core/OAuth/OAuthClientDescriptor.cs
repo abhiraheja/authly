@@ -12,6 +12,7 @@ namespace Authly.Core.OAuth;
 /// <param name="GrantTypes">e.g. authorization_code, refresh_token, client_credentials.</param>
 /// <param name="RedirectUris">Allowed redirect URIs (authorization-code clients).</param>
 /// <param name="Scopes">Scopes the client may request (openid, profile, email, offline_access, roles, ...).</param>
+/// <param name="PostLogoutRedirectUris">Allowed post-logout redirect URIs (RP-initiated end-session).</param>
 public sealed record OAuthClientDescriptor(
     string ClientId,
     string DisplayName,
@@ -19,4 +20,5 @@ public sealed record OAuthClientDescriptor(
     bool IsConfidential,
     IReadOnlyList<string> GrantTypes,
     IReadOnlyList<string> RedirectUris,
-    IReadOnlyList<string> Scopes);
+    IReadOnlyList<string> Scopes,
+    IReadOnlyList<string> PostLogoutRedirectUris);

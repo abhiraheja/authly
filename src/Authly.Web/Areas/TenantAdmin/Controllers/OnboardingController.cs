@@ -50,11 +50,13 @@ public sealed class OnboardingController : TenantAdminControllerBase
 
         var redirectUris = (model.RedirectUris ?? string.Empty)
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        var postLogoutUris = (model.PostLogoutRedirectUris ?? string.Empty)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
         var scopes = (model.Scopes ?? string.Empty)
             .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
 
         var result = await _apps.CreateAsync(TenantId,
-            new CreateApplicationRequest(model.Name, model.Type, redirectUris, scopes), CurrentAudit(), ct);
+            new CreateApplicationRequest(model.Name, model.Type, redirectUris, scopes, postLogoutUris), CurrentAudit(), ct);
 
         TempData["NewClientId"] = result.Application.ClientId;
         if (result.ClientSecret is not null)

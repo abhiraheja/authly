@@ -27,7 +27,14 @@
                 <label asp-for="RedirectUris" class="form-label"></label>
                 <textarea asp-for="RedirectUris" class="form-control" rows="3"
                           placeholder="https://app.example.com/callback"></textarea>
-                <div class="form-text">Required for interactive (authorization-code) clients. One URI per line.</div>
+                <div class="form-text">Where Authly returns the authorization code after sign-in. Required for interactive (authorization-code) clients. One URI per line.</div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="PostLogoutRedirectUris" class="form-label"></label>
+                <textarea asp-for="PostLogoutRedirectUris" class="form-control" rows="2"
+                          placeholder="https://app.example.com/"></textarea>
+                <div class="form-text">Where Authly returns after RP-initiated logout (<code>/connect/logout</code>). One URI per line. Optional.</div>
             </div>
 
             <div class="mb-4">

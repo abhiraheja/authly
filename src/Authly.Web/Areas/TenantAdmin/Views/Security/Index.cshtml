@@ -3,111 +3,111 @@
     Layout = "_AdminLayout";
 }
 
-<div class="page-title-head">
-    <h4>Security</h4>
+<div>
+    <h1 class="font-display text-xl font-bold">Security</h1>
 </div>
 
-<form asp-area="TenantAdmin" asp-controller="Security" asp-action="Index" method="post">
-    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+<form asp-area="TenantAdmin" asp-controller="Security" asp-action="Index" method="post" class="mt-4">
+    <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
 
-    <div class="row g-4">
-        <div class="col-lg-6">
-            <div class="card mb-4">
-                <div class="card-header">Brute-force &amp; passwords</div>
-                <div class="card-body">
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" role="switch" asp-for="LockoutEnabled" />
-                        <label class="form-check-label" asp-for="LockoutEnabled"></label>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="space-y-4">
+            <div class="card">
+                <div class="card-header"><h2 class="card-title">Brute-force &amp; passwords</h2></div>
+                <div class="card-body space-y-4">
+                    <div class="flex items-center gap-3">
+                        <label class="switch"><input asp-for="LockoutEnabled" type="checkbox" /><span class="track"></span></label>
+                        <label class="label !mb-0" asp-for="LockoutEnabled"></label>
                     </div>
-                    <div class="mb-3">
-                        <label asp-for="LockoutThreshold" class="form-label"></label>
-                        <input asp-for="LockoutThreshold" class="form-control" type="number" min="3" max="20" />
-                        <div class="form-text">Lockout uses exponential backoff (1m, 2m, 4m … capped at 1h).</div>
+                    <div>
+                        <label asp-for="LockoutThreshold" class="label"></label>
+                        <input asp-for="LockoutThreshold" class="input" type="number" min="3" max="20" />
+                        <p class="mt-1 text-xs text-muted-foreground">Lockout uses exponential backoff (1m, 2m, 4m … capped at 1h).</p>
                     </div>
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" role="switch" asp-for="BreachedPasswordCheck" />
-                        <label class="form-check-label" asp-for="BreachedPasswordCheck"></label>
+                    <div class="flex items-center gap-3">
+                        <label class="switch"><input asp-for="BreachedPasswordCheck" type="checkbox" /><span class="track"></span></label>
+                        <label class="label !mb-0" asp-for="BreachedPasswordCheck"></label>
                     </div>
                 </div>
             </div>
 
-            <div class="card mb-4">
-                <div class="card-header">Bot defence (CAPTCHA)</div>
-                <div class="card-body">
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" role="switch" asp-for="CaptchaEnabled" />
-                        <label class="form-check-label" asp-for="CaptchaEnabled"></label>
+            <div class="card">
+                <div class="card-header"><h2 class="card-title">Bot defence (CAPTCHA)</h2></div>
+                <div class="card-body space-y-4">
+                    <div class="flex items-center gap-3">
+                        <label class="switch"><input asp-for="CaptchaEnabled" type="checkbox" /><span class="track"></span></label>
+                        <label class="label !mb-0" asp-for="CaptchaEnabled"></label>
                     </div>
-                    <div class="mb-3">
-                        <label asp-for="CaptchaProvider" class="form-label"></label>
-                        <select asp-for="CaptchaProvider" class="form-select">
+                    <div>
+                        <label asp-for="CaptchaProvider" class="label"></label>
+                        <select asp-for="CaptchaProvider" class="select">
                             <option value="hcaptcha">hCaptcha</option>
                             <option value="turnstile">Cloudflare Turnstile</option>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label asp-for="CaptchaSiteKey" class="form-label"></label>
-                        <input asp-for="CaptchaSiteKey" class="form-control" />
+                    <div>
+                        <label asp-for="CaptchaSiteKey" class="label"></label>
+                        <input asp-for="CaptchaSiteKey" class="input" />
                     </div>
-                    <div class="mb-1">
-                        <label asp-for="CaptchaSecret" class="form-label"></label>
-                        <input asp-for="CaptchaSecret" class="form-control" type="password"
+                    <div>
+                        <label asp-for="CaptchaSecret" class="label"></label>
+                        <input asp-for="CaptchaSecret" class="input" type="password"
                                placeholder="@(Model.HasCaptchaSecret ? "•••••••• (leave blank to keep)" : "")" />
-                        <div class="form-text">Stored encrypted; write-only.</div>
+                        <p class="mt-1 text-xs text-muted-foreground">Stored encrypted; write-only.</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-6">
-            <div class="card mb-4">
-                <div class="card-header">Block &amp; allow lists</div>
-                <div class="card-body">
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" role="switch" asp-for="BlockDisposableEmails" />
-                        <label class="form-check-label" asp-for="BlockDisposableEmails"></label>
+        <div class="space-y-4">
+            <div class="card">
+                <div class="card-header"><h2 class="card-title">Block &amp; allow lists</h2></div>
+                <div class="card-body space-y-4">
+                    <div class="flex items-center gap-3">
+                        <label class="switch"><input asp-for="BlockDisposableEmails" type="checkbox" /><span class="track"></span></label>
+                        <label class="label !mb-0" asp-for="BlockDisposableEmails"></label>
                     </div>
-                    <div class="mb-3">
-                        <label asp-for="BlockedEmailDomains" class="form-label"></label>
-                        <textarea asp-for="BlockedEmailDomains" class="form-control" rows="3" placeholder="spam.example"></textarea>
+                    <div>
+                        <label asp-for="BlockedEmailDomains" class="label"></label>
+                        <textarea asp-for="BlockedEmailDomains" class="textarea" rows="3" placeholder="spam.example"></textarea>
                     </div>
-                    <div class="mb-3">
-                        <label asp-for="BlockedIps" class="form-label"></label>
-                        <textarea asp-for="BlockedIps" class="form-control" rows="3" placeholder="203.0.113.0/24"></textarea>
+                    <div>
+                        <label asp-for="BlockedIps" class="label"></label>
+                        <textarea asp-for="BlockedIps" class="textarea" rows="3" placeholder="203.0.113.0/24"></textarea>
                     </div>
-                    <div class="mb-3">
-                        <label asp-for="BlockedCountries" class="form-label"></label>
-                        <textarea asp-for="BlockedCountries" class="form-control" rows="2" placeholder="KP&#10;RU"></textarea>
-                        <div class="form-text">Country enforcement requires a geo-IP source (configured at deploy time).</div>
+                    <div>
+                        <label asp-for="BlockedCountries" class="label"></label>
+                        <textarea asp-for="BlockedCountries" class="textarea" rows="2" placeholder="KP&#10;RU"></textarea>
+                        <p class="mt-1 text-xs text-muted-foreground">Country enforcement requires a geo-IP source (configured at deploy time).</p>
                     </div>
-                    <div class="mb-1">
-                        <label asp-for="AllowedIps" class="form-label"></label>
-                        <textarea asp-for="AllowedIps" class="form-control" rows="2" placeholder="198.51.100.10"></textarea>
+                    <div>
+                        <label asp-for="AllowedIps" class="label"></label>
+                        <textarea asp-for="AllowedIps" class="textarea" rows="2" placeholder="198.51.100.10"></textarea>
                     </div>
                 </div>
             </div>
 
-            <div class="card mb-4">
-                <div class="card-header">Conditional access (risk-based)</div>
-                <div class="card-body">
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" role="switch" asp-for="ConditionalAccessEnabled" />
-                        <label class="form-check-label" asp-for="ConditionalAccessEnabled"></label>
+            <div class="card">
+                <div class="card-header"><h2 class="card-title">Conditional access (risk-based)</h2></div>
+                <div class="card-body space-y-4">
+                    <div class="flex items-center gap-3">
+                        <label class="switch"><input asp-for="ConditionalAccessEnabled" type="checkbox" /><span class="track"></span></label>
+                        <label class="label !mb-0" asp-for="ConditionalAccessEnabled"></label>
                     </div>
-                    <div class="mb-3">
-                        <label asp-for="NewDeviceAction" class="form-label"></label>
-                        <select asp-for="NewDeviceAction" asp-items="Html.GetEnumSelectList<Authly.Modules.Security.ConditionalAction>()" class="form-select"></select>
-                        <div class="form-text">Triggers when both the IP and device are unseen among the user's past sign-ins.</div>
+                    <div>
+                        <label asp-for="NewDeviceAction" class="label"></label>
+                        <select asp-for="NewDeviceAction" asp-items="Html.GetEnumSelectList<Authly.Modules.Security.ConditionalAction>()" class="select"></select>
+                        <p class="mt-1 text-xs text-muted-foreground">Triggers when both the IP and device are unseen among the user's past sign-ins.</p>
                     </div>
-                    <div class="mb-1">
-                        <label asp-for="UnverifiedEmailAction" class="form-label"></label>
-                        <select asp-for="UnverifiedEmailAction" asp-items="Html.GetEnumSelectList<Authly.Modules.Security.ConditionalAction>()" class="form-select"></select>
-                        <div class="form-text"><strong>Require MFA</strong> steps up to a second factor (or enrollment); <strong>Block</strong> denies the sign-in.</div>
+                    <div>
+                        <label asp-for="UnverifiedEmailAction" class="label"></label>
+                        <select asp-for="UnverifiedEmailAction" asp-items="Html.GetEnumSelectList<Authly.Modules.Security.ConditionalAction>()" class="select"></select>
+                        <p class="mt-1 text-xs text-muted-foreground"><strong>Require MFA</strong> steps up to a second factor (or enrollment); <strong>Block</strong> denies the sign-in.</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <button type="submit" class="btn btn-primary">Save security settings</button>
+    <button type="submit" class="btn btn-primary mt-4">Save security settings</button>
 </form>

@@ -1,32 +1,30 @@
 @model CreateApiKeyViewModel
 
-<div class="page-title-head d-flex align-items-center justify-content-between mb-3">
-    <h4 class="mb-0">New API key</h4>
-    <a class="btn btn-soft-secondary btn-sm" asp-area="TenantAdmin" asp-controller="ApiKeys" asp-action="Index">Back</a>
+<div class="flex items-center justify-between gap-3">
+    <h1 class="font-display text-xl font-bold">New API key</h1>
+    <a class="btn btn-outline btn-sm" asp-area="TenantAdmin" asp-controller="ApiKeys" asp-action="Index">Back</a>
 </div>
 
-<div class="row">
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-body">
-                <form asp-area="TenantAdmin" asp-controller="ApiKeys" asp-action="Create" method="post">
-                    <div asp-validation-summary="ModelOnly" class="text-danger small mb-2"></div>
+<div class="card max-w-2xl">
+    <div class="card-body">
+        <form asp-area="TenantAdmin" asp-controller="ApiKeys" asp-action="Create" method="post" class="space-y-4">
+            <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
 
-                    <div class="mb-3">
-                        <label asp-for="Name" class="form-label"></label>
-                        <input asp-for="Name" class="form-control" placeholder="e.g. CI deploy key" autofocus />
-                        <span asp-validation-for="Name" class="text-danger small"></span>
-                    </div>
-
-                    <div class="mb-3">
-                        <label asp-for="Scopes" class="form-label"></label>
-                        <input asp-for="Scopes" class="form-control" placeholder="user.read user.write role.read" />
-                        <div class="form-text">Permission patterns (<code>resource.action</code> or <code>*</code>). Leave blank for full tenant access.</div>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary">Create API key</button>
-                </form>
+            <div>
+                <label asp-for="Name" class="label"></label>
+                <input asp-for="Name" class="input" placeholder="e.g. CI deploy key" autofocus />
+                <span asp-validation-for="Name" class="text-danger text-xs"></span>
             </div>
-        </div>
+
+            <div>
+                <label asp-for="Scopes" class="label"></label>
+                <input asp-for="Scopes" class="input" placeholder="user.read user.write role.read" />
+                <p class="mt-1 text-xs text-muted-foreground">Permission patterns (<code>resource.action</code> or <code>*</code>). Leave blank for full tenant access.</p>
+            </div>
+
+            <div class="flex gap-2 pt-1">
+                <button type="submit" class="btn btn-primary">Create API key</button>
+            </div>
+        </form>
     </div>
 </div>

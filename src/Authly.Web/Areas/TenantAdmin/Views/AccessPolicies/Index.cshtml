@@ -5,91 +5,96 @@
     var result = ViewBag.TestResult as AccessDecision;
 }
 
-<div class="page-title-head d-flex align-items-center justify-content-between mb-3">
-    <h4 class="mb-0">Access policies</h4>
+<div class="flex items-center justify-between gap-3">
+    <h1 class="font-display text-xl font-bold">Access policies</h1>
     <a class="btn btn-primary btn-sm" asp-area="TenantAdmin" asp-controller="AccessPolicies" asp-action="Create">
-        <i data-lucide="plus" class="me-1"></i> New policy
+        <i data-lucide="plus" class="size-4"></i> New policy
     </a>
 </div>
 
-<div class="row g-4">
-    <div class="col-lg-7">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+    <div class="lg:col-span-7">
         <div class="card">
-            <div class="card-header">Policies <span class="text-muted small">(deny overrides; default deny)</span></div>
-            <div class="card-body">
-                @if (Model.Count == 0)
-                {
-                    <p class="text-muted mb-0">No policies yet. Without policies, every request is denied by default.</p>
-                }
-                else
-                {
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead>
-                                <tr><th>Name</th><th>Effect</th><th>Action</th><th>Resource</th><th>Prio</th><th></th></tr>
-                            </thead>
-                            <tbody>
-                            @foreach (var p in Model)
-                            {
-                                <tr class="@(p.Enabled ? "" : "opacity-50")">
-                                    <td class="fw-medium">@p.Name</td>
-                                    <td><span class="badge bg-@(p.Effect == "deny" ? "danger" : "success")">@p.Effect</span></td>
-                                    <td><code>@p.Action</code></td>
-                                    <td><code>@p.ResourceType</code></td>
-                                    <td>@p.Priority</td>
-                                    <td class="text-end">
-                                        <a class="btn btn-soft-secondary btn-sm" asp-area="TenantAdmin" asp-controller="AccessPolicies" asp-action="Edit" asp-route-id="@p.Id">Edit</a>
-                                        <form class="d-inline" asp-area="TenantAdmin" asp-controller="AccessPolicies" asp-action="Delete" asp-route-id="@p.Id" method="post"
+            <div class="card-header"><h6 class="card-title">Policies <span class="text-muted-foreground text-sm font-normal">(deny overrides; default deny)</span></h6></div>
+            @if (Model.Count == 0)
+            {
+                <div class="card-body">
+                    <p class="text-muted-foreground mb-0">No policies yet. Without policies, every request is denied by default.</p>
+                </div>
+            }
+            else
+            {
+                <div class="overflow-x-auto scroll-thin">
+                    <table class="table">
+                        <thead>
+                            <tr><th>Name</th><th>Effect</th><th>Action</th><th>Resource</th><th>Prio</th><th class="text-right"></th></tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var p in Model)
+                        {
+                            <tr class="@(p.Enabled ? "" : "opacity-50")">
+                                <td class="font-medium">@p.Name</td>
+                                <td><span class="badge @(p.Effect == "deny" ? "badge-danger" : "badge-success")">@p.Effect</span></td>
+                                <td><code>@p.Action</code></td>
+                                <td><code>@p.ResourceType</code></td>
+                                <td>@p.Priority</td>
+                                <td class="text-right">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <a class="btn btn-outline btn-sm" asp-area="TenantAdmin" asp-controller="AccessPolicies" asp-action="Edit" asp-route-id="@p.Id">Edit</a>
+                                        <form asp-area="TenantAdmin" asp-controller="AccessPolicies" asp-action="Delete" asp-route-id="@p.Id" method="post"
                                               onsubmit="return confirm('Delete this policy?');">
-                                            <button type="submit" class="btn btn-soft-danger btn-sm">Delete</button>
+                                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
                                         </form>
-                                    </td>
-                                </tr>
-                            }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-            </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
         </div>
     </div>
 
-    <div class="col-lg-5">
+    <div class="lg:col-span-5">
         <div class="card">
-            <div class="card-header">Test a decision</div>
+            <div class="card-header"><h6 class="card-title">Test a decision</h6></div>
             <div class="card-body">
-                <form asp-area="TenantAdmin" asp-controller="AccessPolicies" asp-action="Test" method="post">
-                    <div class="row g-2 mb-2">
-                        <div class="col-6">
-                            <label class="form-label small mb-1">Action</label>
-                            <input name="Action" value="@test.Action" class="form-control form-control-sm" placeholder="document.read" />
+                <form asp-area="TenantAdmin" asp-controller="AccessPolicies" asp-action="Test" method="post" class="space-y-2">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="label text-sm mb-1">Action</label>
+                            <input name="Action" value="@test.Action" class="input input-sm" placeholder="document.read" />
                         </div>
-                        <div class="col-6">
-                            <label class="form-label small mb-1">Resource type</label>
-                            <input name="ResourceType" value="@test.ResourceType" class="form-control form-control-sm" placeholder="document" />
+                        <div>
+                            <label class="label text-sm mb-1">Resource type</label>
+                            <input name="ResourceType" value="@test.ResourceType" class="input input-sm" placeholder="document" />
                         </div>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label small mb-1">Subject attributes</label>
-                        <textarea name="SubjectJson" class="form-control form-control-sm font-monospace" rows="2">@test.SubjectJson</textarea>
+                    <div>
+                        <label class="label text-sm mb-1">Subject attributes</label>
+                        <textarea name="SubjectJson" class="textarea font-monospace" rows="2">@test.SubjectJson</textarea>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label small mb-1">Resource attributes</label>
-                        <textarea name="ResourceJson" class="form-control form-control-sm font-monospace" rows="2">@test.ResourceJson</textarea>
+                    <div>
+                        <label class="label text-sm mb-1">Resource attributes</label>
+                        <textarea name="ResourceJson" class="textarea font-monospace" rows="2">@test.ResourceJson</textarea>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label small mb-1">Environment attributes</label>
-                        <textarea name="EnvironmentJson" class="form-control form-control-sm font-monospace" rows="2">@test.EnvironmentJson</textarea>
+                    <div>
+                        <label class="label text-sm mb-1">Environment attributes</label>
+                        <textarea name="EnvironmentJson" class="textarea font-monospace" rows="2">@test.EnvironmentJson</textarea>
                     </div>
-                    <button type="submit" class="btn btn-soft-primary btn-sm">Evaluate</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Evaluate</button>
                 </form>
 
                 @if (result is not null)
                 {
-                    <hr />
-                    <div class="alert alert-@(result.Allowed ? "success" : "danger") py-2 mb-0">
-                        <strong>@(result.Allowed ? "ALLOW" : "DENY")</strong>
-                        — @result.Reason@(result.PolicyName is null ? "" : $" · {result.PolicyName}")
+                    <hr class="my-4 border-border" />
+                    <div class="card card-body !py-3 flex items-center gap-3 border-l-4 @(result.Allowed ? "border-l-success" : "border-l-danger") text-sm">
+                        <i data-lucide="@(result.Allowed ? "check-circle-2" : "alert-circle")" class="size-4 @(result.Allowed ? "text-success" : "text-coral")"></i>
+                        <div>
+                            <strong>@(result.Allowed ? "ALLOW" : "DENY")</strong>
+                            — @result.Reason@(result.PolicyName is null ? "" : $" · {result.PolicyName}")
+                        </div>
                     </div>
                 }
             </div>

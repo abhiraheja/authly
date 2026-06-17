@@ -1,18 +1,29 @@
 @model Authly.Web.Components.TenantBannersModel
+@{
+    string BorderFor(string sev) => sev?.ToLowerInvariant() switch
+    {
+        "danger" or "error" => "border-l-danger",
+        "warning" => "border-l-warning",
+        "success" => "border-l-success",
+        _ => "border-l-primary",
+    };
+}
 
 @if (Model.ShowOnboarding)
 {
-    <div class="alert alert-primary d-flex align-items-center justify-content-between flex-wrap gap-2" role="alert">
-        <span><i data-lucide="rocket" class="me-1"></i> Finish setting up your workspace — create your first app and reach a test login.</span>
+    <div class="card card-body !py-3 flex items-center justify-between flex-wrap gap-2 border-l-4 border-l-primary">
+        <span class="flex items-center gap-2 text-sm"><i data-lucide="rocket" class="size-4 text-primary"></i> Finish setting up your workspace — create your first app and reach a test login.</span>
         <a asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="Index" class="btn btn-sm btn-primary">Get started</a>
     </div>
 }
 
 @foreach (var a in Model.Announcements)
 {
-    <div class="alert alert-@a.Severity alert-dismissible fade show" role="alert">
-        <strong>@a.Title</strong>
-        <div class="small mb-0">@a.Body</div>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    <div data-alert class="card card-body !py-3 flex items-start justify-between gap-3 border-l-4 @BorderFor(a.Severity)">
+        <div class="min-w-0">
+            <strong class="text-sm">@a.Title</strong>
+            <div class="text-xs text-muted-foreground">@a.Body</div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-icon btn-sm shrink-0" data-dismiss aria-label="Dismiss"><i data-lucide="x" class="size-4"></i></button>
     </div>
 }

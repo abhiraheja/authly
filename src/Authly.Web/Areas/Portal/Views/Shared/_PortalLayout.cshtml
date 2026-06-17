@@ -2,181 +2,139 @@
 @{
     var controller = (ViewContext.RouteData.Values["controller"] as string) ?? "";
     bool IsActive(string c) => string.Equals(controller, c, StringComparison.OrdinalIgnoreCase);
+    string NavLink(string c) => IsActive(c)
+        ? "menu-item bg-primary/10 text-primary font-medium"
+        : "menu-item text-sidebar-foreground hover:bg-sidebar-accent";
     var brand = await Branding.GetAsync();
     var brandName = await Branding.GetDisplayNameAsync();
-    var theme = brand.DarkMode ? "dark" : "light";
+    var primaryChannels = brand.PrimaryColorRgb.Replace(",", "");
     var email = User?.Identity?.Name ?? "Account";
+    var initial = string.IsNullOrEmpty(email) ? "A" : email.Substring(0, 1).ToUpper();
     var impersonatorEmail = User?.FindFirst(Authly.Web.Infrastructure.UserClaims.ImpersonatorEmail)?.Value;
     var isImpersonating = !string.IsNullOrEmpty(User?.FindFirst(Authly.Web.Infrastructure.UserClaims.ImpersonatorId)?.Value);
 }
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="@theme">
+<html lang="en" class="@(brand.DarkMode ? "dark" : "")">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] · @brandName</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
-    <link rel="stylesheet" href="~/css/authly-theme.css" asp-append-version="true" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="~/css/saarvix.css" asp-append-version="true" />
     <style>
-        :root, [data-bs-theme="light"], [data-bs-theme="dark"] {
-            --bs-primary: @brand.PrimaryColor;
-            --bs-primary-rgb: @brand.PrimaryColorRgb;
-            --authly-on-primary: @brand.ButtonTextColor;
-        }
+        :root, .dark { --primary: @primaryChannels; --ring: @primaryChannels; }
         body { font-family: @Html.Raw(brand.FontFamily); }
     </style>
 </head>
-<body>
-<div class="wrapper">
-    <div class="sidenav-menu" id="sidenav">
-        <a class="logo" asp-area="Portal" asp-controller="Profile" asp-action="Index">
+<body class="min-h-screen">
+<div class="flex min-h-screen">
+    <aside id="sidenav"
+           class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full lg:translate-x-0 transition-transform duration-200
+                  bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col scroll-thin overflow-y-auto">
+        <a class="flex items-center gap-2.5 px-5 h-16 shrink-0 font-display text-[15px] font-bold text-foreground"
+           asp-area="Portal" asp-controller="Profile" asp-action="Index">
             @if (brand.LogoUrl is not null)
             {
-                <img src="@brand.LogoUrl" alt="@brandName" class="auth-logo" style="max-height:32px;" />
+                <img src="@brand.LogoUrl" alt="@brandName" class="max-h-8" />
             }
             else
             {
-                <span class="logo-mark"><i data-lucide="shield-check"></i></span>
+                <span class="grid place-items-center size-8 rounded-lg bg-primary text-primary-foreground"><i data-lucide="shield-check" class="size-4"></i></span>
                 <span>@brandName</span>
             }
         </a>
-        <ul class="side-nav">
-            <li class="side-nav-title">Account</li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Profile") ? "active" : "")"
-                   asp-area="Portal" asp-controller="Profile" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="user-round"></i></span>
-                    <span class="menu-text">Profile</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Security") ? "active" : "")"
-                   asp-area="Portal" asp-controller="Security" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="shield-check"></i></span>
-                    <span class="menu-text">Security</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Passkeys") ? "active" : "")"
-                   asp-area="Portal" asp-controller="Passkeys" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="key-round"></i></span>
-                    <span class="menu-text">Passkeys</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Contact") ? "active" : "")"
-                   asp-area="Portal" asp-controller="Contact" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="at-sign"></i></span>
-                    <span class="menu-text">Email &amp; phone</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Recovery") ? "active" : "")"
-                   asp-area="Portal" asp-controller="Recovery" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="life-buoy"></i></span>
-                    <span class="menu-text">Account recovery</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Sessions") ? "active" : "")"
-                   asp-area="Portal" asp-controller="Sessions" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="monitor-smartphone"></i></span>
-                    <span class="menu-text">Active sessions</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Devices") ? "active" : "")"
-                   asp-area="Portal" asp-controller="Devices" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="laptop"></i></span>
-                    <span class="menu-text">Devices</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Activity") ? "active" : "")"
-                   asp-area="Portal" asp-controller="Activity" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="history"></i></span>
-                    <span class="menu-text">Login activity</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Privacy") ? "active" : "")"
-                   asp-area="Portal" asp-controller="Privacy" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="shield-user"></i></span>
-                    <span class="menu-text">Privacy &amp; data</span>
-                </a>
-            </li>
-        </ul>
-    </div>
+        <nav class="flex-1 px-3 pb-4 space-y-1">
+            <p class="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Account</p>
+            <a class="@NavLink("Profile")" asp-area="Portal" asp-controller="Profile" asp-action="Index"><i data-lucide="user-round" class="size-4"></i><span>Profile</span></a>
+            <a class="@NavLink("Security")" asp-area="Portal" asp-controller="Security" asp-action="Index"><i data-lucide="shield-check" class="size-4"></i><span>Security</span></a>
+            <a class="@NavLink("Passkeys")" asp-area="Portal" asp-controller="Passkeys" asp-action="Index"><i data-lucide="key-round" class="size-4"></i><span>Passkeys</span></a>
+            <a class="@NavLink("Contact")" asp-area="Portal" asp-controller="Contact" asp-action="Index"><i data-lucide="at-sign" class="size-4"></i><span>Email &amp; phone</span></a>
+            <a class="@NavLink("Recovery")" asp-area="Portal" asp-controller="Recovery" asp-action="Index"><i data-lucide="life-buoy" class="size-4"></i><span>Account recovery</span></a>
+            <a class="@NavLink("Sessions")" asp-area="Portal" asp-controller="Sessions" asp-action="Index"><i data-lucide="monitor-smartphone" class="size-4"></i><span>Active sessions</span></a>
+            <a class="@NavLink("Devices")" asp-area="Portal" asp-controller="Devices" asp-action="Index"><i data-lucide="laptop" class="size-4"></i><span>Devices</span></a>
+            <a class="@NavLink("Activity")" asp-area="Portal" asp-controller="Activity" asp-action="Index"><i data-lucide="history" class="size-4"></i><span>Login activity</span></a>
+            <a class="@NavLink("Privacy")" asp-area="Portal" asp-controller="Privacy" asp-action="Index"><i data-lucide="shield-user" class="size-4"></i><span>Privacy &amp; data</span></a>
+        </nav>
+    </aside>
 
-    <div class="content-area">
-        <header class="app-topbar">
-            <button class="btn btn-icon btn-soft-secondary d-lg-none" type="button" id="menuToggle">
-                <i data-lucide="menu"></i>
+    <div id="sidenavBackdrop" class="fixed inset-0 z-30 bg-ink/40 backdrop-blur-sm hidden lg:hidden"></div>
+
+    <div class="flex-1 flex flex-col min-w-0 lg:ml-64">
+        <header class="sticky top-0 z-20 h-16 flex items-center gap-3 px-4 sm:px-6 border-b border-border glass">
+            <button class="btn btn-ghost btn-icon lg:hidden" type="button" id="menuToggle" aria-label="Toggle menu">
+                <i data-lucide="menu" class="size-5"></i>
             </button>
-            <div class="topbar-item ms-auto">
-                <div class="dropdown">
-                    <button class="btn btn-soft-secondary dropdown-toggle d-flex align-items-center gap-2"
-                            data-bs-toggle="dropdown" aria-expanded="false">
-                        <span class="avatar-sm"><span class="avatar-title bg-soft-primary">@email.Substring(0,1).ToUpper()</span></span>
-                        <span class="d-none d-sm-inline">@email</span>
+            <div class="ms-auto flex items-center gap-2">
+                <div class="relative">
+                    <button class="btn btn-ghost gap-2 px-2" type="button" data-dropdown="profileMenu">
+                        <span class="avatar size-8 bg-primary text-xs">@initial</span>
+                        <span class="hidden sm:inline text-sm">@email</span>
+                        <i data-lucide="chevron-down" class="size-4 opacity-60"></i>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><h6 class="dropdown-header">Signed in</h6></li>
-                        <li><hr class="dropdown-divider" /></li>
-                        <li>
-                            <form asp-area="" asp-controller="Account" asp-action="Logout" method="post">
-                                <button type="submit" class="dropdown-item text-danger">Sign out</button>
-                            </form>
-                        </li>
-                    </ul>
+                    <div id="profileMenu" data-dropdown-menu class="menu hidden absolute right-0 mt-1 w-56">
+                        <p class="px-2.5 py-1.5 text-xs text-muted-foreground">Signed in</p>
+                        <div class="menu-sep"></div>
+                        <form asp-area="" asp-controller="Account" asp-action="Logout" method="post">
+                            <button type="submit" class="menu-item w-full text-danger"><i data-lucide="log-out" class="size-4"></i>Sign out</button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </header>
 
         @if (isImpersonating)
         {
-            <div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 mb-0 rounded-0" role="alert">
-                <span>
-                    <i data-lucide="eye" class="me-1"></i>
+            <div class="flex items-center justify-between flex-wrap gap-2 px-4 sm:px-6 py-2.5 bg-warning/15 text-sm border-b border-warning/30">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="eye" class="size-4"></i>
                     You're viewing this account as <strong>@email</strong>@(string.IsNullOrEmpty(impersonatorEmail) ? "" : $" (impersonated by {impersonatorEmail})").
                 </span>
                 <form asp-area="" asp-controller="Account" asp-action="StopImpersonation" method="post" class="m-0">
-                    <button type="submit" class="btn btn-sm btn-warning">Stop impersonating</button>
+                    <button type="submit" class="btn btn-sm btn-outline">Stop impersonating</button>
                 </form>
             </div>
         }
 
-        <div class="page-content">
-            <div class="container-fluid">
+        <main class="flex-1 p-4 sm:p-6">
+            <div class="mx-auto max-w-5xl space-y-4">
                 @if (TempData["Success"] is string ok)
                 {
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        @ok<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <div data-alert class="card card-body !py-3 flex items-center gap-3 border-l-4 border-l-success">
+                        <i data-lucide="check-circle-2" class="size-5 text-success shrink-0"></i>
+                        <span class="text-sm flex-1">@ok</span>
+                        <button type="button" class="btn btn-ghost btn-icon btn-sm" data-dismiss aria-label="Dismiss"><i data-lucide="x" class="size-4"></i></button>
                     </div>
                 }
                 @if (TempData["Error"] is string err)
                 {
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        @err<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <div data-alert class="card card-body !py-3 flex items-center gap-3 border-l-4 border-l-danger">
+                        <i data-lucide="alert-circle" class="size-5 text-coral shrink-0"></i>
+                        <span class="text-sm flex-1">@err</span>
+                        <button type="button" class="btn btn-ghost btn-icon btn-sm" data-dismiss aria-label="Dismiss"><i data-lucide="x" class="size-4"></i></button>
                     </div>
                 }
                 @RenderBody()
             </div>
-        </div>
+        </main>
 
-        <footer class="footer">
+        <footer class="px-6 py-4 text-xs text-muted-foreground border-t border-border">
             &copy; @DateTime.UtcNow.Year @brandName
         </footer>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="~/js/saarvix-app.js" asp-append-version="true"></script>
 <script>
     lucide.createIcons();
-    document.getElementById("menuToggle")?.addEventListener("click", () =>
-        document.getElementById("sidenav")?.classList.toggle("show"));
+    (function () {
+        const sidenav = document.getElementById("sidenav");
+        const backdrop = document.getElementById("sidenavBackdrop");
+        const toggle = () => { sidenav?.classList.toggle("-translate-x-full"); backdrop?.classList.toggle("hidden"); };
+        document.getElementById("menuToggle")?.addEventListener("click", toggle);
+        backdrop?.addEventListener("click", toggle);
+    })();
 </script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>

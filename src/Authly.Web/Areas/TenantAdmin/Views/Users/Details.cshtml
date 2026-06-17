@@ -1,38 +1,38 @@
 @model UserRolesViewModel
 
-<div class="page-title-head d-flex align-items-center justify-content-between mb-3">
-    <h4 class="mb-0">@Model.Email</h4>
-    <div class="d-flex gap-2">
-        <form asp-area="TenantAdmin" asp-controller="Users" asp-action="Impersonate" asp-route-id="@Model.UserId" method="post"
-              onsubmit="return confirm('Sign in as this user? You can return with the Stop button.');" class="m-0">
-            <button type="submit" class="btn btn-soft-primary btn-sm"><i data-lucide="eye" class="me-1"></i> Impersonate</button>
-        </form>
-        <a class="btn btn-soft-secondary btn-sm" asp-area="TenantAdmin" asp-controller="Users" asp-action="Index">Back</a>
+<div class="flex items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+        <a class="btn btn-ghost btn-icon btn-sm" asp-area="TenantAdmin" asp-controller="Users" asp-action="Index" aria-label="Back"><i data-lucide="arrow-left" class="size-4"></i></a>
+        <h1 class="font-display text-xl font-bold">@Model.Email</h1>
     </div>
+    <form asp-area="TenantAdmin" asp-controller="Users" asp-action="Impersonate" asp-route-id="@Model.UserId" method="post"
+          onsubmit="return confirm('Sign in as this user? You can return with the Stop button.');" class="m-0">
+        <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="eye" class="size-4"></i> Impersonate</button>
+    </form>
 </div>
 
-<div class="row g-3">
-    <div class="col-lg-6">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+    <div>
         <div class="card">
-            <div class="card-header"><h6 class="card-title mb-0">Assigned roles</h6></div>
+            <div class="card-header"><h2 class="card-title">Assigned roles</h2></div>
             <div class="card-body">
                 @if (Model.AssignedRoles.Count == 0)
                 {
-                    <p class="text-muted mb-0">No roles assigned.</p>
+                    <p class="text-sm text-muted-foreground">No roles assigned.</p>
                 }
                 else
                 {
-                    <ul class="list-group list-group-flush">
+                    <ul class="divide-y divide-border">
                     @foreach (var role in Model.AssignedRoles)
                     {
-                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span><code>@role.Name</code>
-                                @if (role.IsSystem) { <span class="badge bg-soft-secondary ms-1">system</span> }
+                        <li class="flex justify-between items-center py-2 first:pt-0 last:pb-0">
+                            <span class="flex items-center gap-2"><code class="text-xs text-muted-foreground">@role.Name</code>
+                                @if (role.IsSystem) { <span class="badge badge-neutral">system</span> }
                             </span>
                             <form asp-area="TenantAdmin" asp-controller="Users" asp-action="Remove"
                                   asp-route-id="@Model.UserId" method="post">
                                 <input type="hidden" name="roleId" value="@role.Id" />
-                                <button type="submit" class="btn btn-soft-danger btn-sm">Remove</button>
+                                <button type="submit" class="btn btn-danger btn-sm">Remove</button>
                             </form>
                         </li>
                     }
@@ -42,19 +42,19 @@
         </div>
     </div>
 
-    <div class="col-lg-6">
+    <div>
         <div class="card">
-            <div class="card-header"><h6 class="card-title mb-0">Add a role</h6></div>
+            <div class="card-header"><h2 class="card-title">Add a role</h2></div>
             <div class="card-body">
                 @if (Model.AvailableRoles.Count == 0)
                 {
-                    <p class="text-muted mb-0">All roles are already assigned.</p>
+                    <p class="text-sm text-muted-foreground">All roles are already assigned.</p>
                 }
                 else
                 {
                     <form asp-area="TenantAdmin" asp-controller="Users" asp-action="Assign"
-                          asp-route-id="@Model.UserId" method="post" class="d-flex gap-2">
-                        <select name="roleId" class="form-select">
+                          asp-route-id="@Model.UserId" method="post" class="flex gap-2">
+                        <select name="roleId" class="select">
                             @foreach (var role in Model.AvailableRoles)
                             {
                                 <option value="@role.Id">@role.Name</option>

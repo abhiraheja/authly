@@ -1,0 +1,13 @@
+{
+  "name": "authly-web-ui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SAARVIX compiled-Tailwind build for the Authly web UI",
+  "scripts": {
+    "build:css": "tailwindcss -i ./Styles/saarvix.input.css -o ./wwwroot/css/saarvix.css --minify",
+    "watch:css": "tailwindcss -i ./Styles/saarvix.input.css -o ./wwwroot/css/saarvix.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}

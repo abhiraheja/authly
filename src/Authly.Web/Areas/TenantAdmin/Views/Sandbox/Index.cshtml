@@ -4,52 +4,56 @@
     var succeeded = ViewBag.Succeeded is true;
 }
 
-<div class="page-title-head mb-3">
-    <h4 class="mb-1">Sandbox</h4>
-    <p class="text-muted mb-0">Validate credentials and grab your integration endpoints. Test logins never create an admin session.</p>
+<div>
+    <h1 class="font-display text-xl font-bold">Sandbox</h1>
+    <p class="text-sm text-muted-foreground mt-0.5">Validate credentials and grab your integration endpoints. Test logins never create an admin session.</p>
 </div>
 
-<div class="row g-4">
-    <div class="col-lg-6">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+    <div>
         <div class="card">
-            <div class="card-header">Test login</div>
-            <div class="card-body">
-                <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
-                <form asp-area="TenantAdmin" asp-controller="Sandbox" asp-action="Index" method="post">
-                    <div class="mb-3">
-                        <label asp-for="Email" class="form-label"></label>
-                        <input asp-for="Email" class="form-control" autocomplete="off" />
-                        <span asp-validation-for="Email" class="text-danger small"></span>
+            <div class="card-header"><h2 class="card-title">Test login</h2></div>
+            <div class="card-body space-y-4">
+                <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
+                <form asp-area="TenantAdmin" asp-controller="Sandbox" asp-action="Index" method="post" class="space-y-4">
+                    <div>
+                        <label asp-for="Email" class="label"></label>
+                        <input asp-for="Email" class="input" autocomplete="off" />
+                        <span asp-validation-for="Email" class="text-danger text-xs"></span>
                     </div>
-                    <div class="mb-3">
-                        <label asp-for="Password" class="form-label"></label>
-                        <input asp-for="Password" class="form-control" autocomplete="off" />
-                        <span asp-validation-for="Password" class="text-danger small"></span>
+                    <div>
+                        <label asp-for="Password" class="label"></label>
+                        <input asp-for="Password" class="input" autocomplete="off" />
+                        <span asp-validation-for="Password" class="text-danger text-xs"></span>
                     </div>
                     <button type="submit" class="btn btn-primary">Run test login</button>
                 </form>
 
                 @if (attempted)
                 {
-                    <hr />
+                    <hr class="border-border" />
                     @if (succeeded)
                     {
-                        <div class="alert alert-success py-2"><i data-lucide="check-circle" class="me-1"></i> Authentication succeeded.</div>
-                        <dl class="row mb-0 small">
-                            <dt class="col-5">User ID</dt><dd class="col-7"><code>@ViewBag.UserId</code></dd>
-                            <dt class="col-5">Email</dt><dd class="col-7">@ViewBag.UserEmail</dd>
-                            <dt class="col-5">Email verified</dt><dd class="col-7">@ViewBag.EmailVerified</dd>
-                            <dt class="col-5">Status</dt><dd class="col-7">@ViewBag.UserStatus</dd>
+                        <div class="card card-body !py-3 flex items-center gap-3 border-l-4 border-l-success">
+                            <i data-lucide="check-circle-2" class="size-5 text-success shrink-0"></i>
+                            <span class="text-sm">Authentication succeeded.</span>
+                        </div>
+                        <dl class="grid grid-cols-12 gap-y-2 text-sm">
+                            <dt class="col-span-5">User ID</dt><dd class="col-span-7"><code>@ViewBag.UserId</code></dd>
+                            <dt class="col-span-5">Email</dt><dd class="col-span-7">@ViewBag.UserEmail</dd>
+                            <dt class="col-span-5">Email verified</dt><dd class="col-span-7">@ViewBag.EmailVerified</dd>
+                            <dt class="col-span-5">Status</dt><dd class="col-span-7">@ViewBag.UserStatus</dd>
                             @if (ViewBag.SessionId is not null)
                             {
-                                <dt class="col-5">Session</dt><dd class="col-7"><code>@ViewBag.SessionId</code></dd>
+                                <dt class="col-span-5">Session</dt><dd class="col-span-7"><code>@ViewBag.SessionId</code></dd>
                             }
                         </dl>
                     }
                     else
                     {
-                        <div class="alert alert-danger py-2 mb-0">
-                            <i data-lucide="x-circle" class="me-1"></i> Outcome: <strong>@ViewBag.Outcome</strong>
+                        <div class="card card-body !py-3 flex items-center gap-3 border-l-4 border-l-danger">
+                            <i data-lucide="alert-circle" class="size-5 text-danger shrink-0"></i>
+                            <span class="text-sm">Outcome: <strong>@ViewBag.Outcome</strong></span>
                         </div>
                     }
                 }
@@ -57,26 +61,26 @@
         </div>
     </div>
 
-    <div class="col-lg-6">
+    <div>
         <div class="card">
-            <div class="card-header">Integration endpoints</div>
-            <div class="card-body">
-                <p class="text-muted small">Point your OIDC client at the discovery document; it advertises the rest.</p>
-                <div class="mb-2">
-                    <label class="form-label small mb-1">Discovery</label>
-                    <input class="form-control form-control-sm" value="@ViewBag.Discovery" readonly onclick="this.select()" />
+            <div class="card-header"><h2 class="card-title">Integration endpoints</h2></div>
+            <div class="card-body space-y-3">
+                <p class="text-sm text-muted-foreground">Point your OIDC client at the discovery document; it advertises the rest.</p>
+                <div>
+                    <label class="label">Discovery</label>
+                    <input class="input" value="@ViewBag.Discovery" readonly onclick="this.select()" />
                 </div>
-                <div class="mb-2">
-                    <label class="form-label small mb-1">Authorization</label>
-                    <input class="form-control form-control-sm" value="@ViewBag.Authorize" readonly onclick="this.select()" />
+                <div>
+                    <label class="label">Authorization</label>
+                    <input class="input" value="@ViewBag.Authorize" readonly onclick="this.select()" />
                 </div>
-                <div class="mb-2">
-                    <label class="form-label small mb-1">Token</label>
-                    <input class="form-control form-control-sm" value="@ViewBag.Token" readonly onclick="this.select()" />
+                <div>
+                    <label class="label">Token</label>
+                    <input class="input" value="@ViewBag.Token" readonly onclick="this.select()" />
                 </div>
-                <div class="mb-0">
-                    <label class="form-label small mb-1">UserInfo</label>
-                    <input class="form-control form-control-sm" value="@ViewBag.UserInfo" readonly onclick="this.select()" />
+                <div>
+                    <label class="label">UserInfo</label>
+                    <input class="input" value="@ViewBag.UserInfo" readonly onclick="this.select()" />
                 </div>
             </div>
         </div>

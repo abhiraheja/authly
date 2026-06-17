@@ -26,6 +26,9 @@ public sealed class RegisterViewModel
     [Display(Name = "I agree to the Terms of Service and Privacy Policy")]
     [Range(typeof(bool), "true", "true", ErrorMessage = "You must accept the Terms and Privacy Policy to create an account.")]
     public bool AcceptTerms { get; set; }
+
+    /// <summary>Where to continue after signing in (e.g. the OAuth /connect/authorize request). Carried so signup keeps the original flow.</summary>
+    public string? ReturnUrl { get; set; }
 }
 
 /// <summary>End-user email/password sign-in form.</summary>
@@ -45,6 +48,9 @@ public sealed class ForgotPasswordViewModel
 {
     [Required, EmailAddress]
     public string Email { get; set; } = string.Empty;
+
+    /// <summary>Original post-login destination, carried so the user returns to it after signing in.</summary>
+    public string? ReturnUrl { get; set; }
 }
 
 /// <summary>Request a passwordless magic sign-in link, or initiate account recovery.</summary>
@@ -52,6 +58,9 @@ public sealed class EmailOnlyViewModel
 {
     [Required, EmailAddress]
     public string Email { get; set; } = string.Empty;
+
+    /// <summary>Original post-login destination, carried so the user returns to it after signing in.</summary>
+    public string? ReturnUrl { get; set; }
 }
 
 /// <summary>Choose a new password using a reset token.</summary>

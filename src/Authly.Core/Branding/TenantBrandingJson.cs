@@ -29,6 +29,7 @@ public static class TenantBrandingJson
 
             // identity
             if (TryString(root, "logo_url", out var logo)) b.LogoUrl = logo;
+            if (TryString(root, "brand_name", out var brandName)) b.BrandName = brandName;
             if (TryNonEmpty(root, "primary_color", out var primary)) b.PrimaryColor = primary;
             if (TryNonEmpty(root, "button_text_color", out var btn)) b.ButtonTextColor = btn;
             if (TryNonEmpty(root, "font_family", out var font)) b.FontFamily = font;
@@ -77,6 +78,7 @@ public static class TenantBrandingJson
     public static string Serialize(TenantBranding b) => JsonSerializer.Serialize(new Dictionary<string, object?>
     {
         ["logo_url"] = b.LogoUrl,
+        ["brand_name"] = b.BrandName,
         ["primary_color"] = b.PrimaryColor,
         ["button_text_color"] = b.ButtonTextColor,
         ["font_family"] = b.FontFamily,

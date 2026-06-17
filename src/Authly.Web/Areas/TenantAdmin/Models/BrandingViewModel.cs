@@ -14,6 +14,10 @@ public sealed class BrandingViewModel
     [Url(ErrorMessage = "Enter an absolute http(s) URL.")]
     public string? LogoUrl { get; set; }
 
+    [Display(Name = "Brand name")]
+    [StringLength(60)]
+    public string? BrandName { get; set; }
+
     [Display(Name = "Primary color")]
     [RegularExpression(HexPattern, ErrorMessage = "Use a hex color like #5b6df5.")]
     public string PrimaryColor { get; set; } = "#5b6df5";

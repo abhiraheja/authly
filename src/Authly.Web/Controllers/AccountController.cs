@@ -80,12 +80,12 @@ public sealed class AccountController : Controller
     // --- Registration ---
 
     [HttpGet("register")]
-    public async Task<IActionResult> Register(CancellationToken ct)
+    public async Task<IActionResult> Register(string? returnUrl = null, CancellationToken ct = default)
     {
         if (RequireTenant() is { } noTenant) return noTenant;
         ViewData["Title"] = "Create your account";
         await PopulateCaptchaAsync(ct);
-        return View(new RegisterViewModel());
+        return View(new RegisterViewModel { ReturnUrl = returnUrl });
     }
 
     [HttpPost("register")]
@@ -129,14 +129,15 @@ public sealed class AccountController : Controller
         }
 
         TempData["Email"] = model.Email;
-        return RedirectToAction(nameof(RegistrationConfirmation));
+        return RedirectToAction(nameof(RegistrationConfirmation), new { returnUrl = SafeReturnUrl(model.ReturnUrl) });
     }
 
     [HttpGet("registered")]
-    public IActionResult RegistrationConfirmation()
+    public IActionResult RegistrationConfirmation(string? returnUrl = null)
     {
         ViewData["Title"] = "Check your email";
         ViewData["Email"] = TempData["Email"];
+        ViewData["ReturnUrl"] = SafeReturnUrl(returnUrl);
         return View();
     }
 
@@ -200,8 +201,7 @@ public sealed class AccountController : Controller
         await _devices.RecordLoginAsync(tenantId, result.User.Id, CurrentRequest(), ct);
         QueueSuspiciousLoginCheck(result.User.Id);
 
-        var returnUrl = !string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl)
-            ? model.ReturnUrl : null;
+        var returnUrl = SafeReturnUrl(model.ReturnUrl);
 
         // Risk-based access: block or force a step-up before the session cookie is issued.
         var access = await _conditional.EvaluateAsync(tenantId, result.User, CurrentRequest(), ct);
@@ -299,11 +299,11 @@ public sealed class AccountController : Controller
     // --- Password reset ---
 
     [HttpGet("forgot-password")]
-    public IActionResult ForgotPassword()
+    public IActionResult ForgotPassword(string? returnUrl = null)
     {
         if (RequireTenant() is { } noTenant) return noTenant;
         ViewData["Title"] = "Forgot password";
-        return View(new ForgotPasswordViewModel());
+        return View(new ForgotPasswordViewModel { ReturnUrl = returnUrl });
     }
 
     [HttpPost("forgot-password")]
@@ -318,6 +318,7 @@ public sealed class AccountController : Controller
 
         // Always the same response, whether or not the email exists (anti-enumeration).
         ViewData["Email"] = model.Email;
+        ViewData["ReturnUrl"] = SafeReturnUrl(model.ReturnUrl);
         return View("ForgotPasswordConfirmation");
     }
 
@@ -362,11 +363,11 @@ public sealed class AccountController : Controller
     // --- Magic link (passwordless) ---
 
     [HttpGet("magic-link")]
-    public IActionResult MagicLink()
+    public IActionResult MagicLink(string? returnUrl = null)
     {
         if (RequireTenant() is { } noTenant) return noTenant;
         ViewData["Title"] = "Email me a sign-in link";
-        return View(new EmailOnlyViewModel());
+        return View(new EmailOnlyViewModel { ReturnUrl = returnUrl });
     }
 
     [HttpPost("magic-link")]
@@ -380,6 +381,7 @@ public sealed class AccountController : Controller
         await _magic.RequestAsync(_tenant.TenantId!.Value, model.Email, CurrentRequest(), ct);
         // Always the same response, whether or not the account exists (anti-enumeration).
         ViewData["Email"] = model.Email;
+        ViewData["ReturnUrl"] = SafeReturnUrl(model.ReturnUrl);
         return View("MagicLinkSent");
     }
 
@@ -407,11 +409,11 @@ public sealed class AccountController : Controller
     // --- Account recovery ---
 
     [HttpGet("recover-request")]
-    public IActionResult RecoverRequest()
+    public IActionResult RecoverRequest(string? returnUrl = null)
     {
         if (RequireTenant() is { } noTenant) return noTenant;
         ViewData["Title"] = "Recover your account";
-        return View(new EmailOnlyViewModel());
+        return View(new EmailOnlyViewModel { ReturnUrl = returnUrl });
     }
 
     [HttpPost("recover-request")]
@@ -425,6 +427,7 @@ public sealed class AccountController : Controller
         await _recovery.InitiateRecoveryAsync(_tenant.TenantId!.Value, model.Email, CurrentRequest(), ct);
         // Anti-enumeration: same confirmation whether or not the account exists.
         ViewData["Email"] = model.Email;
+        ViewData["ReturnUrl"] = SafeReturnUrl(model.ReturnUrl);
         return View("RecoverSent");
     }
 
@@ -495,6 +498,14 @@ public sealed class AccountController : Controller
     /// <summary>Returns a view result when no tenant is resolved; null when a tenant is in scope.</summary>
     private IActionResult? RequireTenant()
         => _tenant.HasTenant ? null : View("TenantRequired");
+
+    /// <summary>
+    /// Returns <paramref name="url"/> only if it is a safe local redirect target (the OAuth
+    /// /connect/authorize request, the portal, etc.); otherwise null. Blocks open-redirects to
+    /// off-site URLs that an attacker might smuggle into the ReturnUrl.
+    /// </summary>
+    private string? SafeReturnUrl(string? url)
+        => !string.IsNullOrEmpty(url) && Url.IsLocalUrl(url) ? url : null;
 
     private RequestInfo CurrentRequest()
         => new(

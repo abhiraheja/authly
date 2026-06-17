@@ -2,7 +2,10 @@
 @using Authly.Core.Enums
 @{
     var brand = await Branding.GetAsync();
-    var brandName = await Branding.GetDisplayNameAsync();
+    // A custom brand name overrides the workspace name on the hosted pages.
+    var brandName = string.IsNullOrWhiteSpace(brand.BrandName)
+        ? await Branding.GetDisplayNameAsync()
+        : brand.BrandName!;
 
     var split = brand.Layout is BrandingLayout.FormLeft or BrandingLayout.FormRight;
     var panelLeft = brand.Layout == BrandingLayout.FormRight;   // panel on the left, form on the right

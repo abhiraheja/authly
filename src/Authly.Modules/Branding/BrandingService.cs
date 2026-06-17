@@ -36,6 +36,7 @@ public sealed partial class BrandingService : IBrandingService
         {
             // identity
             LogoUrl = NormalizeOptional(input.LogoUrl),
+            BrandName = NormalizeOptional(input.BrandName),
             PrimaryColor = ValidateColor(input.PrimaryColor, "primary color"),
             ButtonTextColor = ValidateColor(input.ButtonTextColor, "button text color"),
             FontFamily = string.IsNullOrWhiteSpace(input.FontFamily)

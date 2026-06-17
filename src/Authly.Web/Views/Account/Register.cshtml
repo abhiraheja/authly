@@ -7,6 +7,7 @@
 <p class="text-sm text-muted-foreground mt-1 mb-6">Get started with a new account.</p>
 
 <form asp-controller="Account" asp-action="Register" method="post" class="space-y-4">
+    <input type="hidden" asp-for="ReturnUrl" />
     <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
 
     <div>
@@ -55,5 +56,5 @@
 </form>
 
 <p class="text-center text-sm text-muted-foreground mt-6">
-    Already have an account? <a class="text-primary hover:underline" asp-controller="Account" asp-action="Login">Sign in</a>
+    Already have an account? <a class="text-primary hover:underline" asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Model.ReturnUrl">Sign in</a>
 </p>

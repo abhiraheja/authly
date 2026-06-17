@@ -1,7 +1,9 @@
 @model BrandingViewModel
 @using Authly.Core.Enums
+@inject Authly.Web.Infrastructure.Branding.CurrentBranding Branding
 @{
     Layout = "_AdminLayout";
+    var workspaceName = await Branding.GetDisplayNameAsync();
 }
 
 <div class="flex items-center justify-between gap-3">
@@ -28,10 +30,17 @@
                     </div>
 
                     <div>
+                        <label asp-for="BrandName" class="label"></label>
+                        <input asp-for="BrandName" class="input" placeholder="@workspaceName" />
+                        <span asp-validation-for="BrandName" class="text-danger text-xs"></span>
+                        <p class="mt-1 text-xs text-muted-foreground">Name shown on the login page. Leave blank to use your workspace name (<span class="font-medium">@workspaceName</span>). A logo, if set, replaces this.</p>
+                    </div>
+
+                    <div>
                         <label asp-for="LogoUrl" class="label"></label>
                         <input asp-for="LogoUrl" class="input" placeholder="https://cdn.yourcompany.com/logo.svg" />
                         <span asp-validation-for="LogoUrl" class="text-danger text-xs"></span>
-                        <p class="mt-1 text-xs text-muted-foreground">Falls back to your workspace name.</p>
+                        <p class="mt-1 text-xs text-muted-foreground">Shown instead of the brand name on the hosted pages.</p>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -245,6 +254,8 @@
     const $ = id => document.getElementById(id);
     const val = name => { const el = document.querySelector(`[name="${name}"]`); return el ? el.value : ''; };
     const checked = name => { const el = document.querySelector(`[name="${name}"]`); return el ? el.checked : false; };
+    const workspaceName = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(workspaceName));
+    const brandName = () => (val('BrandName') || '').trim() || workspaceName;
 
     // Mirror native color pickers into their paired text inputs.
     document.querySelectorAll('[data-color-for]').forEach(picker => {
@@ -304,6 +315,9 @@
         // form area background
         if (over) { applyFill(formArea, $('pvFormOverlay')); }
         else { formArea.style.background = ''; formArea.style.backgroundImage = ''; $('pvFormOverlay').classList.add('hidden'); }
+
+        // brand name (panel + form-area share the same mark text)
+        $('pvPanelBrand').textContent = brandName();
 
         // panel text
         $('pvTagline').textContent = val('Tagline') || '';

@@ -24,4 +24,25 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- Keep node tooling out of the build/publish graph. -->
+  <ItemGroup>
+    <Content Remove="node_modules\**" />
+    <Content Remove="Styles\**" />
+    <Content Remove="package.json" />
+    <Content Remove="package-lock.json" />
+    <Content Remove="tailwind.config.js" />
+    <None Remove="node_modules\**" />
+  </ItemGroup>
+
+  <!-- Compile the SAARVIX Tailwind stylesheet (wwwroot/css/saarvix.css) before build.
+       Installs npm deps once when node_modules is missing, then runs build:css. -->
+  <Target Name="SaarvixInstall" BeforeTargets="SaarvixBuildCss" Condition="!Exists('$(MSBuildProjectDirectory)\node_modules')">
+    <Message Importance="high" Text="SAARVIX: installing npm dependencies…" />
+    <Exec Command="npm ci" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+  <Target Name="SaarvixBuildCss" BeforeTargets="BeforeBuild">
+    <Message Importance="high" Text="SAARVIX: compiling Tailwind CSS…" />
+    <Exec Command="npm run build:css" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
 </Project>

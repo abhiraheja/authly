@@ -1,204 +1,151 @@
 @{
     var controller = (ViewContext.RouteData.Values["controller"] as string) ?? "";
     bool IsActive(string c) => string.Equals(controller, c, StringComparison.OrdinalIgnoreCase);
+    string NavLink(string c) => IsActive(c)
+        ? "menu-item bg-primary/10 text-primary font-medium"
+        : "menu-item text-sidebar-foreground hover:bg-sidebar-accent";
     var adminEmail = User?.Identity?.Name ?? "Admin";
+    var initial = string.IsNullOrEmpty(adminEmail) ? "A" : adminEmail.Substring(0, 1).ToUpper();
 }
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
+<html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] · Authly Admin</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
-    <link rel="stylesheet" href="~/css/authly-theme.css" asp-append-version="true" />
+    <script>try { if (localStorage.getItem("authly-theme") === "dark") document.documentElement.classList.add("dark"); } catch (e) { }</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="~/css/saarvix.css" asp-append-version="true" />
 </head>
-<body>
-<div class="wrapper">
-    <div class="sidenav-menu" id="sidenav">
-        <a class="logo" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index">
-            <span class="logo-mark"><i data-lucide="shield-check"></i></span>
+<body class="min-h-screen">
+<div class="flex min-h-screen">
+    <!-- Sidebar -->
+    <aside id="sidenav"
+           class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full lg:translate-x-0 transition-transform duration-200
+                  bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col scroll-thin overflow-y-auto">
+        <a class="flex items-center gap-2.5 px-5 h-16 shrink-0 font-display text-[15px] font-bold text-foreground"
+           asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index">
+            <span class="grid place-items-center size-8 rounded-lg bg-primary text-primary-foreground">
+                <i data-lucide="shield-check" class="size-4"></i>
+            </span>
             <span>Authly</span>
         </a>
-        <ul class="side-nav">
-            <li class="side-nav-title">Workspace</li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Onboarding") ? "active" : "")"
-                   asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="rocket"></i></span>
-                    <span class="menu-text">Get started</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Applications") ? "active" : "")"
-                   asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="app-window"></i></span>
-                    <span class="menu-text">Applications</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Sandbox") ? "active" : "")"
-                   asp-area="TenantAdmin" asp-controller="Sandbox" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="flask-conical"></i></span>
-                    <span class="menu-text">Sandbox</span>
-                </a>
-            </li>
-            <li class="side-nav-title">Access control</li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Roles") ? "active" : "")"
-                   asp-area="TenantAdmin" asp-controller="Roles" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="shield"></i></span>
-                    <span class="menu-text">Roles &amp; permissions</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Users") ? "active" : "")"
-                   asp-area="TenantAdmin" asp-controller="Users" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="users"></i></span>
-                    <span class="menu-text">Users</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("MfaPolicy") ? "active" : "")"
-                   asp-area="TenantAdmin" asp-controller="MfaPolicy" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="lock-keyhole"></i></span>
-                    <span class="menu-text">MFA policy</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("SocialProviders") ? "active" : "")"
-                   asp-area="TenantAdmin" asp-controller="SocialProviders" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="globe"></i></span>
-                    <span class="menu-text">Social login</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Branding") ? "active" : "")"
-                   asp-area="TenantAdmin" asp-controller="Branding" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="palette"></i></span>
-                    <span class="menu-text">Branding</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("AccessPolicies") ? "active" : "")"
-                   asp-area="TenantAdmin" asp-controller="AccessPolicies" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="scale"></i></span>
-                    <span class="menu-text">Access policies</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Security") ? "active" : "")"
-                   asp-area="TenantAdmin" asp-controller="Security" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="shield-alert"></i></span>
-                    <span class="menu-text">Security</span>
-                </a>
-            </li>
-            <li class="side-nav-title">Developers</li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("ApiKeys") ? "active" : "")"
-                   asp-area="TenantAdmin" asp-controller="ApiKeys" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="key-round"></i></span>
-                    <span class="menu-text">API keys</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Messaging") ? "active" : "")"
-                   asp-area="TenantAdmin" asp-controller="Messaging" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="send"></i></span>
-                    <span class="menu-text">Messaging</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("Webhooks") ? "active" : "")"
-                   asp-area="TenantAdmin" asp-controller="Webhooks" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="webhook"></i></span>
-                    <span class="menu-text">Webhooks</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("PipelineHooks") ? "active" : "")"
-                   asp-area="TenantAdmin" asp-controller="PipelineHooks" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="git-branch"></i></span>
-                    <span class="menu-text">Pipeline hooks</span>
-                </a>
-            </li>
-            <li class="side-nav-item">
-                <a class="side-nav-link @(IsActive("ClaimConfigs") ? "active" : "")"
-                   asp-area="TenantAdmin" asp-controller="ClaimConfigs" asp-action="Index">
-                    <span class="menu-icon"><i data-lucide="id-card"></i></span>
-                    <span class="menu-text">Custom claims</span>
-                </a>
-            </li>
-        </ul>
-    </div>
 
-    <div class="content-area">
-        <header class="app-topbar">
-            <button class="btn btn-icon btn-soft-secondary d-lg-none" type="button" id="menuToggle">
-                <i data-lucide="menu"></i>
+        <nav class="flex-1 px-3 pb-4 space-y-6">
+            <div class="space-y-1">
+                <p class="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Workspace</p>
+                <a class="@NavLink("Onboarding")" asp-area="TenantAdmin" asp-controller="Onboarding" asp-action="Index"><i data-lucide="rocket" class="size-4"></i><span>Get started</span></a>
+                <a class="@NavLink("Applications")" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index"><i data-lucide="app-window" class="size-4"></i><span>Applications</span></a>
+                <a class="@NavLink("Sandbox")" asp-area="TenantAdmin" asp-controller="Sandbox" asp-action="Index"><i data-lucide="flask-conical" class="size-4"></i><span>Sandbox</span></a>
+            </div>
+            <div class="space-y-1">
+                <p class="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Access control</p>
+                <a class="@NavLink("Roles")" asp-area="TenantAdmin" asp-controller="Roles" asp-action="Index"><i data-lucide="shield" class="size-4"></i><span>Roles &amp; permissions</span></a>
+                <a class="@NavLink("Users")" asp-area="TenantAdmin" asp-controller="Users" asp-action="Index"><i data-lucide="users" class="size-4"></i><span>Users</span></a>
+                <a class="@NavLink("MfaPolicy")" asp-area="TenantAdmin" asp-controller="MfaPolicy" asp-action="Index"><i data-lucide="lock-keyhole" class="size-4"></i><span>MFA policy</span></a>
+                <a class="@NavLink("SocialProviders")" asp-area="TenantAdmin" asp-controller="SocialProviders" asp-action="Index"><i data-lucide="globe" class="size-4"></i><span>Social login</span></a>
+                <a class="@NavLink("Branding")" asp-area="TenantAdmin" asp-controller="Branding" asp-action="Index"><i data-lucide="palette" class="size-4"></i><span>Branding</span></a>
+                <a class="@NavLink("AccessPolicies")" asp-area="TenantAdmin" asp-controller="AccessPolicies" asp-action="Index"><i data-lucide="scale" class="size-4"></i><span>Access policies</span></a>
+                <a class="@NavLink("Security")" asp-area="TenantAdmin" asp-controller="Security" asp-action="Index"><i data-lucide="shield-alert" class="size-4"></i><span>Security</span></a>
+            </div>
+            <div class="space-y-1">
+                <p class="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Developers</p>
+                <a class="@NavLink("ApiKeys")" asp-area="TenantAdmin" asp-controller="ApiKeys" asp-action="Index"><i data-lucide="key-round" class="size-4"></i><span>API keys</span></a>
+                <a class="@NavLink("Messaging")" asp-area="TenantAdmin" asp-controller="Messaging" asp-action="Index"><i data-lucide="send" class="size-4"></i><span>Messaging</span></a>
+                <a class="@NavLink("Webhooks")" asp-area="TenantAdmin" asp-controller="Webhooks" asp-action="Index"><i data-lucide="webhook" class="size-4"></i><span>Webhooks</span></a>
+                <a class="@NavLink("PipelineHooks")" asp-area="TenantAdmin" asp-controller="PipelineHooks" asp-action="Index"><i data-lucide="git-branch" class="size-4"></i><span>Pipeline hooks</span></a>
+                <a class="@NavLink("ClaimConfigs")" asp-area="TenantAdmin" asp-controller="ClaimConfigs" asp-action="Index"><i data-lucide="id-card" class="size-4"></i><span>Custom claims</span></a>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Mobile backdrop -->
+    <div id="sidenavBackdrop" class="fixed inset-0 z-30 bg-ink/40 backdrop-blur-sm hidden lg:hidden"></div>
+
+    <!-- Main column -->
+    <div class="flex-1 flex flex-col min-w-0 lg:ml-64">
+        <header class="sticky top-0 z-20 h-16 flex items-center gap-3 px-4 sm:px-6 border-b border-border glass">
+            <button class="btn btn-ghost btn-icon lg:hidden" type="button" id="menuToggle" aria-label="Toggle menu">
+                <i data-lucide="menu" class="size-5"></i>
             </button>
-            <div class="topbar-item ms-auto d-flex align-items-center gap-2">
-                <button class="btn btn-icon btn-soft-secondary" type="button" id="themeToggle" title="Toggle theme">
-                    <i data-lucide="sun-moon"></i>
+
+            <!-- Org → project selector placeholder (wired in Phase 3) -->
+            <button class="btn btn-outline btn-sm hidden sm:inline-flex" type="button" title="Project selector (coming soon)" disabled>
+                <i data-lucide="folder" class="size-4"></i>
+                <span>Default project</span>
+                <i data-lucide="chevrons-up-down" class="size-3.5 opacity-60"></i>
+            </button>
+
+            <div class="ms-auto flex items-center gap-2">
+                <button class="btn btn-ghost btn-icon" type="button" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">
+                    <i data-lucide="sun-moon" class="size-5"></i>
                 </button>
-                <div class="dropdown">
-                    <button class="btn btn-soft-secondary dropdown-toggle d-flex align-items-center gap-2"
-                            data-bs-toggle="dropdown" aria-expanded="false">
-                        <span class="avatar-sm"><span class="avatar-title bg-soft-primary">@adminEmail.Substring(0,1).ToUpper()</span></span>
-                        <span class="d-none d-sm-inline">@adminEmail</span>
+                <div class="relative">
+                    <button class="btn btn-ghost gap-2 px-2" type="button" data-dropdown="profileMenu">
+                        <span class="avatar size-8 bg-primary text-xs">@initial</span>
+                        <span class="hidden sm:inline text-sm">@adminEmail</span>
+                        <i data-lucide="chevron-down" class="size-4 opacity-60"></i>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><h6 class="dropdown-header">Signed in as tenant admin</h6></li>
-                        <li><hr class="dropdown-divider" /></li>
-                        <li>
-                            <form asp-area="TenantAdmin" asp-controller="Account" asp-action="Logout" method="post">
-                                <button type="submit" class="dropdown-item text-danger">Sign out</button>
-                            </form>
-                        </li>
-                    </ul>
+                    <div id="profileMenu" data-dropdown-menu class="menu hidden absolute right-0 mt-1 w-56">
+                        <p class="px-2.5 py-1.5 text-xs text-muted-foreground">Signed in as tenant admin</p>
+                        <div class="menu-sep"></div>
+                        <form asp-area="TenantAdmin" asp-controller="Account" asp-action="Logout" method="post">
+                            <button type="submit" class="menu-item w-full text-danger"><i data-lucide="log-out" class="size-4"></i>Sign out</button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </header>
 
-        <div class="page-content">
-            <div class="container-fluid">
+        <main class="flex-1 p-4 sm:p-6">
+            <div class="mx-auto max-w-7xl space-y-4">
                 @if (TempData["Success"] is string ok)
                 {
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        @ok<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <div data-alert class="card card-body !py-3 flex items-center gap-3 border-l-4 border-l-success">
+                        <i data-lucide="check-circle-2" class="size-5 text-success shrink-0"></i>
+                        <span class="text-sm flex-1">@ok</span>
+                        <button type="button" class="btn btn-ghost btn-icon btn-sm" data-dismiss aria-label="Dismiss"><i data-lucide="x" class="size-4"></i></button>
                     </div>
                 }
                 @if (TempData["Error"] is string err)
                 {
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        @err<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <div data-alert class="card card-body !py-3 flex items-center gap-3 border-l-4 border-l-danger">
+                        <i data-lucide="alert-circle" class="size-5 text-coral shrink-0"></i>
+                        <span class="text-sm flex-1">@err</span>
+                        <button type="button" class="btn btn-ghost btn-icon btn-sm" data-dismiss aria-label="Dismiss"><i data-lucide="x" class="size-4"></i></button>
                     </div>
                 }
                 @await Component.InvokeAsync("TenantBanners", new { showOnboarding = !IsActive("Onboarding") })
                 @RenderBody()
             </div>
-        </div>
+        </main>
 
-        <footer class="footer">
+        <footer class="px-6 py-4 text-xs text-muted-foreground border-t border-border">
             &copy; @DateTime.UtcNow.Year Authly — Tenant Admin
         </footer>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="~/js/saarvix-app.js" asp-append-version="true"></script>
 <script>
     lucide.createIcons();
-    const html = document.documentElement;
-    const saved = localStorage.getItem("authly-theme");
-    if (saved) html.setAttribute("data-bs-theme", saved);
-    document.getElementById("themeToggle")?.addEventListener("click", () => {
-        const next = html.getAttribute("data-bs-theme") === "dark" ? "light" : "dark";
-        html.setAttribute("data-bs-theme", next);
-        localStorage.setItem("authly-theme", next);
-    });
-    document.getElementById("menuToggle")?.addEventListener("click", () =>
-        document.getElementById("sidenav")?.classList.toggle("show"));
+    (function () {
+        const html = document.documentElement;
+        document.getElementById("themeToggle")?.addEventListener("click", () => {
+            const dark = html.classList.toggle("dark");
+            try { localStorage.setItem("authly-theme", dark ? "dark" : "light"); } catch (e) { }
+        });
+        const sidenav = document.getElementById("sidenav");
+        const backdrop = document.getElementById("sidenavBackdrop");
+        const toggle = () => {
+            sidenav?.classList.toggle("-translate-x-full");
+            backdrop?.classList.toggle("hidden");
+        };
+        document.getElementById("menuToggle")?.addEventListener("click", toggle);
+        backdrop?.addEventListener("click", toggle);
+    })();
 </script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>

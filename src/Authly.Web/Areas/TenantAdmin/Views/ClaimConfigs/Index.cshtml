@@ -4,44 +4,44 @@
     var configs = ViewData["Configs"] as IReadOnlyList<ClaimConfig> ?? new List<ClaimConfig>();
 }
 
-<div class="page-title-head mb-3">
-    <h4 class="mb-0">Custom token claims</h4>
+<div>
+    <h1 class="font-display text-xl font-bold">Custom token claims</h1>
 </div>
 
-<div class="card mb-3">
+<div class="card">
     <div class="card-body">
-        <p class="text-muted small mb-3">
+        <p class="text-muted-foreground text-sm mb-4">
             Add claims to issued tokens (§5.6). <strong>Static</strong> emits a fixed value;
             <strong>metadata</strong> maps a dotted path from the user's <code>user_metadata</code>/<code>app_metadata</code>
             (prefix with <code>app_metadata.</code> to target app metadata). For webhook-sourced claims, add a
             <a asp-area="TenantAdmin" asp-controller="PipelineHooks" asp-action="Index">pre-token pipeline hook</a>.
         </p>
-        <form asp-area="TenantAdmin" asp-controller="ClaimConfigs" asp-action="Add" method="post" class="row g-2 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label" asp-for="ClaimName">Claim name</label>
-                <input class="form-control form-control-sm" asp-for="ClaimName" placeholder="department" />
+        <form asp-area="TenantAdmin" asp-controller="ClaimConfigs" asp-action="Add" method="post" class="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+            <div class="md:col-span-3">
+                <label class="label" asp-for="ClaimName">Claim name</label>
+                <input class="input input-sm" asp-for="ClaimName" placeholder="department" />
             </div>
-            <div class="col-md-2">
-                <label class="form-label" asp-for="Type">Type</label>
-                <select class="form-select form-select-sm" asp-for="Type">
+            <div class="md:col-span-2">
+                <label class="label" asp-for="Type">Type</label>
+                <select class="select select-sm" asp-for="Type">
                     <option value="@ClaimSourceType.Static">static</option>
                     <option value="@ClaimSourceType.Metadata">metadata</option>
                 </select>
             </div>
-            <div class="col-md-3">
-                <label class="form-label" asp-for="Source">Value / path</label>
-                <input class="form-control form-control-sm" asp-for="Source" placeholder="engineering or org.tier" />
+            <div class="md:col-span-3">
+                <label class="label" asp-for="Source">Value / path</label>
+                <input class="input input-sm" asp-for="Source" placeholder="engineering or org.tier" />
             </div>
-            <div class="col-md-2">
-                <label class="form-label" asp-for="TokenType">Token</label>
-                <select class="form-select form-select-sm" asp-for="TokenType">
+            <div class="md:col-span-2">
+                <label class="label" asp-for="TokenType">Token</label>
+                <select class="select select-sm" asp-for="TokenType">
                     <option value="@ClaimTokenType.Access">access</option>
                     <option value="@ClaimTokenType.Id">id</option>
                 </select>
             </div>
-            <div class="col-md-2">
-                <label class="form-label" asp-for="ApplicationId">Application</label>
-                <select class="form-select form-select-sm" asp-for="ApplicationId">
+            <div class="md:col-span-2">
+                <label class="label" asp-for="ApplicationId">Application</label>
+                <select class="select select-sm" asp-for="ApplicationId">
                     <option value="">All (tenant-wide)</option>
                     @foreach (var a in apps)
                     {
@@ -49,7 +49,7 @@
                     }
                 </select>
             </div>
-            <div class="col-12">
+            <div class="md:col-span-12">
                 <button type="submit" class="btn btn-sm btn-primary">Add claim</button>
             </div>
         </form>
@@ -57,35 +57,37 @@
 </div>
 
 <div class="card">
-    <div class="card-body">
-        <h6 class="mb-3">Configured claims</h6>
-        @if (configs.Count == 0)
-        {
-            <p class="text-muted mb-0">No custom claims configured.</p>
-        }
-        else
-        {
-            <table class="table table-sm align-middle mb-0">
-                <thead><tr><th>Claim</th><th>Type</th><th>Source</th><th>Token</th><th>Scope</th><th class="text-end"></th></tr></thead>
+    <div class="card-header"><h6 class="card-title">Configured claims</h6></div>
+    @if (configs.Count == 0)
+    {
+        <div class="card-body">
+            <p class="text-muted-foreground mb-0">No custom claims configured.</p>
+        </div>
+    }
+    else
+    {
+        <div class="overflow-x-auto scroll-thin">
+            <table class="table">
+                <thead><tr><th>Claim</th><th>Type</th><th>Source</th><th>Token</th><th>Scope</th><th class="text-right"></th></tr></thead>
                 <tbody>
                 @foreach (var c in configs)
                 {
                     var app = apps.FirstOrDefault(a => a.Id == c.ApplicationId);
                     <tr>
-                        <td class="fw-medium">@c.ClaimName</td>
+                        <td class="font-medium">@c.ClaimName</td>
                         <td>@c.Type.ToString().ToLowerInvariant()</td>
-                        <td class="small text-muted">@c.Source</td>
+                        <td class="text-sm text-muted-foreground">@c.Source</td>
                         <td>@c.TokenType.ToString().ToLowerInvariant()</td>
                         <td>@(c.ApplicationId is null ? "tenant-wide" : app?.Name ?? "app")</td>
-                        <td class="text-end">
-                            <form class="d-inline" asp-area="TenantAdmin" asp-controller="ClaimConfigs" asp-action="Delete" asp-route-id="@c.Id" method="post">
-                                <button type="submit" class="btn btn-sm btn-soft-danger">Delete</button>
+                        <td class="text-right">
+                            <form asp-area="TenantAdmin" asp-controller="ClaimConfigs" asp-action="Delete" asp-route-id="@c.Id" method="post">
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                             </form>
                         </td>
                     </tr>
                 }
                 </tbody>
             </table>
-        }
-    </div>
+        </div>
+    }
 </div>

@@ -1,51 +1,50 @@
 @model CreateApplicationViewModel
 
-<div class="page-title-head mb-3">
-    <h4 class="mb-0">New application</h4>
+<div class="flex items-center gap-3">
+    <a class="btn btn-ghost btn-icon btn-sm" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index" aria-label="Back"><i data-lucide="arrow-left" class="size-4"></i></a>
+    <h1 class="font-display text-xl font-bold">New application</h1>
 </div>
 
-<div class="card">
+<div class="card max-w-2xl">
     <div class="card-body">
-        <form asp-area="TenantAdmin" asp-controller="Applications" asp-action="Create" method="post" style="max-width: 640px;">
-            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+        <form asp-area="TenantAdmin" asp-controller="Applications" asp-action="Create" method="post" class="space-y-4">
+            <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
 
-            <div class="mb-3">
-                <label asp-for="Name" class="form-label"></label>
-                <input asp-for="Name" class="form-control" placeholder="My Web App" />
-                <span asp-validation-for="Name" class="text-danger small"></span>
+            <div>
+                <label asp-for="Name" class="label"></label>
+                <input asp-for="Name" class="input" placeholder="My Web App" />
+                <span asp-validation-for="Name" class="text-danger text-xs"></span>
             </div>
 
-            <div class="mb-3">
-                <label asp-for="Type" class="form-label"></label>
-                <select asp-for="Type" asp-items="Html.GetEnumSelectList<ApplicationType>()" class="form-select"></select>
-                <div class="form-text">
+            <div>
+                <label asp-for="Type" class="label"></label>
+                <select asp-for="Type" asp-items="Html.GetEnumSelectList<ApplicationType>()" class="select"></select>
+                <p class="mt-1 text-xs text-muted-foreground">
                     Web/Machine are confidential (issued a client secret). SPA/Native are public and use PKCE only.
-                </div>
+                </p>
             </div>
 
-            <div class="mb-3">
-                <label asp-for="RedirectUris" class="form-label"></label>
-                <textarea asp-for="RedirectUris" class="form-control" rows="3"
-                          placeholder="https://app.example.com/callback"></textarea>
-                <div class="form-text">Where Authly returns the authorization code after sign-in. Required for interactive (authorization-code) clients. One URI per line.</div>
+            <div>
+                <label asp-for="RedirectUris" class="label"></label>
+                <textarea asp-for="RedirectUris" class="textarea" rows="3" placeholder="https://app.example.com/callback"></textarea>
+                <p class="mt-1 text-xs text-muted-foreground">Where Authly returns the authorization code after sign-in. Required for interactive (authorization-code) clients. One URI per line.</p>
             </div>
 
-            <div class="mb-3">
-                <label asp-for="PostLogoutRedirectUris" class="form-label"></label>
-                <textarea asp-for="PostLogoutRedirectUris" class="form-control" rows="2"
-                          placeholder="https://app.example.com/"></textarea>
-                <div class="form-text">Where Authly returns after RP-initiated logout (<code>/connect/logout</code>). One URI per line. Optional.</div>
+            <div>
+                <label asp-for="PostLogoutRedirectUris" class="label"></label>
+                <textarea asp-for="PostLogoutRedirectUris" class="textarea" rows="2" placeholder="https://app.example.com/"></textarea>
+                <p class="mt-1 text-xs text-muted-foreground">Where Authly returns after RP-initiated logout (<code>/connect/logout</code>). One URI per line. Optional.</p>
             </div>
 
-            <div class="mb-4">
-                <label asp-for="Scopes" class="form-label"></label>
-                <input asp-for="Scopes" class="form-control" />
-                <div class="form-text"><code>openid</code> and <code>offline_access</code> are added automatically for interactive clients.</div>
+            <div>
+                <label asp-for="Scopes" class="label"></label>
+                <input asp-for="Scopes" class="input" />
+                <p class="mt-1 text-xs text-muted-foreground"><code>openid</code> and <code>offline_access</code> are added automatically for interactive clients.</p>
             </div>
 
-            <div class="d-flex gap-2">
+            <div class="flex gap-2 pt-1">
                 <button type="submit" class="btn btn-primary">Create application</button>
-                <a class="btn btn-soft-secondary" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index">Cancel</a>
+                <a class="btn btn-outline" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index">Cancel</a>
             </div>
         </form>
     </div>

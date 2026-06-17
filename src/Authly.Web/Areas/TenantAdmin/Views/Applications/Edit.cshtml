@@ -3,45 +3,45 @@
     var appId = ViewData["ApplicationId"];
 }
 
-<div class="page-title-head d-flex align-items-center justify-content-between mb-3">
-    <h4 class="mb-0">Edit application</h4>
-    <a class="btn btn-soft-secondary btn-sm" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Details" asp-route-id="@appId">Back</a>
+<div class="flex items-center justify-between gap-3">
+    <h1 class="font-display text-xl font-bold">Edit application</h1>
+    <a class="btn btn-outline btn-sm" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Details" asp-route-id="@appId">Back</a>
 </div>
 
-<div class="card">
+<div class="card max-w-2xl">
     <div class="card-body">
-        <form asp-area="TenantAdmin" asp-controller="Applications" asp-action="Edit" asp-route-id="@appId" method="post" style="max-width: 640px;">
-            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+        <form asp-area="TenantAdmin" asp-controller="Applications" asp-action="Edit" asp-route-id="@appId" method="post" class="space-y-4">
+            <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
 
-            <div class="mb-3">
-                <label asp-for="Name" class="form-label"></label>
-                <input asp-for="Name" class="form-control" placeholder="My Web App" />
-                <span asp-validation-for="Name" class="text-danger small"></span>
+            <div>
+                <label asp-for="Name" class="label"></label>
+                <input asp-for="Name" class="input" placeholder="My Web App" />
+                <span asp-validation-for="Name" class="text-danger text-xs"></span>
             </div>
 
-            <div class="mb-3">
-                <label asp-for="RedirectUris" class="form-label"></label>
-                <textarea asp-for="RedirectUris" class="form-control" rows="4"
+            <div>
+                <label asp-for="RedirectUris" class="label"></label>
+                <textarea asp-for="RedirectUris" class="textarea" rows="4"
                           placeholder="https://app.example.com/callback"></textarea>
-                <div class="form-text">Where Authly returns the authorization code after sign-in. Required for interactive (authorization-code) clients. One URI per line.</div>
+                <p class="mt-1 text-xs text-muted-foreground">Where Authly returns the authorization code after sign-in. Required for interactive (authorization-code) clients. One URI per line.</p>
             </div>
 
-            <div class="mb-3">
-                <label asp-for="PostLogoutRedirectUris" class="form-label"></label>
-                <textarea asp-for="PostLogoutRedirectUris" class="form-control" rows="3"
+            <div>
+                <label asp-for="PostLogoutRedirectUris" class="label"></label>
+                <textarea asp-for="PostLogoutRedirectUris" class="textarea" rows="3"
                           placeholder="https://app.example.com/"></textarea>
-                <div class="form-text">Where Authly returns after RP-initiated logout (<code>/connect/logout</code>). One URI per line. Optional.</div>
+                <p class="mt-1 text-xs text-muted-foreground">Where Authly returns after RP-initiated logout (<code>/connect/logout</code>). One URI per line. Optional.</p>
             </div>
 
-            <div class="mb-4">
-                <label asp-for="Scopes" class="form-label"></label>
-                <input asp-for="Scopes" class="form-control" />
-                <div class="form-text"><code>openid</code> and <code>offline_access</code> are added automatically for interactive clients.</div>
+            <div>
+                <label asp-for="Scopes" class="label"></label>
+                <input asp-for="Scopes" class="input" />
+                <p class="mt-1 text-xs text-muted-foreground"><code>openid</code> and <code>offline_access</code> are added automatically for interactive clients.</p>
             </div>
 
-            <div class="d-flex gap-2">
+            <div class="flex gap-2 pt-1">
                 <button type="submit" class="btn btn-primary">Save changes</button>
-                <a class="btn btn-soft-secondary" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Details" asp-route-id="@appId">Cancel</a>
+                <a class="btn btn-outline" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Details" asp-route-id="@appId">Cancel</a>
             </div>
         </form>
     </div>

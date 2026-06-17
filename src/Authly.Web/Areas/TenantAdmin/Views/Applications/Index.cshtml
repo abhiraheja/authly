@@ -1,50 +1,59 @@
 @model IReadOnlyList<Application>
 
-<div class="page-title-head d-flex align-items-center justify-content-between mb-3">
-    <h4 class="mb-0">Applications</h4>
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Applications</h1>
+        <p class="text-sm text-muted-foreground mt-0.5">OAuth clients registered in this project.</p>
+    </div>
     <a class="btn btn-primary btn-sm" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Create">
-        <i data-lucide="plus" class="me-1"></i> New application
+        <i data-lucide="plus" class="size-4"></i> New application
     </a>
 </div>
 
 <div class="card">
-    <div class="card-body">
-        @if (Model.Count == 0)
-        {
-            <p class="text-muted mb-0">No applications yet. Create one to obtain OAuth client credentials.</p>
-        }
-        else
-        {
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Type</th>
-                            <th>Client ID</th>
-                            <th>Created</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @foreach (var app in Model)
-                    {
-                        <tr>
-                            <td class="fw-medium">@app.Name</td>
-                            <td><span class="badge bg-soft-primary">@app.Type</span></td>
-                            <td><code>@app.ClientId</code></td>
-                            <td class="text-muted small">@app.CreatedAt.ToString("yyyy-MM-dd")</td>
-                            <td class="text-end">
-                                <a class="btn btn-soft-secondary btn-sm"
-                                   asp-area="TenantAdmin" asp-controller="Applications" asp-action="Details" asp-route-id="@app.Id">
-                                    Manage
-                                </a>
-                            </td>
-                        </tr>
-                    }
-                    </tbody>
-                </table>
-            </div>
-        }
-    </div>
+    @if (Model.Count == 0)
+    {
+        <div class="card-body flex flex-col items-center text-center py-12 gap-3">
+            <span class="grid place-items-center size-12 rounded-xl bg-primary/10 text-primary">
+                <i data-lucide="app-window" class="size-6"></i>
+            </span>
+            <p class="text-sm text-muted-foreground max-w-sm">No applications yet. Create one to obtain OAuth client credentials.</p>
+            <a class="btn btn-primary btn-sm" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Create">
+                <i data-lucide="plus" class="size-4"></i> New application
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="overflow-x-auto scroll-thin">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Client ID</th>
+                        <th>Created</th>
+                        <th class="text-right"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var app in Model)
+                {
+                    <tr>
+                        <td class="font-medium">@app.Name</td>
+                        <td><span class="badge badge-primary">@app.Type</span></td>
+                        <td><code class="text-xs text-muted-foreground">@app.ClientId</code></td>
+                        <td class="text-muted-foreground">@app.CreatedAt.ToString("yyyy-MM-dd")</td>
+                        <td class="text-right">
+                            <a class="btn btn-outline btn-sm"
+                               asp-area="TenantAdmin" asp-controller="Applications" asp-action="Details" asp-route-id="@app.Id">
+                                Manage
+                            </a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
 </div>

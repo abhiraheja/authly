@@ -34,7 +34,8 @@ public sealed class ApplicationsController : ApiControllerBase
     public async Task<IActionResult> Create([FromBody] CreateApplicationDto dto, CancellationToken ct)
     {
         var result = await _apps.CreateAsync(TenantId,
-            new CreateApplicationRequest(dto.Name, dto.Type, dto.RedirectUris, dto.Scopes), ApiAudit(), ct);
+            new CreateApplicationRequest(dto.Name, dto.Type, dto.RedirectUris, dto.Scopes, dto.PostLogoutRedirectUris),
+            ApiAudit(), ct);
 
         // The client secret is returned once here and never again.
         return CreatedAtAction(nameof(Get), new { id = result.Application.Id }, new

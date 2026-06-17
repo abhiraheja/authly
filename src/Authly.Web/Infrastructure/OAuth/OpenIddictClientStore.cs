@@ -57,10 +57,11 @@ public sealed class OpenIddictClientStore : IOAuthClientStore
             if (Uri.TryCreate(uri, UriKind.Absolute, out var parsed))
                 d.RedirectUris.Add(parsed);
 
-        // Replace post-logout redirect URIs (derived from the new redirect URIs' origins).
+        // Replace post-logout redirect URIs (explicit, separate from the callback URIs).
         d.PostLogoutRedirectUris.Clear();
-        foreach (var target in PostLogoutTargets(descriptor.RedirectUris))
-            d.PostLogoutRedirectUris.Add(target);
+        foreach (var uri in descriptor.PostLogoutRedirectUris)
+            if (Uri.TryCreate(uri, UriKind.Absolute, out var parsed))
+                d.PostLogoutRedirectUris.Add(parsed);
 
         await _manager.UpdateAsync(app, d, ct);
     }
@@ -138,29 +139,12 @@ public sealed class OpenIddictClientStore : IOAuthClientStore
             if (Uri.TryCreate(uri, UriKind.Absolute, out var parsed))
                 descriptor.RedirectUris.Add(parsed);
 
-        // RP-initiated logout (end-session): allow the client to return to its own origin root
-        // after sign-out. Derived from the registered redirect URIs (same single-source-of-truth as
-        // CORS), so registering a redirect URI also permits post_logout_redirect_uri=<origin>/.
-        foreach (var target in PostLogoutTargets(d.RedirectUris))
-            descriptor.PostLogoutRedirectUris.Add(target);
+        // RP-initiated logout (end-session): the client's own, explicitly-configured post-logout
+        // redirect URIs (kept separate from the OAuth callback URIs).
+        foreach (var uri in d.PostLogoutRedirectUris)
+            if (Uri.TryCreate(uri, UriKind.Absolute, out var parsed))
+                descriptor.PostLogoutRedirectUris.Add(parsed);
 
         return descriptor;
-    }
-
-    /// <summary>
-    /// Reduces redirect URIs to their distinct origin roots (<c>scheme://host[:port]/</c>) for use
-    /// as allowed post-logout redirect targets — the conventional place a browser app returns to
-    /// after end-session.
-    /// </summary>
-    private static IEnumerable<Uri> PostLogoutTargets(IEnumerable<string> redirectUris)
-    {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var uri in redirectUris)
-            if (Uri.TryCreate(uri, UriKind.Absolute, out var parsed))
-            {
-                var root = parsed.GetLeftPart(UriPartial.Authority) + "/";
-                if (seen.Add(root) && Uri.TryCreate(root, UriKind.Absolute, out var rootUri))
-                    yield return rootUri;
-            }
     }
 }

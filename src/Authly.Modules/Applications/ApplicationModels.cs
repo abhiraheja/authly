@@ -8,16 +8,19 @@ public sealed record CreateApplicationRequest(
     string Name,
     ApplicationType Type,
     IReadOnlyList<string> RedirectUris,
-    IReadOnlyList<string> Scopes);
+    IReadOnlyList<string> Scopes,
+    IReadOnlyList<string> PostLogoutRedirectUris);
 
 /// <summary>
 /// Editable fields of an existing OAuth client. The type, client id, grant types and secret are
-/// immutable here — only the display name, redirect URIs and requested scopes can change.
+/// immutable here — only the display name, redirect URIs, post-logout redirect URIs and requested
+/// scopes can change.
 /// </summary>
 public sealed record UpdateApplicationRequest(
     string Name,
     IReadOnlyList<string> RedirectUris,
-    IReadOnlyList<string> Scopes);
+    IReadOnlyList<string> Scopes,
+    IReadOnlyList<string> PostLogoutRedirectUris);
 
 /// <summary>
 /// Result of creating/rotating credentials. <see cref="ClientSecret"/> is the raw secret and is

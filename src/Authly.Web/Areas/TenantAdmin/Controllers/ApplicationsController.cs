@@ -38,12 +38,15 @@ public sealed class ApplicationsController : TenantAdminControllerBase
         var redirectUris = (model.RedirectUris ?? string.Empty)
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
+        var postLogoutUris = (model.PostLogoutRedirectUris ?? string.Empty)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
         var scopes = (model.Scopes ?? string.Empty)
             .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
 
         var result = await _apps.CreateAsync(TenantId,
-            new CreateApplicationRequest(model.Name, model.Type, redirectUris, scopes),
+            new CreateApplicationRequest(model.Name, model.Type, redirectUris, scopes, postLogoutUris),
             CurrentAudit(), ct);
 
         // Surface the client id and (one-time) secret on the details page.
@@ -77,6 +80,7 @@ public sealed class ApplicationsController : TenantAdminControllerBase
         {
             Name = app.Name,
             RedirectUris = string.Join('\n', app.RedirectUris),
+            PostLogoutRedirectUris = string.Join('\n', app.PostLogoutRedirectUris),
             Scopes = string.Join(' ', app.AllowedScopes)
         });
     }
@@ -95,6 +99,9 @@ public sealed class ApplicationsController : TenantAdminControllerBase
         var redirectUris = (model.RedirectUris ?? string.Empty)
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
+        var postLogoutUris = (model.PostLogoutRedirectUris ?? string.Empty)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
         var scopes = (model.Scopes ?? string.Empty)
             .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
@@ -102,7 +109,7 @@ public sealed class ApplicationsController : TenantAdminControllerBase
         try
         {
             await _apps.UpdateAsync(TenantId, id,
-                new UpdateApplicationRequest(model.Name, redirectUris, scopes),
+                new UpdateApplicationRequest(model.Name, redirectUris, scopes, postLogoutUris),
                 CurrentAudit(), ct);
             TempData["Success"] = "Application updated.";
         }

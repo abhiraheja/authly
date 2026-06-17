@@ -26,10 +26,12 @@ public sealed record PermissionResponse(Guid Id, string Resource, string Action,
 
 public sealed record ApplicationResponse(
     Guid Id, string ClientId, string Name, string Type, IReadOnlyList<string> GrantTypes,
-    IReadOnlyList<string> RedirectUris, IReadOnlyList<string> AllowedScopes, bool IsConfidential, DateTimeOffset CreatedAt)
+    IReadOnlyList<string> RedirectUris, IReadOnlyList<string> PostLogoutRedirectUris,
+    IReadOnlyList<string> AllowedScopes, bool IsConfidential, DateTimeOffset CreatedAt)
 {
     public static ApplicationResponse From(Application a) => new(
-        a.Id, a.ClientId, a.Name, a.Type.ToString(), a.GrantTypes, a.RedirectUris, a.AllowedScopes, a.IsConfidential, a.CreatedAt);
+        a.Id, a.ClientId, a.Name, a.Type.ToString(), a.GrantTypes, a.RedirectUris, a.PostLogoutRedirectUris,
+        a.AllowedScopes, a.IsConfidential, a.CreatedAt);
 }
 
 public sealed record SessionResponse(
@@ -89,5 +91,6 @@ public sealed class CreateApplicationDto
     [Required] public string Name { get; set; } = string.Empty;
     [Required] public Authly.Core.Enums.ApplicationType Type { get; set; }
     public string[] RedirectUris { get; set; } = Array.Empty<string>();
+    public string[] PostLogoutRedirectUris { get; set; } = Array.Empty<string>();
     public string[] Scopes { get; set; } = Array.Empty<string>();
 }

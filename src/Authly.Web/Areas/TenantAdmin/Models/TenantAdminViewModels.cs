@@ -27,6 +27,9 @@ public sealed class CreateApplicationViewModel
     [Display(Name = "Redirect URIs (one per line)")]
     public string? RedirectUris { get; set; }
 
+    [Display(Name = "Post-logout redirect URIs (one per line)")]
+    public string? PostLogoutRedirectUris { get; set; }
+
     [Display(Name = "Scopes (space-separated)")]
     public string Scopes { get; set; } = "openid profile email";
 }
@@ -39,6 +42,9 @@ public sealed class EditApplicationViewModel
 
     [Display(Name = "Redirect URIs (one per line)")]
     public string? RedirectUris { get; set; }
+
+    [Display(Name = "Post-logout redirect URIs (one per line)")]
+    public string? PostLogoutRedirectUris { get; set; }
 
     [Display(Name = "Scopes (space-separated)")]
     public string Scopes { get; set; } = string.Empty;

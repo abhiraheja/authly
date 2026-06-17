@@ -52,6 +52,12 @@
                         @if (Model.RedirectUris.Count == 0) { <span class="text-muted">—</span> }
                         else { foreach (var u in Model.RedirectUris) { <div><code>@u</code></div> } }
                     </dd>
+
+                    <dt class="col-sm-4 text-muted">Post-logout redirect URIs</dt>
+                    <dd class="col-sm-8">
+                        @if (Model.PostLogoutRedirectUris.Count == 0) { <span class="text-muted">—</span> }
+                        else { foreach (var u in Model.PostLogoutRedirectUris) { <div><code>@u</code></div> } }
+                    </dd>
                 </dl>
             </div>
         </div>

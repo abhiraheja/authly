@@ -1,6 +1,7 @@
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Authly.Core.Interfaces;
 using Authly.Infrastructure;
@@ -170,6 +171,21 @@ using (var scope = app.Services.CreateScope())
     recurringJobs.AddOrUpdate<Authly.Web.Infrastructure.LogStreaming.LogStreamJob>(
         "audit-log-stream", j => j.FlushAsync(CancellationToken.None), "*/5 * * * *");
 }
+
+// Behind a TLS-terminating reverse proxy (nginx/Traefik/Cloudflare), Kestrel receives plain HTTP
+// internally. Honour the proxy's X-Forwarded-Proto/For so Request.IsHttps, scheme and client IP
+// reflect the public request — without this OpenIddict rejects /connect/* with ID2083
+// ("This server only accepts HTTPS requests"). Must be the FIRST middleware so everything
+// downstream (HTTPS redirect, OpenIddict, cookies) sees the corrected scheme.
+// The proxy's IP is not known ahead of time on the Docker network, so the default localhost-only
+// trust list is cleared: only deploy with a trusted proxy as the single ingress in front.
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+};
+forwardedHeadersOptions.KnownIPNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
 if (!app.Environment.IsDevelopment())
 {

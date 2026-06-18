@@ -15,7 +15,11 @@ public sealed record SocialProviderPreset(
     string IdField,
     string EmailField,
     string? EmailVerifiedField,
-    string NameField);
+    string NameField,
+    string? GivenNameField = null,
+    string? FamilyNameField = null,
+    string? PictureField = null,
+    string? LocaleField = null);
 
 public static class SocialProviderPresets
 {
@@ -28,28 +32,32 @@ public static class SocialProviderPresets
             "https://oauth2.googleapis.com/token",
             "https://openidconnect.googleapis.com/v1/userinfo",
             new[] { "openid", "email", "profile" },
-            IdField: "sub", EmailField: "email", EmailVerifiedField: "email_verified", NameField: "name"),
+            IdField: "sub", EmailField: "email", EmailVerifiedField: "email_verified", NameField: "name",
+            GivenNameField: "given_name", FamilyNameField: "family_name", PictureField: "picture", LocaleField: "locale"),
 
         ["microsoft"] = new("microsoft", "Microsoft",
             "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
             "https://login.microsoftonline.com/common/oauth2/v2.0/token",
             "https://graph.microsoft.com/oidc/userinfo",
             new[] { "openid", "email", "profile" },
-            IdField: "sub", EmailField: "email", EmailVerifiedField: null, NameField: "name"),
+            IdField: "sub", EmailField: "email", EmailVerifiedField: null, NameField: "name",
+            GivenNameField: "given_name", FamilyNameField: "family_name", PictureField: "picture", LocaleField: "locale"),
 
         ["github"] = new("github", "GitHub",
             "https://github.com/login/oauth/authorize",
             "https://github.com/login/oauth/access_token",
             "https://api.github.com/user",
             new[] { "read:user", "user:email" },
-            IdField: "id", EmailField: "email", EmailVerifiedField: null, NameField: "name"),
+            IdField: "id", EmailField: "email", EmailVerifiedField: null, NameField: "name",
+            PictureField: "avatar_url"),
 
         ["facebook"] = new("facebook", "Facebook",
             "https://www.facebook.com/v19.0/dialog/oauth",
             "https://graph.facebook.com/v19.0/oauth/access_token",
-            "https://graph.facebook.com/me?fields=id,name,email",
+            "https://graph.facebook.com/me?fields=id,name,first_name,last_name,email,picture.width(256).height(256)",
             new[] { "email", "public_profile" },
-            IdField: "id", EmailField: "email", EmailVerifiedField: null, NameField: "name"),
+            IdField: "id", EmailField: "email", EmailVerifiedField: null, NameField: "name",
+            GivenNameField: "first_name", FamilyNameField: "last_name", PictureField: "picture"),
     };
 
     public static IReadOnlyList<SocialProviderPreset> Known => Presets.Values.ToList();

@@ -105,10 +105,10 @@ public sealed class SocialLoginService : ISocialLoginService
                     EmailVerified = true,            // verified by the provider
                     PasswordHash = null,             // social-only account
                     Status = UserStatus.Active,
-                    FirstName = profile.Name,
                     CreatedAt = DateTimeOffset.UtcNow,
                     UpdatedAt = DateTimeOffset.UtcNow
                 };
+                ApplyProfileToUser(user, profile);
                 await _users.AddAsync(user, ct);
                 isNew = true;
             }
@@ -123,6 +123,14 @@ public sealed class SocialLoginService : ISocialLoginService
             };
             ApplyTokens(identity, profile, tokens, json);
             await _identities.AddAsync(identity, ct);
+        }
+
+        // Refresh provider-owned profile fields on every login (avatar always; name/locale only when
+        // unset, so a user's own portal edits aren't clobbered). New users were filled at creation.
+        if (!isNew && ApplyProfileToUser(user, profile))
+        {
+            user.UpdatedAt = DateTimeOffset.UtcNow;
+            await _users.UpdateAsync(user, ct);
         }
 
         var session = await _auth.StartSessionAsync(user, provider, info, ct);
@@ -242,6 +250,10 @@ public sealed class SocialLoginService : ISocialLoginService
         var providerId = ReadScalar(root, idField);
         var email = ReadScalar(root, emailField);
         var name = ReadScalar(root, nameField);
+        var givenName = preset?.GivenNameField is { } gf ? ReadScalar(root, gf) : null;
+        var familyName = preset?.FamilyNameField is { } ff ? ReadScalar(root, ff) : null;
+        var picture = preset?.PictureField is { } pf ? ReadPicture(root, pf) : null;
+        var locale = preset?.LocaleField is { } lf ? ReadScalar(root, lf) : null;
 
         bool emailVerified;
         if (verifiedField is not null && root.TryGetProperty(verifiedField, out var v))
@@ -250,7 +262,48 @@ public sealed class SocialLoginService : ISocialLoginService
         else
             emailVerified = email is not null; // curated presets return verified emails
 
-        return new SocialProfile(providerId ?? "", email, emailVerified, name);
+        return new SocialProfile(providerId ?? "", email, emailVerified, name, givenName, familyName, picture, locale);
+    }
+
+    /// <summary>
+    /// Maps provider-supplied profile fields onto the user. The avatar is refreshed from the provider
+    /// on every login (there is no user-facing avatar editor to clobber); name and locale are only
+    /// backfilled when unset (or still the default locale) so a user's own portal edits survive.
+    /// Returns true if any field changed.
+    /// </summary>
+    private static bool ApplyProfileToUser(User user, SocialProfile profile)
+    {
+        var changed = false;
+
+        if (!string.IsNullOrWhiteSpace(profile.Picture) && user.AvatarUrl != profile.Picture)
+        {
+            user.AvatarUrl = profile.Picture;
+            changed = true;
+        }
+
+        var first = string.IsNullOrWhiteSpace(profile.GivenName) ? profile.Name : profile.GivenName;
+        if (string.IsNullOrWhiteSpace(user.FirstName) && !string.IsNullOrWhiteSpace(first))
+        {
+            user.FirstName = first;
+            changed = true;
+        }
+
+        if (string.IsNullOrWhiteSpace(user.LastName) && !string.IsNullOrWhiteSpace(profile.FamilyName))
+        {
+            user.LastName = profile.FamilyName;
+            changed = true;
+        }
+
+        // Upgrade the default locale ("en") to the provider's, but never overwrite a user's explicit choice.
+        if (!string.IsNullOrWhiteSpace(profile.Locale)
+            && (string.IsNullOrWhiteSpace(user.Locale) || user.Locale == "en")
+            && user.Locale != profile.Locale)
+        {
+            user.Locale = profile.Locale!;
+            changed = true;
+        }
+
+        return changed;
     }
 
     private static string? ReadScalar(JsonElement root, string field)
@@ -262,6 +315,20 @@ public sealed class SocialLoginService : ISocialLoginService
             JsonValueKind.Number => v.GetRawText(),
             _ => null
         };
+    }
+
+    /// <summary>Reads an avatar URL that is either a plain string (Google/Microsoft/GitHub) or a
+    /// nested object (Facebook: <c>{ "picture": { "data": { "url": "..." } } }</c>).</summary>
+    private static string? ReadPicture(JsonElement root, string field)
+    {
+        if (!root.TryGetProperty(field, out var v)) return null;
+        if (v.ValueKind == JsonValueKind.String) return v.GetString();
+        if (v.ValueKind == JsonValueKind.Object
+            && v.TryGetProperty("data", out var data)
+            && data.TryGetProperty("url", out var url)
+            && url.ValueKind == JsonValueKind.String)
+            return url.GetString();
+        return null;
     }
 
     private static void Validate(SocialProviderInput input)
@@ -279,5 +346,6 @@ public sealed class SocialLoginService : ISocialLoginService
         }
     }
 
-    private sealed record SocialProfile(string ProviderId, string? Email, bool EmailVerified, string? Name);
+    private sealed record SocialProfile(string ProviderId, string? Email, bool EmailVerified, string? Name,
+        string? GivenName = null, string? FamilyName = null, string? Picture = null, string? Locale = null);
 }

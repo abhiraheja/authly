@@ -1,59 +1,163 @@
-@model UserRolesViewModel
+@model UserDetailViewModel
+@{
+    var u = Model.User;
+    var fullName = $"{u.FirstName} {u.LastName}".Trim();
+    var statusBadge = u.Status switch
+    {
+        UserStatus.Active => "badge-success",
+        UserStatus.Suspended => "badge-warning",
+        UserStatus.Deleted => "badge-danger",
+        _ => "badge-neutral"
+    };
+}
 
-<div class="flex items-center justify-between gap-3">
+<div class="flex items-center justify-between gap-3 flex-wrap">
     <div class="flex items-center gap-3">
         <a class="btn btn-ghost btn-icon btn-sm" asp-area="TenantAdmin" asp-controller="Users" asp-action="Index" aria-label="Back"><i data-lucide="arrow-left" class="size-4"></i></a>
-        <h1 class="font-display text-xl font-bold">@Model.Email</h1>
+        <div>
+            <h1 class="font-display text-xl font-bold flex items-center gap-2">
+                @(fullName is { Length: > 0 } ? fullName : u.Email)
+                <span class="badge @statusBadge">@u.Status</span>
+            </h1>
+            <p class="text-sm text-muted-foreground mt-0.5">@u.Email</p>
+        </div>
     </div>
-    <form asp-area="TenantAdmin" asp-controller="Users" asp-action="Impersonate" asp-route-id="@Model.UserId" method="post"
-          onsubmit="return confirm('Sign in as this user? You can return with the Stop button.');" class="m-0">
-        <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="eye" class="size-4"></i> Impersonate</button>
-    </form>
+    <div class="flex items-center gap-2">
+        @if (u.Status == UserStatus.Suspended)
+        {
+            <form asp-area="TenantAdmin" asp-controller="Users" asp-action="Reactivate" asp-route-id="@u.Id" method="post" class="m-0">
+                <button type="submit" class="btn btn-outline btn-sm"><i data-lucide="user-check" class="size-4"></i> Reactivate</button>
+            </form>
+        }
+        else if (u.Status == UserStatus.Active)
+        {
+            <form asp-area="TenantAdmin" asp-controller="Users" asp-action="Suspend" asp-route-id="@u.Id" method="post" class="m-0"
+                  onsubmit="return confirm('Suspend this user? They will be signed out and unable to log in.');">
+                <button type="submit" class="btn btn-outline btn-sm"><i data-lucide="user-x" class="size-4"></i> Suspend</button>
+            </form>
+        }
+        <form asp-area="TenantAdmin" asp-controller="Users" asp-action="Impersonate" asp-route-id="@u.Id" method="post"
+              onsubmit="return confirm('Sign in as this user? You can return with the Stop button.');" class="m-0">
+            <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="eye" class="size-4"></i> Impersonate</button>
+        </form>
+    </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-    <div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mt-4">
+    <div class="lg:col-span-8 space-y-4">
+        <!-- Profile -->
         <div class="card">
-            <div class="card-header"><h2 class="card-title">Assigned roles</h2></div>
+            <div class="card-header"><span class="card-title">Profile</span></div>
             <div class="card-body">
-                @if (Model.AssignedRoles.Count == 0)
+                <form asp-area="TenantAdmin" asp-controller="Users" asp-action="UpdateProfile" asp-route-id="@u.Id" method="post" class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="label" for="FirstName">First name</label>
+                            <input class="input" id="FirstName" name="FirstName" value="@u.FirstName" />
+                        </div>
+                        <div>
+                            <label class="label" for="LastName">Last name</label>
+                            <input class="input" id="LastName" name="LastName" value="@u.LastName" />
+                        </div>
+                        <div>
+                            <label class="label" for="Phone">Phone</label>
+                            <input class="input" id="Phone" name="Phone" value="@u.Phone" />
+                        </div>
+                        <div>
+                            <label class="label" for="Locale">Locale</label>
+                            <input class="input" id="Locale" name="Locale" value="@u.Locale" />
+                        </div>
+                        <div>
+                            <label class="label" for="Timezone">Timezone</label>
+                            <input class="input" id="Timezone" name="Timezone" value="@u.Timezone" />
+                        </div>
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Security -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">Security &amp; recovery</span></div>
+            <div class="divide-y divide-border">
+                <div class="flex items-center justify-between py-3 px-4">
+                    <div>
+                        <div class="font-medium">Password</div>
+                        <div class="text-sm text-muted-foreground">@(u.PasswordHash is not null ? "Password set" : "No password (social sign-in only)")</div>
+                    </div>
+                    <form asp-area="TenantAdmin" asp-controller="Users" asp-action="ForcePasswordReset" asp-route-id="@u.Id" method="post" class="m-0"
+                          onsubmit="return confirm('Revoke all sessions and email a password-reset link to this user?');">
+                        <button type="submit" class="btn btn-sm btn-outline">Force reset</button>
+                    </form>
+                </div>
+
+                <div class="flex items-center justify-between py-3 px-4">
+                    <div>
+                        <div class="font-medium">Backup codes</div>
+                        <div class="text-sm text-muted-foreground">@Model.UnusedBackupCodes unused</div>
+                    </div>
+                </div>
+
+                @{ var active = Model.Factors.Where(f => f.Status == MfaFactorStatus.Active).ToList(); }
+                @if (active.Count == 0)
                 {
-                    <p class="text-sm text-muted-foreground">No roles assigned.</p>
+                    <div class="py-3 px-4">
+                        <div class="font-medium">Two-step verification</div>
+                        <div class="text-sm text-muted-foreground">No active factors enrolled.</div>
+                    </div>
                 }
                 else
                 {
-                    <ul class="divide-y divide-border">
-                    @foreach (var role in Model.AssignedRoles)
+                    @foreach (var f in active)
                     {
-                        <li class="flex justify-between items-center py-2 first:pt-0 last:pb-0">
-                            <span class="flex items-center gap-2"><code class="text-xs text-muted-foreground">@role.Name</code>
-                                @if (role.IsSystem) { <span class="badge badge-neutral">system</span> }
-                            </span>
-                            <form asp-area="TenantAdmin" asp-controller="Users" asp-action="Remove"
-                                  asp-route-id="@Model.UserId" method="post">
-                                <input type="hidden" name="roleId" value="@role.Id" />
-                                <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                        <div class="flex items-center justify-between py-3 px-4">
+                            <div>
+                                <div class="font-medium">@(f.FriendlyName ?? f.Type.ToString())</div>
+                                <div class="text-sm text-muted-foreground">@f.Type · added @f.CreatedAt.ToString("yyyy-MM-dd")</div>
+                            </div>
+                            <form asp-area="TenantAdmin" asp-controller="Users" asp-action="DisableFactor" asp-route-id="@u.Id" asp-route-factorId="@f.Id" method="post" class="m-0"
+                                  onsubmit="return confirm('Remove this two-step factor? The user can re-enrol from their security page.');">
+                                <button type="submit" class="btn btn-sm btn-danger">Remove</button>
                             </form>
-                        </li>
+                        </div>
                     }
-                    </ul>
                 }
             </div>
         </div>
-    </div>
 
-    <div>
+        <!-- Roles -->
         <div class="card">
-            <div class="card-header"><h2 class="card-title">Add a role</h2></div>
-            <div class="card-body">
-                @if (Model.AvailableRoles.Count == 0)
+            <div class="card-header"><span class="card-title">Roles</span></div>
+            <div class="card-body space-y-4">
+                <div>
+                    @if (Model.AssignedRoles.Count == 0)
+                    {
+                        <p class="text-sm text-muted-foreground">No roles assigned.</p>
+                    }
+                    else
+                    {
+                        <ul class="divide-y divide-border">
+                        @foreach (var role in Model.AssignedRoles)
+                        {
+                            <li class="flex justify-between items-center py-2 first:pt-0">
+                                <span class="flex items-center gap-2"><code class="text-xs text-muted-foreground">@role.Name</code>
+                                    @if (role.IsSystem) { <span class="badge badge-neutral">system</span> }
+                                </span>
+                                <form asp-area="TenantAdmin" asp-controller="Users" asp-action="Remove" asp-route-id="@u.Id" method="post" class="m-0">
+                                    <input type="hidden" name="roleId" value="@role.Id" />
+                                    <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                                </form>
+                            </li>
+                        }
+                        </ul>
+                    }
+                </div>
+                @if (Model.AvailableRoles.Count > 0)
                 {
-                    <p class="text-sm text-muted-foreground">All roles are already assigned.</p>
-                }
-                else
-                {
-                    <form asp-area="TenantAdmin" asp-controller="Users" asp-action="Assign"
-                          asp-route-id="@Model.UserId" method="post" class="flex gap-2">
+                    <form asp-area="TenantAdmin" asp-controller="Users" asp-action="Assign" asp-route-id="@u.Id" method="post" class="flex gap-2 pt-2 border-t border-border">
                         <select name="roleId" class="select">
                             @foreach (var role in Model.AvailableRoles)
                             {
@@ -63,6 +167,76 @@
                         <button type="submit" class="btn btn-primary">Assign</button>
                     </form>
                 }
+            </div>
+        </div>
+
+        <!-- Sessions -->
+        <div class="card">
+            <div class="card-header flex items-center justify-between">
+                <span class="card-title">Active sessions</span>
+                @if (Model.Sessions.Count > 0)
+                {
+                    <form asp-area="TenantAdmin" asp-controller="Users" asp-action="RevokeSessions" asp-route-id="@u.Id" method="post" class="m-0"
+                          onsubmit="return confirm('Sign this user out of all devices?');">
+                        <button type="submit" class="btn btn-sm btn-outline">Revoke all</button>
+                    </form>
+                }
+            </div>
+            @if (Model.Sessions.Count == 0)
+            {
+                <div class="card-body"><p class="text-sm text-muted-foreground">No active sessions.</p></div>
+            }
+            else
+            {
+                <div class="overflow-x-auto scroll-thin">
+                    <table class="table">
+                        <thead><tr><th>IP</th><th>Device</th><th>Last active</th><th>Expires</th></tr></thead>
+                        <tbody>
+                        @foreach (var s in Model.Sessions)
+                        {
+                            <tr>
+                                <td class="font-medium">@(s.IpAddress ?? "—")</td>
+                                <td class="text-muted-foreground max-w-xs truncate" title="@s.UserAgent">@(s.UserAgent ?? "—")</td>
+                                <td class="text-muted-foreground">@s.LastActiveAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td class="text-muted-foreground">@s.ExpiresAt.ToString("yyyy-MM-dd HH:mm")</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Sidebar: facts + JSON -->
+    <div class="lg:col-span-4 space-y-4">
+        <div class="card">
+            <div class="card-header"><span class="card-title">Account</span></div>
+            <div class="card-body text-sm space-y-2">
+                <div class="flex justify-between gap-2"><span class="text-muted-foreground">Email verified</span><span>@(u.EmailVerified ? "Yes" : "No")</span></div>
+                <div class="flex justify-between gap-2"><span class="text-muted-foreground">Phone verified</span><span>@(u.PhoneVerified ? "Yes" : "No")</span></div>
+                <div class="flex justify-between gap-2"><span class="text-muted-foreground">Anonymous</span><span>@(u.IsAnonymous ? "Yes" : "No")</span></div>
+                <div class="flex justify-between gap-2"><span class="text-muted-foreground">Created</span><span>@u.CreatedAt.ToString("yyyy-MM-dd")</span></div>
+                <div class="flex justify-between gap-2"><span class="text-muted-foreground">Last login</span><span>@(u.LastLoginAt?.ToString("yyyy-MM-dd HH:mm") ?? "—")</span></div>
+                <div class="flex justify-between gap-2"><span class="text-muted-foreground">User ID</span><code class="text-xs">@u.Id</code></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><span class="card-title">Raw data (JSON)</span></div>
+            <div class="card-body space-y-3">
+                <details open>
+                    <summary class="text-sm font-medium cursor-pointer">Account record</summary>
+                    <pre class="mt-2 p-3 rounded-lg bg-muted/40 text-xs overflow-x-auto scroll-thin"><code>@Model.RawJson</code></pre>
+                </details>
+                <details>
+                    <summary class="text-sm font-medium cursor-pointer">User metadata</summary>
+                    <pre class="mt-2 p-3 rounded-lg bg-muted/40 text-xs overflow-x-auto scroll-thin"><code>@Model.UserMetadataJson</code></pre>
+                </details>
+                <details>
+                    <summary class="text-sm font-medium cursor-pointer">App metadata</summary>
+                    <pre class="mt-2 p-3 rounded-lg bg-muted/40 text-xs overflow-x-auto scroll-thin"><code>@Model.AppMetadataJson</code></pre>
+                </details>
             </div>
         </div>
     </div>

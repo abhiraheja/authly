@@ -79,3 +79,42 @@ public sealed class UserRolesViewModel
     public IReadOnlyList<Authly.Core.Entities.Role> AssignedRoles { get; set; } = Array.Empty<Authly.Core.Entities.Role>();
     public IReadOnlyList<Authly.Core.Entities.Role> AvailableRoles { get; set; } = Array.Empty<Authly.Core.Entities.Role>();
 }
+
+/// <summary>Full tenant-admin view of one user: profile, security, sessions, roles and raw data.</summary>
+public sealed class UserDetailViewModel
+{
+    public Authly.Core.Entities.User User { get; set; } = default!;
+
+    public IReadOnlyList<Authly.Core.Entities.Role> AssignedRoles { get; set; } = Array.Empty<Authly.Core.Entities.Role>();
+    public IReadOnlyList<Authly.Core.Entities.Role> AvailableRoles { get; set; } = Array.Empty<Authly.Core.Entities.Role>();
+
+    public IReadOnlyList<Authly.Core.Entities.MfaFactor> Factors { get; set; } = Array.Empty<Authly.Core.Entities.MfaFactor>();
+    public int UnusedBackupCodes { get; set; }
+    public IReadOnlyList<Authly.Core.Entities.Session> Sessions { get; set; } = Array.Empty<Authly.Core.Entities.Session>();
+
+    /// <summary>Pretty-printed user-editable metadata JSON.</summary>
+    public string UserMetadataJson { get; set; } = "{}";
+    /// <summary>Pretty-printed backend-only metadata JSON.</summary>
+    public string AppMetadataJson { get; set; } = "{}";
+    /// <summary>Pretty-printed full account record (password hash redacted).</summary>
+    public string RawJson { get; set; } = "{}";
+}
+
+/// <summary>Tenant-admin edit of a user's profile fields.</summary>
+public sealed class EditUserProfileViewModel
+{
+    [Display(Name = "First name")]
+    public string? FirstName { get; set; }
+
+    [Display(Name = "Last name")]
+    public string? LastName { get; set; }
+
+    [Display(Name = "Phone")]
+    public string? Phone { get; set; }
+
+    [Display(Name = "Timezone")]
+    public string? Timezone { get; set; }
+
+    [Display(Name = "Locale")]
+    public string? Locale { get; set; }
+}

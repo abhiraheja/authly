@@ -37,54 +37,57 @@ public sealed class TenantResolutionMiddleware
             && !path.StartsWithSegments("/invite")
             && !path.StartsWithSegments("/api"))
         {
-            var host = context.Request.Host.Host;
-            var tenant = await tenants.GetByCustomDomainOrNullAsync(host, context.RequestAborted);
-
-            // Tenant hint: lets the shared platform host serve any tenant without a custom domain.
-            // An X-Tenant-Slug header, a ?tenant= query (which is then remembered in a cookie so
-            // follow-up navigations, form posts and email-link clicks resolve too).
-            if (tenant is null)
-            {
-                string? slug = null;
-                if (context.Request.Headers.TryGetValue("X-Tenant-Slug", out var header))
-                    slug = header.ToString();
-                else if (context.Request.Query.TryGetValue("tenant", out var query))
-                    slug = query.ToString();
-                // On the hosted login (and other interstitials), the OAuth request — including its
-                // tenant — is carried in the ReturnUrl, not as a top-level query param. Read it from
-                // there so a directly-opened login link (or a cleared cookie) still resolves.
-                else if (TryGetTenantFromReturnUrl(context.Request, out var nested))
-                    slug = nested;
-                else if (context.Request.Cookies.TryGetValue(TenantHintCookie, out var cookie))
-                    slug = cookie;
-
-                if (!string.IsNullOrWhiteSpace(slug))
-                {
-                    tenant = await tenants.GetBySlugAsync(slug, context.RequestAborted);
-                    if (tenant is not null)
-                        context.Response.Cookies.Append(TenantHintCookie, tenant.Slug,
-                            new CookieOptions
-                            {
-                                HttpOnly = true,
-                                IsEssential = true,
-                                SameSite = SameSiteMode.Lax,
-                                Secure = context.Request.IsHttps
-                            });
-                }
-            }
-
-            if (tenant is not null)
-                tenantContext.SetTenant(tenant.Id);
-
-            // Self-serve workspaces have no custom domain, so host resolution finds nothing. For the
-            // tenant-admin surface, fall back to the signed-in admin's own cookie claim so their
-            // workspace still resolves. TenantAdminControllerBase re-checks cookie == resolved tenant,
-            // so this can only ever resolve the admin's own tenant.
-            if (!tenantContext.HasTenant && path.StartsWithSegments("/tenantadmin"))
+            // The operator console binds its workspace from the signed-in admin's auth cookie (set at
+            // login, re-issued on workspace switch) — never from the host or the tenant hint. The hint
+            // targets end-user / hosted-login surfaces on the shared platform host; letting it win here
+            // would pin /tenantadmin to a stale/other workspace and the base guard would bounce the
+            // admin back to login. The base guard still re-checks cookie == resolved tenant.
+            if (path.StartsWithSegments("/tenantadmin"))
             {
                 var auth = await context.AuthenticateAsync(AuthSchemes.TenantAdmin);
                 if (Guid.TryParse(auth.Principal?.FindFirst(TenantAdminClaims.TenantId)?.Value, out var adminTenant))
                     tenantContext.SetTenant(adminTenant);
+            }
+            else
+            {
+                var host = context.Request.Host.Host;
+                var tenant = await tenants.GetByCustomDomainOrNullAsync(host, context.RequestAborted);
+
+                // Tenant hint: lets the shared platform host serve any tenant without a custom domain.
+                // An X-Tenant-Slug header, a ?tenant= query (which is then remembered in a cookie so
+                // follow-up navigations, form posts and email-link clicks resolve too).
+                if (tenant is null)
+                {
+                    string? slug = null;
+                    if (context.Request.Headers.TryGetValue("X-Tenant-Slug", out var header))
+                        slug = header.ToString();
+                    else if (context.Request.Query.TryGetValue("tenant", out var query))
+                        slug = query.ToString();
+                    // On the hosted login (and other interstitials), the OAuth request — including its
+                    // tenant — is carried in the ReturnUrl, not as a top-level query param. Read it from
+                    // there so a directly-opened login link (or a cleared cookie) still resolves.
+                    else if (TryGetTenantFromReturnUrl(context.Request, out var nested))
+                        slug = nested;
+                    else if (context.Request.Cookies.TryGetValue(TenantHintCookie, out var cookie))
+                        slug = cookie;
+
+                    if (!string.IsNullOrWhiteSpace(slug))
+                    {
+                        tenant = await tenants.GetBySlugAsync(slug, context.RequestAborted);
+                        if (tenant is not null)
+                            context.Response.Cookies.Append(TenantHintCookie, tenant.Slug,
+                                new CookieOptions
+                                {
+                                    HttpOnly = true,
+                                    IsEssential = true,
+                                    SameSite = SameSiteMode.Lax,
+                                    Secure = context.Request.IsHttps
+                                });
+                    }
+                }
+
+                if (tenant is not null)
+                    tenantContext.SetTenant(tenant.Id);
             }
         }
 

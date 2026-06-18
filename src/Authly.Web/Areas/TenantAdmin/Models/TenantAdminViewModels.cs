@@ -71,6 +71,10 @@ public sealed class CreateApiKeyViewModel
     public string? Scopes { get; set; }
 }
 
+/// <summary>One row in the tenant users list: the user plus the sign-in sources linked to them
+/// ("password" for a local credential, plus any social provider keys like "google").</summary>
+public sealed record UserListRow(Authly.Core.Entities.User User, IReadOnlyList<string> Providers);
+
 /// <summary>Manage a single user's role assignments.</summary>
 public sealed class UserRolesViewModel
 {

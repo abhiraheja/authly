@@ -188,6 +188,11 @@ public class SocialLoginServiceTests
             => Task.FromResult(Items.FirstOrDefault(s => s.TenantId == t && s.Provider == provider && s.ProviderId == providerId));
         public Task<IReadOnlyList<SocialIdentity>> ListByUserAsync(Guid t, Guid userId, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<SocialIdentity>>(Items.Where(s => s.TenantId == t && s.UserId == userId).ToList());
+        public Task<IReadOnlyDictionary<Guid, IReadOnlyList<string>>> ListProvidersByTenantAsync(Guid t, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyDictionary<Guid, IReadOnlyList<string>>>(
+                Items.Where(s => s.TenantId == t)
+                    .GroupBy(s => s.UserId)
+                    .ToDictionary(g => g.Key, g => (IReadOnlyList<string>)g.Select(x => x.Provider).Distinct().OrderBy(p => p).ToList()));
         public Task AddAsync(SocialIdentity s, CancellationToken ct = default) { if (s.Id == Guid.Empty) s.Id = Guid.NewGuid(); Items.Add(s); return Task.CompletedTask; }
         public Task UpdateAsync(SocialIdentity s, CancellationToken ct = default) => Task.CompletedTask;
     }

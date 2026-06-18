@@ -42,6 +42,12 @@ public sealed class TemplateInput
     public string? Subject { get; set; }
     public string Body { get; set; } = default!;
     public bool IsActive { get; set; } = true;
+
+    /// <summary>WhatsApp only: the approved provider template name this key is bound to.</summary>
+    public string? ProviderTemplateName { get; set; }
+
+    /// <summary>WhatsApp only: the approved template's language code (e.g. "en", "en_US").</summary>
+    public string? ProviderLanguage { get; set; }
 }
 
 /// <summary>Result of rendering a template against sample/real variables (for preview + send-test).</summary>

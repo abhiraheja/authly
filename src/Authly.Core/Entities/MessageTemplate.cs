@@ -24,6 +24,17 @@ public class MessageTemplate
     /// <summary>Body with <c>{{variable}}</c> placeholders (HTML for email).</summary>
     public string Body { get; set; } = default!;
 
+    /// <summary>
+    /// WhatsApp only: the provider-approved template name (e.g. "authly_otp") this key is bound to.
+    /// When set, the dispatcher sends a template message (positional <c>{{1}}…</c> params from the
+    /// key's <see cref="Authly.Core.Enums.MessageChannel.WhatsApp"/> spec) instead of free text.
+    /// Null for email and for unbound WhatsApp templates.
+    /// </summary>
+    public string? ProviderTemplateName { get; set; }
+
+    /// <summary>WhatsApp only: the approved template's language code (e.g. "en", "en_US").</summary>
+    public string? ProviderLanguage { get; set; }
+
     public bool IsActive { get; set; } = true;
     public DateTimeOffset CreatedAt { get; set; }
 }

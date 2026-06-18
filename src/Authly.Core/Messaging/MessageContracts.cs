@@ -26,11 +26,31 @@ public sealed record MessageSendRequest(
     string? FallbackEmail = null);
 
 /// <summary>A fully rendered message handed to a channel provider for transport.</summary>
+/// <param name="WhatsAppTemplateName">WhatsApp only: when set, the provider sends a pre-approved
+/// template message by this name (with <paramref name="WhatsAppParameters"/> as the positional
+/// body params) instead of the free-text <paramref name="Body"/>. Null → free text.</param>
+/// <param name="WhatsAppLanguage">Language code of the approved template (e.g. "en", "en_US").</param>
+/// <param name="WhatsAppParameters">Ordered values for the template's <c>{{1}}…{{n}}</c> body params.</param>
 public sealed record RenderedMessage(
     MessageChannel Channel,
     string Recipient,
     string? Subject,
-    string Body);
+    string Body,
+    string? WhatsAppTemplateName = null,
+    string? WhatsAppLanguage = null,
+    IReadOnlyList<string>? WhatsAppParameters = null);
+
+/// <summary>
+/// A WhatsApp template as it exists at the provider (MSG91), surfaced for the sync + bind UI.
+/// <paramref name="VariableCount"/> is the number of positional <c>{{1}}…</c> body params.
+/// </summary>
+public sealed record WhatsAppRemoteTemplate(
+    string Name,
+    string Language,
+    string Status,
+    string Category,
+    string? BodyText,
+    int VariableCount);
 
 /// <summary>Outcome of a single provider send attempt.</summary>
 public sealed record DeliveryResult(bool Success, string ProviderName, string? Error = null)

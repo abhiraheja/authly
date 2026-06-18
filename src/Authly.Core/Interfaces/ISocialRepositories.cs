@@ -10,6 +10,9 @@ public interface ISocialIdentityRepository
 
     Task<IReadOnlyList<SocialIdentity>> ListByUserAsync(Guid tenantId, Guid userId, CancellationToken ct = default);
 
+    /// <summary>Provider keys linked per user across the whole tenant (one query, for admin lists).</summary>
+    Task<IReadOnlyDictionary<Guid, IReadOnlyList<string>>> ListProvidersByTenantAsync(Guid tenantId, CancellationToken ct = default);
+
     Task AddAsync(SocialIdentity identity, CancellationToken ct = default);
     Task UpdateAsync(SocialIdentity identity, CancellationToken ct = default);
 }

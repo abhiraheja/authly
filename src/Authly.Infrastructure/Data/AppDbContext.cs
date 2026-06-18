@@ -761,6 +761,8 @@ public class AppDbContext : DbContext
             e.Property(x => x.Locale).HasColumnName("locale").HasDefaultValue("en").IsRequired();
             e.Property(x => x.Subject).HasColumnName("subject");
             e.Property(x => x.Body).HasColumnName("body").IsRequired();
+            e.Property(x => x.ProviderTemplateName).HasColumnName("provider_template_name");
+            e.Property(x => x.ProviderLanguage).HasColumnName("provider_language");
             e.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true);
             e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
 

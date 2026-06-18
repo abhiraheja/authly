@@ -30,6 +30,7 @@ public sealed class MessagingService : IMessagingService
     private readonly IMessageLogRepository _log;
     private readonly IEnumerable<IEmailProvider> _emailProviders;
     private readonly IEnumerable<IWhatsAppProvider> _whatsAppProviders;
+    private readonly IEnumerable<IWhatsAppTemplateDirectory> _whatsAppDirectories;
     private readonly IEncryptionService _encryption;
     private readonly IAuditLogger _audit;
     private readonly ILogger<MessagingService> _logger;
@@ -40,6 +41,7 @@ public sealed class MessagingService : IMessagingService
         IMessageLogRepository log,
         IEnumerable<IEmailProvider> emailProviders,
         IEnumerable<IWhatsAppProvider> whatsAppProviders,
+        IEnumerable<IWhatsAppTemplateDirectory> whatsAppDirectories,
         IEncryptionService encryption,
         IAuditLogger audit,
         ILogger<MessagingService> logger)
@@ -49,6 +51,7 @@ public sealed class MessagingService : IMessagingService
         _log = log;
         _emailProviders = emailProviders;
         _whatsAppProviders = whatsAppProviders;
+        _whatsAppDirectories = whatsAppDirectories;
         _encryption = encryption;
         _audit = audit;
         _logger = logger;
@@ -105,7 +108,15 @@ public sealed class MessagingService : IMessagingService
 
     private async Task<DeliveryResult> DeliverWhatsAppAsync(MessageSendRequest request, CancellationToken ct)
     {
-        var content = await ResolveTemplateAsync(request.TenantId, request.TemplateKey, MessageChannel.WhatsApp, request.Locale, ct);
+        // Fetch the override row directly (not just its content) so we can read the provider-template
+        // binding. Locale falls back to "en" like ResolveTemplateAsync.
+        var ov = await _templates.GetAsync(request.TenantId, request.TemplateKey, MessageChannel.WhatsApp, request.Locale, ct);
+        if (ov is null && !string.Equals(request.Locale, "en", StringComparison.OrdinalIgnoreCase))
+            ov = await _templates.GetAsync(request.TenantId, request.TemplateKey, MessageChannel.WhatsApp, "en", ct);
+
+        var content = ov is not null
+            ? new TemplateContent(ov.Subject, ov.Body)
+            : BuiltInTemplates.Find(request.TemplateKey, MessageChannel.WhatsApp);
         if (content is null)
         {
             await LogAsync(request.TenantId, MessageChannel.WhatsApp, request.Recipient, request.TemplateKey, "failed", "no_template", ct);
@@ -113,8 +124,27 @@ public sealed class MessagingService : IMessagingService
         }
 
         var vars = WithDefaults(request.Variables);
-        var rendered = new RenderedMessage(MessageChannel.WhatsApp, request.Recipient, null,
-            TemplateRenderer.Render(content.Body, vars, htmlEncode: false));
+        var body = TemplateRenderer.Render(content.Body, vars, htmlEncode: false);
+
+        // When the tenant has bound an approved provider template, send in template mode: the body
+        // becomes positional {{1}}…{{n}} params resolved from the key's spec. Otherwise fall back to
+        // free text (valid only inside WhatsApp's 24-hour service window / for the log provider).
+        string? templateName = null, language = null;
+        IReadOnlyList<string>? parameters = null;
+        if (ov is not null && !string.IsNullOrWhiteSpace(ov.ProviderTemplateName))
+        {
+            var spec = WhatsAppTemplateSpecs.Find(request.TemplateKey);
+            templateName = ov.ProviderTemplateName;
+            language = string.IsNullOrWhiteSpace(ov.ProviderLanguage) ? spec?.Language ?? "en" : ov.ProviderLanguage;
+            parameters = spec is null
+                ? Array.Empty<string>()
+                : spec.Parameters.OrderBy(p => p.Position)
+                    .Select(p => vars.TryGetValue(p.Variable, out var val) ? val : string.Empty)
+                    .ToList();
+        }
+
+        var rendered = new RenderedMessage(MessageChannel.WhatsApp, request.Recipient, null, body,
+            templateName, language, parameters);
 
         var entity = await _providers.GetActiveAsync(request.TenantId, MessageChannel.WhatsApp, ct);
         var providerName = entity?.Provider ?? "log";
@@ -206,7 +236,7 @@ public sealed class MessagingService : IMessagingService
     {
         var ov = await _templates.GetAsync(tenantId, key, channel, locale, ct);
         if (ov is not null)
-            return new TemplateInput { Id = ov.Id, Key = ov.Key, Channel = ov.Channel, Locale = ov.Locale, Subject = ov.Subject, Body = ov.Body, IsActive = ov.IsActive };
+            return new TemplateInput { Id = ov.Id, Key = ov.Key, Channel = ov.Channel, Locale = ov.Locale, Subject = ov.Subject, Body = ov.Body, IsActive = ov.IsActive, ProviderTemplateName = ov.ProviderTemplateName, ProviderLanguage = ov.ProviderLanguage };
 
         var content = BuiltInTemplates.Find(key, channel)
             ?? throw new TemplateNotFoundException(key, channel);
@@ -221,6 +251,10 @@ public sealed class MessagingService : IMessagingService
             ? await _templates.GetByIdAsync(tenantId, id, ct)
             : await _templates.GetAsync(tenantId, input.Key, input.Channel, input.Locale, ct);
 
+        // WhatsApp bindings only make sense on the WhatsApp channel.
+        var templateName = input.Channel == MessageChannel.WhatsApp ? Trim(input.ProviderTemplateName) : null;
+        var templateLang = input.Channel == MessageChannel.WhatsApp ? Trim(input.ProviderLanguage) : null;
+
         if (existing is null)
         {
             await _templates.AddAsync(new MessageTemplate
@@ -231,6 +265,8 @@ public sealed class MessagingService : IMessagingService
                 Locale = input.Locale,
                 Subject = input.Subject,
                 Body = input.Body,
+                ProviderTemplateName = templateName,
+                ProviderLanguage = templateLang,
                 IsActive = input.IsActive,
                 CreatedAt = DateTimeOffset.UtcNow
             }, ct);
@@ -239,6 +275,8 @@ public sealed class MessagingService : IMessagingService
         {
             existing.Subject = input.Subject;
             existing.Body = input.Body;
+            existing.ProviderTemplateName = templateName;
+            existing.ProviderLanguage = templateLang;
             existing.IsActive = input.IsActive;
             await _templates.UpdateAsync(existing, ct);
         }
@@ -254,6 +292,56 @@ public sealed class MessagingService : IMessagingService
         await _templates.DeleteAsync(entity, ct);
         await _audit.LogAsync("messaging.template_deleted", actor, tenantId, "message_template", id,
             metadata: new { entity.Key, entity.Channel, entity.Locale }, ct: ct);
+    }
+
+    public async Task<IReadOnlyList<WhatsAppRemoteTemplate>> SyncWhatsAppTemplatesAsync(Guid tenantId, CancellationToken ct = default)
+    {
+        var entity = await _providers.GetActiveAsync(tenantId, MessageChannel.WhatsApp, ct)
+            ?? throw new InvalidOperationException("Configure an active WhatsApp provider before syncing templates.");
+
+        var directory = _whatsAppDirectories.FirstOrDefault(d => d.Name == entity.Provider)
+            ?? throw new InvalidOperationException($"Template sync isn't supported for the '{entity.Provider}' provider.");
+
+        return await directory.ListAsync(ResolveWhatsAppConfig(entity), ct);
+    }
+
+    public async Task BindWhatsAppTemplateAsync(Guid tenantId, string key, string locale, string providerTemplateName,
+        string providerLanguage, AuditContext actor, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(providerTemplateName))
+            throw new TemplateValidationException("An approved template name is required to bind.");
+
+        var existing = await _templates.GetAsync(tenantId, key, MessageChannel.WhatsApp, locale, ct);
+        var body = existing?.Body
+            ?? BuiltInTemplates.Find(key, MessageChannel.WhatsApp)?.Body
+            ?? string.Empty;
+
+        if (existing is null)
+        {
+            await _templates.AddAsync(new MessageTemplate
+            {
+                TenantId = tenantId,
+                Key = key,
+                Channel = MessageChannel.WhatsApp,
+                Locale = locale,
+                Subject = null,
+                Body = body,
+                ProviderTemplateName = providerTemplateName.Trim(),
+                ProviderLanguage = Trim(providerLanguage),
+                IsActive = true,
+                CreatedAt = DateTimeOffset.UtcNow
+            }, ct);
+        }
+        else
+        {
+            existing.ProviderTemplateName = providerTemplateName.Trim();
+            existing.ProviderLanguage = Trim(providerLanguage);
+            existing.IsActive = true;
+            await _templates.UpdateAsync(existing, ct);
+        }
+
+        await _audit.LogAsync("messaging.template_bound", actor, tenantId, "message_template", existing?.Id,
+            metadata: new { key, locale, providerTemplateName, providerLanguage }, ct: ct);
     }
 
     public async Task<RenderedPreview> PreviewAsync(Guid tenantId, string key, MessageChannel channel, string locale, IReadOnlyDictionary<string, string> sampleVariables, CancellationToken ct = default)
@@ -403,4 +491,6 @@ public sealed class MessagingService : IMessagingService
         try { return JsonSerializer.Deserialize<T>(json); }
         catch (JsonException) { return null; }
     }
+
+    private static string? Trim(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

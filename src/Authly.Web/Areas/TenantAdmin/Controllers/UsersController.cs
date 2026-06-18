@@ -22,9 +22,11 @@ public sealed class UsersController : TenantAdminControllerBase
     private readonly IUserImportService _import;
     private readonly IUserAdminService _admin;
     private readonly IMfaService _mfa;
+    private readonly ISocialIdentityRepository _identities;
 
     public UsersController(IUserRepository users, IRbacService rbac, IImpersonationService impersonation,
-        IUserImportService import, IUserAdminService admin, IMfaService mfa, ITenantContext tenant) : base(tenant)
+        IUserImportService import, IUserAdminService admin, IMfaService mfa,
+        ISocialIdentityRepository identities, ITenantContext tenant) : base(tenant)
     {
         _users = users;
         _rbac = rbac;
@@ -32,6 +34,7 @@ public sealed class UsersController : TenantAdminControllerBase
         _import = import;
         _admin = admin;
         _mfa = mfa;
+        _identities = identities;
     }
 
     [RequireOperatorPermission("enduser.read")]
@@ -39,7 +42,18 @@ public sealed class UsersController : TenantAdminControllerBase
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         ViewData["Title"] = "Users";
-        return View(await _users.ListByTenantAsync(TenantId, ct));
+        var users = await _users.ListByTenantAsync(TenantId, ct);
+        var providersByUser = await _identities.ListProvidersByTenantAsync(TenantId, ct);
+
+        var rows = users.Select(u =>
+        {
+            var sources = new List<string>();
+            if (providersByUser.TryGetValue(u.Id, out var social)) sources.AddRange(social);
+            if (u.PasswordHash is not null) sources.Add("password");
+            return new UserListRow(u, sources);
+        }).ToList();
+
+        return View(rows);
     }
 
     [RequireOperatorPermission("enduser.read")]

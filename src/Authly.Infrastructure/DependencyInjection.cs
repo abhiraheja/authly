@@ -52,6 +52,7 @@ public static class DependencyInjection
         services.AddScoped<IEmailProvider, ZeptoEmailProvider>();
         services.AddScoped<IWhatsAppProvider, LogWhatsAppProvider>();
         services.AddScoped<IWhatsAppProvider, Msg91WhatsAppProvider>();
+        services.AddScoped<IWhatsAppTemplateDirectory, Msg91WhatsAppTemplateDirectory>();
 
         // --- Social / OAuth2 login gateway (HTTP) ---
         services.AddScoped<ISocialAuthGateway, SocialAuthGateway>();

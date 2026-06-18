@@ -22,3 +22,16 @@ public interface IWhatsAppProvider
 
     Task<DeliveryResult> SendAsync(RenderedMessage message, WhatsAppProviderConfig config, CancellationToken ct = default);
 }
+
+/// <summary>
+/// Reads the WhatsApp templates registered at the provider (MSG91), so the admin can sync and bind
+/// an approved template to a message key instead of typing its name. Implemented per provider;
+/// selected by matching <see cref="Name"/> to the tenant's configured WhatsApp provider key.
+/// </summary>
+public interface IWhatsAppTemplateDirectory
+{
+    string Name { get; }
+
+    /// <summary>Lists the templates registered at the provider for the configured sender/number.</summary>
+    Task<IReadOnlyList<WhatsAppRemoteTemplate>> ListAsync(WhatsAppProviderConfig config, CancellationToken ct = default);
+}

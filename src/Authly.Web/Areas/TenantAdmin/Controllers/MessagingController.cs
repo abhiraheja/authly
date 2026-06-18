@@ -136,6 +136,46 @@ public sealed class MessagingController : TenantAdminControllerBase
         return RedirectToAction(nameof(Templates));
     }
 
+    /// <summary>Pull the WhatsApp templates registered at the tenant's MSG91 number and show them for binding.</summary>
+    [RequireOperatorPermission("project.write")]
+    [HttpPost("templates/sync")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SyncTemplates(CancellationToken ct)
+    {
+        ViewData["Title"] = "Message templates";
+        try
+        {
+            var synced = await _messaging.SyncWhatsAppTemplatesAsync(TenantId, ct);
+            ViewData["Synced"] = synced;
+            TempData["Success"] = $"Found {synced.Count} WhatsApp template(s) at MSG91.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = ex.Message;
+            return RedirectToAction(nameof(Templates));
+        }
+        return View(nameof(Templates), await _messaging.ListTemplatesAsync(TenantId, ct));
+    }
+
+    /// <summary>Bind a message key to an approved provider template synced from MSG91.</summary>
+    [RequireOperatorPermission("project.write")]
+    [HttpPost("templates/bind")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BindTemplate(string key, string locale, string providerTemplateName, string providerLanguage, CancellationToken ct)
+    {
+        try
+        {
+            await _messaging.BindWhatsAppTemplateAsync(TenantId, key,
+                string.IsNullOrWhiteSpace(locale) ? "en" : locale, providerTemplateName, providerLanguage, CurrentAudit(), ct);
+            TempData["Success"] = $"Bound '{key}' to template '{providerTemplateName}'.";
+        }
+        catch (TemplateValidationException ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+        return RedirectToAction(nameof(Templates));
+    }
+
     [RequireOperatorPermission("project.write")]
     [HttpPost("templates/send-test")]
     [ValidateAntiForgeryToken]

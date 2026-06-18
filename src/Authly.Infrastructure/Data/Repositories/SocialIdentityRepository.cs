@@ -20,6 +20,20 @@ public sealed class SocialIdentityRepository : ISocialIdentityRepository
             .OrderBy(s => s.Provider)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyDictionary<Guid, IReadOnlyList<string>>> ListProvidersByTenantAsync(Guid tenantId, CancellationToken ct = default)
+    {
+        var rows = await _db.SocialIdentities
+            .Where(s => s.TenantId == tenantId)
+            .Select(s => new { s.UserId, s.Provider })
+            .ToListAsync(ct);
+
+        return rows
+            .GroupBy(r => r.UserId)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<string>)g.Select(x => x.Provider).Distinct().OrderBy(p => p).ToList());
+    }
+
     public async Task AddAsync(SocialIdentity identity, CancellationToken ct = default)
     {
         _db.SocialIdentities.Add(identity);

@@ -27,6 +27,14 @@ public interface IMessagingService
     Task SaveTemplateAsync(Guid tenantId, TemplateInput input, AuditContext actor, CancellationToken ct = default);
     Task DeleteTemplateAsync(Guid tenantId, Guid id, AuditContext actor, CancellationToken ct = default);
 
+    /// <summary>Lists the WhatsApp templates registered at the tenant's active WhatsApp provider (MSG91).</summary>
+    Task<IReadOnlyList<WhatsAppRemoteTemplate>> SyncWhatsAppTemplatesAsync(Guid tenantId, CancellationToken ct = default);
+
+    /// <summary>Binds a WhatsApp message key to an approved provider template (name + language),
+    /// keeping the existing/built-in body as fallback text. Activates the override.</summary>
+    Task BindWhatsAppTemplateAsync(Guid tenantId, string key, string locale, string providerTemplateName,
+        string providerLanguage, AuditContext actor, CancellationToken ct = default);
+
     /// <summary>Renders a template against sample variables (no send).</summary>
     Task<RenderedPreview> PreviewAsync(Guid tenantId, string key, MessageChannel channel, string locale, IReadOnlyDictionary<string, string> sampleVariables, CancellationToken ct = default);
 

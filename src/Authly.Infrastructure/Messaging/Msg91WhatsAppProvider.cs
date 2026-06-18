@@ -12,7 +12,8 @@ namespace Authly.Infrastructure.Messaging;
 /// </summary>
 public sealed class Msg91WhatsAppProvider : IWhatsAppProvider
 {
-    private const string Endpoint = "https://control.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/";
+    // Bulk endpoint — matches the to_and_components payload shape used below.
+    private const string Endpoint = "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/";
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<Msg91WhatsAppProvider> _logger;
@@ -32,13 +33,46 @@ public sealed class Msg91WhatsAppProvider : IWhatsAppProvider
 
         try
         {
-            var payload = new
+            object payload;
+            if (!string.IsNullOrWhiteSpace(message.WhatsAppTemplateName))
             {
-                integrated_number = config.Sender,
-                recipient_number = message.Recipient,
-                content_type = "text",
-                text = new { body = message.Body }
-            };
+                // Template message (required for business-initiated sends like OTP). Shape matches the
+                // official MSG91 WhatsApp SDK: language is a string, body params are a positional
+                // [{type:"text", text:"…"}] array, and `to` is a single recipient string.
+                var components = (message.WhatsAppParameters ?? Array.Empty<string>())
+                    .Select(p => new { type = "text", text = p })
+                    .ToArray();
+
+                payload = new
+                {
+                    integrated_number = config.Sender,
+                    content_type = "template",
+                    payload = new
+                    {
+                        type = "template",
+                        template = new
+                        {
+                            name = message.WhatsAppTemplateName,
+                            language = message.WhatsAppLanguage ?? "en",
+                            to_and_components = new[]
+                            {
+                                new { to = message.Recipient, components }
+                            }
+                        }
+                    }
+                };
+            }
+            else
+            {
+                // Free text — only valid inside WhatsApp's 24-hour service window (or the log provider).
+                payload = new
+                {
+                    integrated_number = config.Sender,
+                    recipient_number = message.Recipient,
+                    content_type = "text",
+                    text = new { body = message.Body }
+                };
+            }
 
             using var client = _httpClientFactory.CreateClient(nameof(Msg91WhatsAppProvider));
             using var req = new HttpRequestMessage(HttpMethod.Post, Endpoint) { Content = JsonContent.Create(payload) };

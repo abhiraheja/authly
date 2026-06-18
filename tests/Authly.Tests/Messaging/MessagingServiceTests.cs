@@ -115,6 +115,59 @@ public class MessagingServiceTests
         Assert.Contains("987654", preview.Body);
     }
 
+    [Fact]
+    public async Task WhatsApp_send_is_free_text_when_no_template_bound()
+    {
+        var h = new Harness();
+        await h.SetActiveWhatsAppProviderAsync("testwa", succeeds: true);
+
+        await h.Service.DeliverAsync(new MessageSendRequest(Tenant, MessageTemplateKeys.Otp,
+            MessageChannel.WhatsApp, "+15550001111", Vars(("otp", "445566"), ("expiry_minutes", "10"))));
+
+        Assert.NotNull(h.WhatsApp.LastMessage);
+        Assert.Null(h.WhatsApp.LastMessage!.WhatsAppTemplateName);
+        Assert.Contains("445566", h.WhatsApp.LastMessage.Body);
+    }
+
+    [Fact]
+    public async Task Bind_then_send_uses_template_mode_with_positional_params()
+    {
+        var h = new Harness();
+        await h.SetActiveWhatsAppProviderAsync("testwa", succeeds: true);
+
+        await h.Service.BindWhatsAppTemplateAsync(Tenant, MessageTemplateKeys.Otp, "en",
+            "authly_otp", "en_US", AuditContext.System);
+
+        await h.Service.DeliverAsync(new MessageSendRequest(Tenant, MessageTemplateKeys.Otp,
+            MessageChannel.WhatsApp, "+15550001111", Vars(("otp", "778899"), ("expiry_minutes", "10"))));
+
+        var msg = h.WhatsApp.LastMessage!;
+        Assert.Equal("authly_otp", msg.WhatsAppTemplateName);
+        Assert.Equal("en_US", msg.WhatsAppLanguage);
+        Assert.NotNull(msg.WhatsAppParameters);
+        Assert.Equal("778899", msg.WhatsAppParameters![0]); // {{1}} = otp, per the spec
+    }
+
+    [Fact]
+    public async Task Sync_returns_provider_templates()
+    {
+        var h = new Harness();
+        await h.SetActiveWhatsAppProviderAsync("testwa", succeeds: true);
+        h.Directory.Templates.Add(new WhatsAppRemoteTemplate("authly_otp", "en_US", "APPROVED", "AUTHENTICATION", "{{1}} is your code.", 1));
+
+        var result = await h.Service.SyncWhatsAppTemplatesAsync(Tenant);
+
+        Assert.Single(result);
+        Assert.Equal("authly_otp", result[0].Name);
+    }
+
+    [Fact]
+    public async Task Sync_without_active_provider_throws()
+    {
+        var h = new Harness();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => h.Service.SyncWhatsAppTemplatesAsync(Tenant));
+    }
+
     // --- harness ------------------------------------------------------------
 
     private sealed class Harness
@@ -126,6 +179,7 @@ public class MessagingServiceTests
         public readonly RecordingEmailProvider LogEmail = new("log");
         public readonly RecordingWhatsAppProvider WhatsApp = new("testwa", succeeds: true);
         public readonly RecordingWhatsAppProvider LogWhatsApp = new("log", succeeds: true);
+        public readonly RecordingWhatsAppDirectory Directory = new("testwa");
         public readonly AesEncryptionService Encryption =
             new(Options.Create(new EncryptionOptions { Key = "3J8mZ1qg9X0vQpYb2sR7tU4wK6nL5cD8eF1aH0iJ2kM=" }));
         public readonly MessagingService Service;
@@ -135,6 +189,7 @@ public class MessagingServiceTests
             Service = new MessagingService(Providers, Templates, Log,
                 new IEmailProvider[] { Email, LogEmail },
                 new IWhatsAppProvider[] { WhatsApp, LogWhatsApp },
+                new IWhatsAppTemplateDirectory[] { Directory },
                 Encryption, new RecordingAuditLogger(), NullLogger<MessagingService>.Instance);
         }
 
@@ -184,6 +239,15 @@ public class MessagingServiceTests
             LastMessage = message;
             return Task.FromResult(Succeeds ? DeliveryResult.Ok(Name) : DeliveryResult.Fail(Name, "boom"));
         }
+    }
+
+    private sealed class RecordingWhatsAppDirectory : IWhatsAppTemplateDirectory
+    {
+        public RecordingWhatsAppDirectory(string name) => Name = name;
+        public string Name { get; }
+        public List<WhatsAppRemoteTemplate> Templates { get; } = new();
+        public Task<IReadOnlyList<WhatsAppRemoteTemplate>> ListAsync(WhatsAppProviderConfig config, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<WhatsAppRemoteTemplate>>(Templates);
     }
 
     private sealed class FakeProviderRepo : IMessagingProviderRepository

@@ -1,4 +1,15 @@
-@model IReadOnlyList<User>
+@model IReadOnlyList<UserListRow>
+@functions {
+    static string ProviderLabel(string key) => key switch
+    {
+        "password" => "Password",
+        "google" => "Google",
+        "facebook" => "Facebook",
+        "github" => "GitHub",
+        "microsoft" => "Microsoft",
+        _ => char.ToUpperInvariant(key[0]) + key[1..]
+    };
+}
 
 <div class="flex items-center justify-between gap-3">
     <div>
@@ -31,16 +42,33 @@
                     <tr>
                         <th>Email</th>
                         <th>Name</th>
+                        <th>Sign-in</th>
                         <th>Status</th>
                         <th class="text-right"></th>
                     </tr>
                 </thead>
                 <tbody>
-                @foreach (var u in Model)
+                @foreach (var row in Model)
                 {
+                    var u = row.User;
                     <tr>
                         <td class="font-medium">@u.Email</td>
                         <td class="text-muted-foreground">@($"{u.FirstName} {u.LastName}".Trim() is { Length: > 0 } n ? n : "—")</td>
+                        <td>
+                            @if (row.Providers.Count == 0)
+                            {
+                                <span class="text-muted-foreground">—</span>
+                            }
+                            else
+                            {
+                                <span class="flex flex-wrap gap-1">
+                                @foreach (var p in row.Providers)
+                                {
+                                    <span class="badge @(p == "password" ? "badge-neutral" : "badge-primary")">@ProviderLabel(p)</span>
+                                }
+                                </span>
+                            }
+                        </td>
                         <td><span class="badge badge-neutral">@u.Status</span></td>
                         <td class="text-right">
                             <a class="btn btn-outline btn-sm"

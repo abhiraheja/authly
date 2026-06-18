@@ -302,7 +302,11 @@
     background: rgb(var(--ink)); color: #e8e8f5; border: 1px solid rgb(var(--border));
     border-radius: var(--radius); font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
     font-size: .8125rem; line-height: 1.6;
+    /* Preserve the newlines/indentation authored inside the block; scroll long lines horizontally. */
+    white-space: pre; overflow-x: auto;
   }
+  /* Inline <code> inside paragraphs/list items must still flow with the text, not pre-format. */
+  p .code-surface, li .code-surface, td .code-surface { white-space: normal; }
   .dark .code-surface { background: #05052e; }
   .code-surface .tok-key { color: #c4b5fd; }
   .code-surface .tok-str { color: #80ede8; }

@@ -77,4 +77,11 @@ public sealed class DocsController : Controller
         PopulateEndpoints();
         return View();
     }
+
+    [HttpGet("production")]
+    public IActionResult Production()
+    {
+        PopulateEndpoints();
+        return View();
+    }
 }

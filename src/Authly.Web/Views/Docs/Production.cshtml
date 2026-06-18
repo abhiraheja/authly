@@ -1,0 +1,285 @@
+@{
+    Layout = "_DocsLayout";
+    ViewData["Title"] = "Production deployment";
+    ViewData["NavActive"] = "production";
+    ViewData["DocsActive"] = "production";
+    ViewData["Description"] = "Run Authly in production with an external, hardened PostgreSQL: bind-mounted data, custom postgresql.conf, pg_hba.conf rules, Traefik TLS, resource limits, and the gotchas that bite on a first real deployment.";
+}
+
+<p class="eyebrow">Getting started</p>
+<h1 class="mt-2 font-display text-3xl font-bold tracking-tight">Production deployment.</h1>
+<p class="mt-3 text-muted-foreground">A hardened, real-world setup: a dedicated PostgreSQL with a bind-mounted data directory and a tuned <code>postgresql.conf</code>, the Authly app behind Traefik with TLS, resource limits, and per-container networking. This is the reference for a production host — for a zero-config local run, see <a class="text-primary hover:underline" href="/docs/self-host">Self-host with Docker</a> instead.</p>
+
+<div class="mt-4 card card-body !py-3 flex items-start gap-3 border-l-4 border-l-primary text-sm">
+    <i data-lucide="info" class="size-4 text-primary mt-0.5 shrink-0"></i>
+    <div>Replace every <code>&lt;placeholder&gt;</code> below with your own values: <code>&lt;base-path&gt;</code> (host directory for persistent data), <code>&lt;your-network&gt;</code> / <code>&lt;*-ip&gt;</code> (Docker network + static IPs), <code>&lt;your-domain&gt;</code> and <code>&lt;your-subnet&gt;</code>.</div>
+</div>
+
+@* ----------------------------------------------------------------- 1 *@
+<h2 class="font-display text-xl font-bold mt-8 mb-2">1. Directory structure</h2>
+<p class="text-sm text-muted-foreground mb-3">Postgres data and config live on the host so they survive container recreation and image upgrades.</p>
+<div class="code-surface px-4 py-3 text-sm"><code>&lt;base-path&gt;/postgres/
+├── data/                        <span class="tok-com"># Postgres data files (bind mount)</span>
+│   └── pgdata/
+│       ├── pg_hba.conf          <span class="tok-com"># Client authentication rules</span>
+│       └── postgresql.conf      <span class="tok-com"># Auto-generated (managed by Postgres)</span>
+├── postgresql.conf              <span class="tok-com"># Custom config (mounted into container)</span>
+└── initdb/                      <span class="tok-com"># *.sql scripts run on first init only</span></code></div>
+
+@* ----------------------------------------------------------------- 2 *@
+<h2 class="font-display text-xl font-bold mt-8 mb-2">2. Environment variables</h2>
+<p class="text-sm text-muted-foreground mb-3">Add these to a <code>.env</code> file next to your Compose files.</p>
+<div class="code-surface px-4 py-3 text-sm"><code><span class="tok-com">#============= POSTGRES ================</span>
+POSTGRES_USER=&lt;username&gt;
+POSTGRES_PASSWORD=&lt;password&gt;
+POSTGRES_DB=&lt;database-name&gt;
+
+<span class="tok-com">#============= AUTHLY ==================</span>
+ASPNETCORE_ENVIRONMENT=Production
+APP_PORT=8080
+ENCRYPTION_KEY=&lt;generate: openssl rand -base64 32&gt;
+CORS_ALLOWED_ORIGINS=https://&lt;your-domain&gt;
+RETENTION_LOGIN_HISTORY_DAYS=90
+RETENTION_AUDIT_DAYS=365
+WEBSITE_ENABLED=false
+AUTHLY_VERSION=&lt;image-tag&gt;
+AUTHLY_DOMAIN=&lt;authly-subdomain&gt;
+AUTHLY_DOMAIN_PORT=8080</code></div>
+<div class="mt-3 card card-body !py-3 flex items-start gap-3 border-l-4 border-l-primary text-sm">
+    <i data-lucide="globe" class="size-4 text-primary mt-0.5 shrink-0"></i>
+    <div><code>WEBSITE_ENABLED</code> is <strong>off by default</strong> — in production only the IdP/console (login, OIDC, admin) is served and the marketing/landing routes redirect to the admin console.</div>
+</div>
+
+<h3 class="font-display text-base font-bold mt-6 mb-2">Want the public marketing website too?</h3>
+<p class="text-sm text-muted-foreground mb-3">Turn it on by either setting <code>WEBSITE_ENABLED=true</code> in <code>.env</code> (the <code>authly</code> service reads it via <code>Website__Enabled=${WEBSITE_ENABLED:-false}</code>), or by hard-setting the env var directly on the <code>authly</code> service:</p>
+<div class="code-surface px-4 py-3 text-sm"><code>  authly:
+    environment:
+      - Website__Enabled=true</code></div>
+<p class="mt-2 text-sm text-muted-foreground">The flag is read once at startup, so recreate the container after changing it: <code>docker compose up -d authly</code>.</p>
+
+@* ----------------------------------------------------------------- 3 *@
+<h2 class="font-display text-xl font-bold mt-8 mb-2">3. docker-compose.yml</h2>
+<p class="text-sm text-muted-foreground mb-3">The base file just pins images; everything host-specific goes in the override (next section).</p>
+<div class="code-surface px-4 py-3 text-sm"><code>services:
+  postgres:
+    image: postgres:17
+  authly:
+    image: abhiraheja/authly:${AUTHLY_VERSION}</code></div>
+
+@* ----------------------------------------------------------------- 4 *@
+<h2 class="font-display text-xl font-bold mt-8 mb-2">4. docker-compose.override.yml</h2>
+<p class="text-sm text-muted-foreground mb-3">Resource limits, hardening, bind mounts, healthchecks, and Traefik routing.</p>
+<div class="code-surface px-4 py-3 text-sm"><code>  postgres:
+    container_name: postgres
+    restart: unless-stopped
+    stop_grace_period: 1m
+    shm_size: 256mb
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - &lt;base-path&gt;/postgres/data:/var/lib/postgresql/data
+      - &lt;base-path&gt;/postgres/postgresql.conf:/etc/postgresql.conf:ro
+      - &lt;base-path&gt;/postgres/initdb:/docker-entrypoint-initdb.d:ro
+    command: ["postgres", "-c", "config_file=/etc/postgresql.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    cpus: "2.0"
+    mem_limit: 4g
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      &lt;your-network&gt;:
+        ipv4_address: &lt;postgres-ip&gt;
+
+  authly:
+    container_name: authly
+    pull_policy: always
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - DATABASE_URL=Host=&lt;postgres-ip&gt;;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};SSL Mode=Disable;Trust Server Certificate=true
+      - REDIS_URL=&lt;redis-ip&gt;:6379,password=&lt;redis-password&gt;,ssl=false,abortConnect=false
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
+      - RETENTION_LOGIN_HISTORY_DAYS=${RETENTION_LOGIN_HISTORY_DAYS:-90}
+      - RETENTION_AUDIT_DAYS=${RETENTION_AUDIT_DAYS:-365}
+      - WEBSITE_ENABLED=${WEBSITE_ENABLED:-false}
+      - LOG_STREAM_ENDPOINT=${LOG_STREAM_ENDPOINT:-}
+      - LOG_STREAM_KEY=${LOG_STREAM_KEY:-}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.authly.rule=Host(`${AUTHLY_DOMAIN}`)"
+      - "traefik.http.routers.authly.entrypoints=websecure"
+      - "traefik.http.routers.authly.tls=true"
+      - "traefik.http.routers.authly.tls.certresolver=le"
+      - "traefik.http.routers.authly.service=authly"
+      - "traefik.http.routers.authly.middlewares=secure-headers@@file"
+      - "traefik.http.services.authly.loadbalancer.server.port=${AUTHLY_DOMAIN_PORT}"
+    networks:
+      &lt;your-network&gt;:
+        ipv4_address: &lt;authly-ip&gt;</code></div>
+
+@* ----------------------------------------------------------------- 5 *@
+<h2 class="font-display text-xl font-bold mt-8 mb-2">5. postgresql.conf</h2>
+<p class="text-sm text-muted-foreground mb-3">Mounted at <code>&lt;base-path&gt;/postgres/postgresql.conf</code>. Values below assume ~4 GB available to the container (<code>mem_limit: 4g</code>) — tune <code>shared_buffers</code>, <code>effective_cache_size</code>, and <code>work_mem</code> to your host.</p>
+<div class="code-surface px-4 py-3 text-sm"><code>listen_addresses = '*'
+max_connections = 100
+superuser_reserved_connections = 3
+shared_buffers = 1GB
+effective_cache_size = 3GB
+maintenance_work_mem = 256MB
+work_mem = 8MB
+wal_buffers = 16MB
+random_page_cost = 1.1
+effective_io_concurrency = 200
+wal_level = replica
+min_wal_size = 1GB
+max_wal_size = 4GB
+checkpoint_completion_target = 0.9
+checkpoint_timeout = 15min
+max_worker_processes = 4
+max_parallel_workers = 4
+max_parallel_workers_per_gather = 2
+max_parallel_maintenance_workers = 2
+autovacuum = on
+autovacuum_max_workers = 3
+autovacuum_naptime = 30s
+log_destination = 'stderr'
+logging_collector = off
+log_min_duration_statement = 1000
+log_checkpoints = on
+log_connections = on
+log_disconnections = on
+log_lock_waits = on
+log_temp_files = 0
+log_line_prefix = '%m [%p] %q%u@@%d '
+statement_timeout = 0
+idle_in_transaction_session_timeout = 60000
+timezone = 'UTC'
+datestyle = 'iso, mdy'</code></div>
+
+@* ----------------------------------------------------------------- 6 *@
+<h2 class="font-display text-xl font-bold mt-8 mb-2">6. pg_hba.conf</h2>
+<p class="text-sm text-muted-foreground mb-3">Located at <code>&lt;base-path&gt;/postgres/data/pgdata/pg_hba.conf</code>. This line lets every container on your Docker network authenticate:</p>
+<div class="code-surface px-4 py-3 text-sm"><code>host    all             all             &lt;your-subnet&gt;/24           scram-sha-256</code></div>
+<p class="mt-3 text-sm text-muted-foreground">Append it, then reload without restarting Postgres:</p>
+<div class="mt-2 code-surface px-4 py-3 text-sm"><code>echo "host all all &lt;your-subnet&gt;/24 scram-sha-256" &gt;&gt; &lt;base-path&gt;/postgres/data/pgdata/pg_hba.conf
+docker exec postgres psql -U &lt;username&gt; -d postgres -c "SELECT pg_reload_conf();"</code></div>
+
+@* ----------------------------------------------------------------- 7 *@
+<h2 class="font-display text-xl font-bold mt-8 mb-3">7. Gotchas (read before first boot)</h2>
+<div class="space-y-3">
+    <div class="card card-body !py-3 flex items-start gap-3 border-l-4 border-l-amber-500 text-sm">
+        <i data-lucide="folder-tree" class="size-4 text-amber-500 mt-0.5 shrink-0"></i>
+        <div><strong>Config must be a file, not a directory.</strong> If the host path doesn't exist, Docker creates a <em>directory</em> at the mount point. Create the file <em>before</em> <code>docker compose up</code> — write your <code>postgresql.conf</code> first, then start.</div>
+    </div>
+    <div class="card card-body !py-3 flex items-start gap-3 border-l-4 border-l-amber-500 text-sm">
+        <i data-lucide="file-cog" class="size-4 text-amber-500 mt-0.5 shrink-0"></i>
+        <div><strong>Config mount path.</strong> The official <code>postgres:17</code> image has no <code>/etc/postgresql/</code> directory. Mount to <code>/etc/postgresql.conf</code> (directly under <code>/etc/</code>) — <em>not</em> <code>/etc/postgresql/postgresql.conf</code>.</div>
+    </div>
+    <div class="card card-body !py-3 flex items-start gap-3 border-l-4 border-l-amber-500 text-sm">
+        <i data-lucide="shield-alert" class="size-4 text-amber-500 mt-0.5 shrink-0"></i>
+        <div><strong>DATABASE_URL — SSL Mode.</strong> Npgsql tries Kerberos/GSS encryption first; if <code>libgssapi_krb5.so.2</code> is absent in the app container it falls back to <em>no encryption</em>, which <code>pg_hba.conf</code> then rejects (<code>SqlState 28000</code>). Append <code>SSL Mode=Disable;Trust Server Certificate=true</code> to the connection string to skip it.</div>
+    </div>
+    <div class="card card-body !py-3 flex items-start gap-3 border-l-4 border-l-amber-500 text-sm">
+        <i data-lucide="database" class="size-4 text-amber-500 mt-0.5 shrink-0"></i>
+        <div><strong>Database creation.</strong> If Postgres fails on first start (e.g. a config error), <code>initdb</code> may finish without creating the <code>POSTGRES_DB</code> database. The image only seeds the DB/role on a <em>fresh</em> data directory — it never re-seeds. Create it manually:
+            <div class="mt-2 code-surface px-4 py-2"><code>docker exec -it postgres psql -U &lt;username&gt; -d postgres -c "CREATE DATABASE &lt;database-name&gt;;"</code></div>
+        </div>
+    </div>
+</div>
+
+@* ----------------------------------------------------------------- 8 *@
+<h2 class="font-display text-xl font-bold mt-8 mb-2">8. First-time setup</h2>
+<div class="code-surface px-4 py-3 text-sm"><code><span class="tok-com"># 1. Create directories</span>
+mkdir -p &lt;base-path&gt;/postgres/data &lt;base-path&gt;/postgres/initdb
+
+<span class="tok-com"># 2. Write postgresql.conf (copy content from section 5)</span>
+nano &lt;base-path&gt;/postgres/postgresql.conf
+
+<span class="tok-com"># 3. Start Postgres and watch it come up</span>
+docker compose up -d postgres
+docker compose logs -f postgres
+
+<span class="tok-com"># 4. Create the database if not auto-created</span>
+docker exec -it postgres psql -U &lt;username&gt; -d postgres -c "CREATE DATABASE &lt;database-name&gt;;"
+
+<span class="tok-com"># 5. Add subnet to pg_hba.conf and reload</span>
+echo "host all all &lt;your-subnet&gt;/24 scram-sha-256" &gt;&gt; &lt;base-path&gt;/postgres/data/pgdata/pg_hba.conf
+docker exec postgres psql -U &lt;username&gt; -d postgres -c "SELECT pg_reload_conf();"
+
+<span class="tok-com"># 6. Deploy Authly (EF Core migrations apply automatically on boot)</span>
+docker compose pull authly
+docker compose up -d authly
+docker compose logs -f authly</code></div>
+
+@* ----------------------------------------------------------------- 9 *@
+<h2 class="font-display text-xl font-bold mt-8 mb-2">9. Updating Authly</h2>
+<p class="text-sm text-muted-foreground mb-3">Bump <code>AUTHLY_VERSION</code> in <code>.env</code>, then pull and recreate — your data persists in the bind-mounted Postgres directory.</p>
+<div class="code-surface px-4 py-3 text-sm"><code>docker compose pull authly
+docker compose up -d authly
+docker compose logs -f authly</code></div>
+
+@* ----------------------------------------------------------------- 10 *@
+<h2 class="font-display text-xl font-bold mt-8 mb-2">10. Network</h2>
+<div class="card overflow-hidden">
+    <div class="overflow-x-auto scroll-thin">
+        <table class="table">
+            <thead><tr><th>Container</th><th>IP</th><th>Port</th></tr></thead>
+            <tbody>
+                <tr><td><code>postgres</code></td><td><code>&lt;postgres-ip&gt;</code></td><td>5432</td></tr>
+                <tr><td><code>authly</code></td><td><code>&lt;authly-ip&gt;</code></td><td>8080</td></tr>
+                <tr><td><code>redis</code></td><td><code>&lt;redis-ip&gt;</code></td><td>6379</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<p class="mt-3 text-sm text-muted-foreground">Postgres is bound to <code>127.0.0.1:5432</code> on the host — <strong>not internet-facing</strong>. Authly is reached externally via Traefik at <code>https://&lt;authly-domain&gt;</code>.</p>
+
+@* ----------------------------------------------------------------- 11 *@
+<h2 class="font-display text-xl font-bold mt-8 mb-2">11. Useful commands</h2>
+<div class="code-surface px-4 py-3 text-sm"><code><span class="tok-com"># Check Postgres is healthy</span>
+docker ps --filter name=postgres --format "table {{.Names}}\t{{.Status}}"
+
+<span class="tok-com"># Connect to Postgres</span>
+docker exec -it postgres psql -U &lt;username&gt; -d postgres
+
+<span class="tok-com"># Verify custom config loaded</span>
+docker exec -it postgres psql -U &lt;username&gt; -d postgres -c "SHOW shared_buffers;"
+
+<span class="tok-com"># View logs</span>
+docker compose logs -f authly
+docker compose logs -f postgres
+
+<span class="tok-com"># Backup database</span>
+docker exec -t postgres pg_dump -U &lt;username&gt; -d &lt;database-name&gt; -Fc &gt; &lt;base-path&gt;/postgres/backup_$(date +%Y%m%d).dump
+
+<span class="tok-com"># Restore database</span>
+docker exec -i postgres pg_restore -U &lt;username&gt; -d &lt;database-name&gt; &lt; &lt;base-path&gt;/postgres/backup_YYYYMMDD.dump</code></div>
+
+<div class="mt-8 flex items-center justify-between border-t border-border pt-5 text-sm">
+    <a class="text-muted-foreground hover:text-foreground" href="/docs/self-host">← Self-host with Docker</a>
+    <a class="text-primary hover:underline" href="/docs/quickstart">Integrate your first app →</a>
+</div>

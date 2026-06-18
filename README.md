@@ -53,6 +53,7 @@ On startup the app **auto-applies EF Core migrations**, creating the schema.
 | `DEPLOYMENT_MODE` | `cloud` | `cloud` or `self_hosted` |
 | `ENCRYPTION_KEY` | (32-byte base64 dev key) | AES-256 secret encryption — **replace in production** |
 | `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` | `admin@authly.local` / `ChangeMe!123` | super-admin bootstrap (forced change on first login) |
+| `WEBSITE_ENABLED` | `false` | Public marketing website (landing + docs). Off by default — only the IdP/console is served and marketing routes redirect to the admin console. Set `true` to serve the marketing site. |
 
 > **Production:** generate a fresh `ENCRYPTION_KEY`, supply DB credentials via secrets (not the
 > compose file), and terminate TLS with nginx/Caddy in front of the app.

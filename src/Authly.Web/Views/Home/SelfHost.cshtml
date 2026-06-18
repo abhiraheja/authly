@@ -125,6 +125,7 @@ docker compose version</code></div>
                         <tr><td><code>RETENTION_AUDIT_DAYS</code></td><td><span class="badge badge-info">Optional</span></td><td>Audit-log retention (default 365).</td></tr>
                         <tr><td><code>RETENTION_LOGIN_HISTORY_DAYS</code></td><td><span class="badge badge-info">Optional</span></td><td>Login-history retention (default 90).</td></tr>
                         <tr><td><code>OTEL_EXPORTER_OTLP_ENDPOINT</code></td><td><span class="badge badge-info">Optional</span></td><td>OpenTelemetry collector endpoint (bundled collector by default).</td></tr>
+                        <tr><td><code>WEBSITE_ENABLED</code></td><td><span class="badge badge-info">Optional</span></td><td>Public marketing website (landing + docs pages). <strong>Off by default</strong> for self-hosting — only the IdP/console (login, OIDC, admin) is served, and marketing routes redirect to the admin console. Set <code>true</code> to serve the marketing site too.</td></tr>
                     </tbody>
                 </table>
             </div>

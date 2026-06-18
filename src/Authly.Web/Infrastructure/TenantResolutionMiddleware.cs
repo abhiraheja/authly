@@ -9,23 +9,22 @@ namespace Authly.Web.Infrastructure;
 /// <see cref="ITenantContext"/> (which the DB connection interceptor pushes into
 /// <c>app.current_tenant</c> for the RLS backstop).
 ///
-/// Resolution order: custom domain (Host) → a tenant; then, in non-production, an
-/// <c>X-Tenant-Slug</c> header for testing. Platform surfaces (super admin, Hangfire,
-/// static assets) are intentionally tenant-less. Tenant admin / hosted-login routing
-/// is added in later phases.
+/// Resolution order: custom domain (Host) → a tenant; then a tenant hint — an
+/// <c>X-Tenant-Slug</c> header, a <c>?tenant=</c> query (or the same nested in the OAuth
+/// <c>ReturnUrl</c>), or the remembered cookie. The hint lets the shared platform host serve
+/// every tenant (GCIP-style) without a per-tenant custom domain. Platform surfaces (Hangfire,
+/// static assets) are intentionally tenant-less.
 /// </summary>
 public sealed class TenantResolutionMiddleware
 {
-    /// <summary>Dev-only cookie remembering the chosen tenant slug (non-production only).</summary>
-    private const string DevTenantCookie = "authly.dev_tenant";
+    /// <summary>Cookie remembering the chosen tenant slug across follow-up navigations / form posts.</summary>
+    private const string TenantHintCookie = "authly.tenant_hint";
 
     private readonly RequestDelegate _next;
-    private readonly IWebHostEnvironment _env;
 
-    public TenantResolutionMiddleware(RequestDelegate next, IWebHostEnvironment env)
+    public TenantResolutionMiddleware(RequestDelegate next)
     {
         _next = next;
-        _env = env;
     }
 
     public async Task InvokeAsync(HttpContext context, ITenantContext tenantContext, ITenantRepository tenants)
@@ -41,10 +40,10 @@ public sealed class TenantResolutionMiddleware
             var host = context.Request.Host.Host;
             var tenant = await tenants.GetByCustomDomainOrNullAsync(host, context.RequestAborted);
 
-            // Non-production conveniences so a tenant surface can be exercised from a browser
-            // without a custom domain: an X-Tenant-Slug header, a ?tenant= query (which is then
-            // remembered in a cookie so follow-up navigations and email-link clicks resolve too).
-            if (tenant is null && !_env.IsProduction())
+            // Tenant hint: lets the shared platform host serve any tenant without a custom domain.
+            // An X-Tenant-Slug header, a ?tenant= query (which is then remembered in a cookie so
+            // follow-up navigations, form posts and email-link clicks resolve too).
+            if (tenant is null)
             {
                 string? slug = null;
                 if (context.Request.Headers.TryGetValue("X-Tenant-Slug", out var header))
@@ -56,15 +55,21 @@ public sealed class TenantResolutionMiddleware
                 // there so a directly-opened login link (or a cleared cookie) still resolves.
                 else if (TryGetTenantFromReturnUrl(context.Request, out var nested))
                     slug = nested;
-                else if (context.Request.Cookies.TryGetValue(DevTenantCookie, out var cookie))
+                else if (context.Request.Cookies.TryGetValue(TenantHintCookie, out var cookie))
                     slug = cookie;
 
                 if (!string.IsNullOrWhiteSpace(slug))
                 {
                     tenant = await tenants.GetBySlugAsync(slug, context.RequestAborted);
                     if (tenant is not null)
-                        context.Response.Cookies.Append(DevTenantCookie, tenant.Slug,
-                            new CookieOptions { HttpOnly = true, IsEssential = true, SameSite = SameSiteMode.Lax });
+                        context.Response.Cookies.Append(TenantHintCookie, tenant.Slug,
+                            new CookieOptions
+                            {
+                                HttpOnly = true,
+                                IsEssential = true,
+                                SameSite = SameSiteMode.Lax,
+                                Secure = context.Request.IsHttps
+                            });
                 }
             }
 

@@ -185,6 +185,11 @@ app.UseMiddleware<Authly.Web.Infrastructure.Security.RateLimitingMiddleware>();
 
 app.UseRouting();
 
+// Marketing-website deployment gate: when Website:Enabled is false (the default; docker:
+// Website__Enabled), the Home/Docs marketing routes redirect to the admin console, leaving only the
+// IdP/console live. Sits after UseRouting (endpoint resolved) and before auth (redirect needs none).
+app.UseMiddleware<Authly.Web.Infrastructure.Security.WebsiteGateMiddleware>();
+
 // CORS must sit between routing and auth so preflight (OPTIONS) and the OIDC discovery/token/
 // userinfo XHRs from the SPA origin get Access-Control-Allow-Origin headers.
 app.UseCors(Authly.Web.Infrastructure.Cors.ApplicationCorsPolicyProvider.SpaPolicyName);

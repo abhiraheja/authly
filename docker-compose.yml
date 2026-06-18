@@ -32,6 +32,10 @@ services:
       # Extra trusted browser origins for SPA CORS (comma/space separated). Client app
       # redirect URIs are already allowed automatically; this is for non-app infra only.
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
+      # The public marketing website (landing + docs pages) is OFF by default; set to true to enable it.
+      # When off, the IdP/console (login, OIDC, admin) stays live and marketing routes redirect to the
+      # admin console at /tenantadmin/applications.
+      - Website__Enabled=${WEBSITE_ENABLED:-false}
       # Retention windows (days) for the maintenance jobs.
       - RETENTION_LOGIN_HISTORY_DAYS=${RETENTION_LOGIN_HISTORY_DAYS:-90}
       - RETENTION_AUDIT_DAYS=${RETENTION_AUDIT_DAYS:-365}

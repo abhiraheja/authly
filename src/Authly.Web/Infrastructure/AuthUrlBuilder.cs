@@ -20,8 +20,13 @@ public sealed class AuthUrlBuilder : IAuthUrlBuilder
     public string BuildPasswordResetUrl(Guid tenantId, string rawToken)
         => Absolute("/account/reset-password", rawToken);
 
-    public string BuildMagicLinkUrl(Guid tenantId, string rawToken)
-        => Absolute("/account/magic", rawToken);
+    public string BuildMagicLinkUrl(Guid tenantId, string rawToken, string? returnUrl = null)
+    {
+        var url = Absolute("/account/magic", rawToken);
+        if (!string.IsNullOrEmpty(returnUrl))
+            url += $"&returnUrl={Uri.EscapeDataString(returnUrl)}";
+        return url;
+    }
 
     public string BuildContactChangeVerifyUrl(Guid tenantId, string rawToken)
         => Absolute("/account/change/verify", rawToken);

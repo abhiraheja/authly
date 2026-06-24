@@ -129,10 +129,10 @@ internal sealed class CapturingQueue : IMessageQueue
 
 internal sealed class CapturingUrlBuilder : IAuthUrlBuilder
 {
-    public string? LastMagic, LastVerify, LastCancel, LastRecovery;
+    public string? LastMagic, LastVerify, LastCancel, LastRecovery, LastMagicReturnUrl;
     public string BuildEmailVerificationUrl(Guid t, string raw) => $"https://test/verify?token={raw}";
     public string BuildPasswordResetUrl(Guid t, string raw) => $"https://test/reset?token={raw}";
-    public string BuildMagicLinkUrl(Guid t, string raw) { LastMagic = raw; return $"https://test/magic?token={raw}"; }
+    public string BuildMagicLinkUrl(Guid t, string raw, string? returnUrl = null) { LastMagic = raw; LastMagicReturnUrl = returnUrl; return $"https://test/magic?token={raw}"; }
     public string BuildContactChangeVerifyUrl(Guid t, string raw) { LastVerify = raw; return $"https://test/change/verify?token={raw}"; }
     public string BuildContactChangeCancelUrl(Guid t, string raw) { LastCancel = raw; return $"https://test/change/cancel?token={raw}"; }
     public string BuildRecoveryUrl(Guid t, string raw) { LastRecovery = raw; return $"https://test/recover?token={raw}"; }

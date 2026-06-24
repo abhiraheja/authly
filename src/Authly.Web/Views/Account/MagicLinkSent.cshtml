@@ -1,6 +1,7 @@
 @{
     Layout = "_AuthLayout";
     var returnUrl = ViewData["ReturnUrl"] as string;
+    var portalUrl = Url.Action("Index", "Profile", new { area = "Portal" });
 }
 
 <div class="text-center">
@@ -28,7 +29,7 @@
     // "waiting" tab via localStorage so the link's tab can defer to it, and (2) watches for the link
     // being opened in the same browser (shared cookie) and then completes the flow itself.
     (function () {
-        var target = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(returnUrl));
+        var target = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(returnUrl)) || @Html.Raw(System.Text.Json.JsonSerializer.Serialize(portalUrl));
         var statusUrl = '@Url.Action("AuthStatus", "Account")';
         var WAIT_KEY = 'authly_magic_wait';
         var waiting = document.getElementById('magicWaiting');
@@ -49,7 +50,7 @@
                         clearInterval(poll);
                         clearInterval(heartbeat);
                         clearBeat();
-                        window.location.href = target || '/portal';
+                        window.location.href = target;
                     }
                 })
                 .catch(function () { /* keep polling */ });

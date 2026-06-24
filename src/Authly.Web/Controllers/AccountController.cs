@@ -133,7 +133,7 @@ public sealed class AccountController : Controller
         var phoneSignup = await PhoneAuthEnabledAsync(login: false, ct);
         var normalizedPhone = phoneSignup ? Authly.Modules.Common.PhoneNumber.Normalize(model.Phone) : null;
         if (!string.IsNullOrEmpty(normalizedPhone)
-            && await _users.GetByVerifiedPhoneAsync(tenantId, normalizedPhone, ct) is not null)
+            && await _users.GetByPhoneAsync(tenantId, normalizedPhone, ct) is not null)
         {
             ModelState.AddModelError(nameof(model.Phone), "An account with this mobile number already exists.");
             return View(model);
@@ -514,8 +514,10 @@ public sealed class AccountController : Controller
                 onBlocked: () => { ModelState.AddModelError(string.Empty, "Sign-in was blocked by your organization's access policy."); return View(model); }, ct);
         }
 
-        // OTP mode: resolve by verified phone and send a code. Anti-enumeration — same response either way.
-        var user = await _users.GetByVerifiedPhoneAsync(tenantId, phone, ct);
+        // OTP mode: resolve by phone (verified or not) and send a code. A correct code both proves
+        // ownership and verifies the number, so this also bootstraps an as-yet-unverified phone.
+        // Anti-enumeration — same response whether or not the number is on an account.
+        var user = await _users.GetByPhoneAsync(tenantId, phone, ct);
         if (user is not null && user.Status == Authly.Core.Enums.UserStatus.Active)
         {
             await _mfa.SendPhoneOtpAsync(tenantId, user, ct);
@@ -573,8 +575,9 @@ public sealed class AccountController : Controller
             return RedirectToAction(nameof(Login));
         }
 
-        // Signup verification: just mark the phone verified and continue to sign-in.
-        if (pending.Purpose == "signup_verify" && !user.PhoneVerified)
+        // A correct phone OTP verifies the number (whether this was a signup verification or an
+        // OTP sign-in with an as-yet-unverified phone), so it can be used for password login later.
+        if (!user.PhoneVerified)
         {
             user.PhoneVerified = true;
             await _users.UpdateAsync(user, ct);

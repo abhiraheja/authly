@@ -21,6 +21,8 @@ internal sealed class FakeUserRepo : IUserRepository
         => Task.FromResult(Items.FirstOrDefault(u => u.TenantId == tenantId && u.Email == email));
     public Task<User?> GetByVerifiedPhoneAsync(Guid tenantId, string normalizedPhone, CancellationToken ct = default)
         => Task.FromResult(Items.FirstOrDefault(u => u.TenantId == tenantId && u.PhoneVerified && u.Phone == normalizedPhone));
+    public Task<User?> GetByPhoneAsync(Guid tenantId, string normalizedPhone, CancellationToken ct = default)
+        => Task.FromResult(Items.FirstOrDefault(u => u.TenantId == tenantId && u.Phone == normalizedPhone));
     public Task<bool> EmailExistsAsync(Guid tenantId, string email, CancellationToken ct = default)
         => Task.FromResult(Items.Any(u => u.TenantId == tenantId && u.Email == email));
     public Task<IReadOnlyList<User>> ListByTenantAsync(Guid tenantId, CancellationToken ct = default)

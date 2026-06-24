@@ -20,6 +20,9 @@ public sealed class UserRepository : IUserRepository
     public Task<User?> GetByVerifiedPhoneAsync(Guid tenantId, string normalizedPhone, CancellationToken ct = default)
         => _db.Users.FirstOrDefaultAsync(u => u.TenantId == tenantId && u.PhoneVerified && u.Phone == normalizedPhone, ct);
 
+    public Task<User?> GetByPhoneAsync(Guid tenantId, string normalizedPhone, CancellationToken ct = default)
+        => _db.Users.FirstOrDefaultAsync(u => u.TenantId == tenantId && u.Phone == normalizedPhone, ct);
+
     public Task<bool> EmailExistsAsync(Guid tenantId, string email, CancellationToken ct = default)
         => _db.Users.AnyAsync(u => u.TenantId == tenantId && u.Email == email, ct);
 

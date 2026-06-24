@@ -138,6 +138,8 @@ public class AccountSelfServiceTests
             => Task.FromResult(Store.Values.FirstOrDefault(u => u.TenantId == tenantId && u.Email == email));
         public Task<User?> GetByVerifiedPhoneAsync(Guid tenantId, string normalizedPhone, CancellationToken ct = default)
             => Task.FromResult(Store.Values.FirstOrDefault(u => u.TenantId == tenantId && u.PhoneVerified && u.Phone == normalizedPhone));
+        public Task<User?> GetByPhoneAsync(Guid tenantId, string normalizedPhone, CancellationToken ct = default)
+            => Task.FromResult(Store.Values.FirstOrDefault(u => u.TenantId == tenantId && u.Phone == normalizedPhone));
         public Task<IReadOnlyList<User>> ListByTenantAsync(Guid tenantId, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<User>>(Store.Values.Where(u => u.TenantId == tenantId).ToList());
         public Task<Core.Common.PagedResult<User>> ListPagedAsync(Guid tenantId, Core.Common.Pagination page, string? emailContains = null, CancellationToken ct = default)

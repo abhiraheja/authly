@@ -170,6 +170,31 @@ public class MessagingServiceTests
     }
 
     [Fact]
+    public async Task Validated_bind_accepts_msg91_body_prefixed_variables()
+    {
+        var h = new Harness();
+        await h.SetActiveWhatsAppProviderAsync("testwa", succeeds: true);
+        // MSG91 reports body params prefixed with body_ even though the body is authored plain.
+        h.Directory.Templates.Add(new WhatsAppRemoteTemplate(
+            "authly_otp", "en", "APPROVED", "AUTHENTICATION",
+            "{{app_name}}: code {{otp}} ({{expiry_minutes}}m)", 3,
+            new[] { "body_app_name", "body_otp", "body_expiry_minutes" }));
+
+        await h.Service.BindWhatsAppTemplateValidatedAsync(Tenant, MessageTemplateKeys.Otp, "en",
+            "authly_otp", "en", AuditContext.System);
+
+        var stored = h.Templates.Items.Single(x => x.Key == MessageTemplateKeys.Otp && x.Channel == MessageChannel.WhatsApp);
+        Assert.Contains("body_otp", stored.ProviderVariables!);   // raw provider name persisted
+
+        // On send, the raw name is echoed as parameter_name but the value resolves via the Authly var.
+        await h.Service.DeliverAsync(new MessageSendRequest(Tenant, MessageTemplateKeys.Otp,
+            MessageChannel.WhatsApp, "+15550001111", Vars(("otp", "778899"), ("expiry_minutes", "10"))));
+
+        var msg = h.WhatsApp.LastMessage!;
+        Assert.Contains(msg.WhatsAppNamedParameters!, p => p.Name == "body_otp" && p.Value == "778899");
+    }
+
+    [Fact]
     public async Task Validated_bind_rejects_unknown_variable()
     {
         var h = new Harness();

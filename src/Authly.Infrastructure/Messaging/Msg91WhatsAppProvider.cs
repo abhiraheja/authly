@@ -40,16 +40,12 @@ public sealed class Msg91WhatsAppProvider : IWhatsAppProvider
                 // working Saar-WhatsApp MSG91 integration: `components` is an OBJECT keyed by the
                 // template's component name (body_1, body_otp, …) with {type:"text", value}; `to` is an
                 // array of recipients; `language` is an object; `messaging_product` is included.
-                // Buttons (copy-code) are template-level metadata and are NOT sent as components.
+                // A button_N param is a dynamic URL button (auth copy-code) and needs sub_type:"url".
                 var components = new Dictionary<string, object>();
                 if (message.WhatsAppNamedParameters is { Count: > 0 } named)
                 {
                     foreach (var p in named)
-                    {
-                        // A bare numeric key ("1") is a positional body param → "body_1".
-                        var key = int.TryParse(p.Name, out var n) ? $"body_{n}" : p.Name;
-                        components[key] = new { type = "text", value = p.Value };
-                    }
+                        components[ComponentKey(p.Name)] = BuildComponent(p.Name, p.Value);
                 }
                 else
                 {
@@ -58,23 +54,25 @@ public sealed class Msg91WhatsAppProvider : IWhatsAppProvider
                         components[$"body_{i + 1}"] = new { type = "text", value = positional[i] };
                 }
 
+                var template = new Dictionary<string, object>
+                {
+                    ["name"] = message.WhatsAppTemplateName,
+                    ["language"] = new { code = message.WhatsAppLanguage ?? "en", policy = "deterministic" },
+                    ["to_and_components"] = new[] { new { to = new[] { message.Recipient }, components } }
+                };
+                // WABA namespace (config "Account / namespace id"), required by some MSG91 accounts.
+                if (!string.IsNullOrWhiteSpace(config.AccountId))
+                    template["namespace"] = config.AccountId;
+
                 payload = new
                 {
                     integrated_number = config.Sender,
                     content_type = "template",
                     payload = new
                     {
+                        messaging_product = "whatsapp",
                         type = "template",
-                        template = new
-                        {
-                            name = message.WhatsAppTemplateName,
-                            language = new { code = message.WhatsAppLanguage ?? "en", policy = "deterministic" },
-                            to_and_components = new[]
-                            {
-                                new { to = new[] { message.Recipient }, components }
-                            }
-                        },
-                        messaging_product = "whatsapp"
+                        template
                     }
                 };
             }
@@ -107,6 +105,19 @@ public sealed class Msg91WhatsAppProvider : IWhatsAppProvider
             return DeliveryResult.Fail(Name, ex.Message);
         }
     }
+
+    /// <summary>The MSG91 components-map key: a bare numeric body index ("1") becomes "body_1";
+    /// provider-prefixed names (body_otp, button_1, …) are used as-is.</summary>
+    private static string ComponentKey(string name)
+        => int.TryParse(name, out var n) ? $"body_{n}" : name;
+
+    /// <summary>Builds a component value. Button params are dynamic URL buttons (auth copy-code) and
+    /// MSG91 requires a <c>subtype</c> field (its error calls it "sub_type", but the accepted payload
+    /// key is <c>subtype</c>); body and header params are plain text.</summary>
+    private static object BuildComponent(string name, string value)
+        => name.StartsWith("button_", StringComparison.OrdinalIgnoreCase)
+            ? new { type = "text", subtype = "url", value }
+            : new { type = "text", value };
 
     private static string Truncate(string s) => s.Length > 300 ? s[..300] : s;
 }

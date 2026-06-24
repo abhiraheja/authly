@@ -1,9 +1,17 @@
 @model PhoneLoginViewModel
+@inject Authly.Web.Infrastructure.Branding.CurrentBranding Branding
 @{
     Layout = "_AuthLayout";
+    var brand = await Branding.GetAsync();
+    var headingClass = brand.HeadingSize switch
+    {
+        Authly.Core.Enums.HeadingSize.Small => "text-xl",
+        Authly.Core.Enums.HeadingSize.Large => "text-3xl",
+        _ => "text-2xl"
+    };
 }
 
-<h2 class="font-display text-2xl font-bold">Sign in with phone</h2>
+<h2 class="font-display @headingClass font-bold">@brand.Heading</h2>
 <p class="text-sm text-muted-foreground mt-1 mb-6">Enter your mobile number to receive a WhatsApp code, or use your password.</p>
 
 @if (TempData["Error"] is string error)
@@ -11,47 +19,8 @@
     <div class="card card-body !py-2.5 mb-4 flex items-center gap-2 border-l-4 border-l-danger text-sm"><i data-lucide="alert-circle" class="size-4 text-coral"></i>@error</div>
 }
 
-<form asp-controller="Account" asp-action="PhoneLogin" method="post" class="space-y-4">
-    <input type="hidden" asp-for="ReturnUrl" />
-    <input type="hidden" asp-for="Mode" id="modeField" value="otp" />
-    <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
-
-    <div>
-        <label asp-for="Phone" class="label">Mobile number</label>
-        <input asp-for="Phone" class="input" autocomplete="tel" inputmode="tel" placeholder="+91 98765 43210" />
-        <span asp-validation-for="Phone" class="text-danger text-xs"></span>
-    </div>
-
-    <div id="passwordRow" class="hidden">
-        <label asp-for="Password" class="label">Password</label>
-        <input asp-for="Password" type="password" class="input" autocomplete="current-password" placeholder="••••••••" />
-        <span asp-validation-for="Password" class="text-danger text-xs"></span>
-    </div>
-
-    <partial name="_Captcha" />
-
-    <button type="submit" id="otpBtn" class="btn btn-primary btn-lg w-full" onclick="document.getElementById('modeField').value='otp'">
-        <i data-lucide="message-circle" class="size-4"></i> Send WhatsApp code
-    </button>
-    <button type="submit" id="pwdBtn" class="btn btn-outline w-full" onclick="document.getElementById('modeField').value='password'">
-        Use password instead
-    </button>
-</form>
+<partial name="_PhoneLoginForm" model="@Model.ReturnUrl" />
 
 <p class="text-center text-sm text-muted-foreground mt-6">
     <a class="text-primary hover:underline" asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Model.ReturnUrl">Back to sign in</a>
 </p>
-
-@section Scripts {
-<script>
-    // "Use password instead" reveals the password field and switches the form to password mode.
-    document.getElementById('pwdBtn')?.addEventListener('click', function (e) {
-        var row = document.getElementById('passwordRow');
-        if (row.classList.contains('hidden')) {
-            e.preventDefault();
-            row.classList.remove('hidden');
-            document.querySelector('[name="Password"]').focus();
-        }
-    });
-</script>
-}

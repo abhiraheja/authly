@@ -1,0 +1,39 @@
+@model string
+@* Shared phone sign-in form. Model = returnUrl. Posts to Account/PhoneLogin (validation errors render
+   on the dedicated PhoneLogin screen). Used both on its own page and inline on the login page when
+   phone is the primary method. Model-light (plain name= fields) so it embeds anywhere. *@
+<div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
+<form asp-controller="Account" asp-action="PhoneLogin" method="post" class="space-y-4">
+    <input type="hidden" name="ReturnUrl" value="@Model" />
+    <input type="hidden" name="Mode" id="modeField" value="otp" />
+
+    <div>
+        <label class="label">Mobile number</label>
+        <input name="Phone" class="input" autocomplete="tel" inputmode="tel" placeholder="+91 98765 43210" />
+    </div>
+
+    <div id="passwordRow" class="hidden">
+        <label class="label">Password</label>
+        <input name="Password" type="password" class="input" autocomplete="current-password" placeholder="••••••••" />
+    </div>
+
+    <partial name="_Captcha" />
+
+    <button type="submit" id="otpBtn" class="btn btn-primary btn-lg w-full" onclick="document.getElementById('modeField').value='otp'">
+        <i data-lucide="message-circle" class="size-4"></i> Send WhatsApp code
+    </button>
+    <button type="submit" id="pwdBtn" class="btn btn-outline w-full" onclick="document.getElementById('modeField').value='password'">
+        Use password instead
+    </button>
+</form>
+<script>
+    // "Use password instead" reveals the password field and switches the form to password mode.
+    document.getElementById('pwdBtn')?.addEventListener('click', function (e) {
+        var row = document.getElementById('passwordRow');
+        if (row && row.classList.contains('hidden')) {
+            e.preventDefault();
+            row.classList.remove('hidden');
+            document.querySelector('[name="Password"]').focus();
+        }
+    });
+</script>

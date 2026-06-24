@@ -1,0 +1,123 @@
+@{
+    Layout = "_DocsLayout";
+    ViewData["Title"] = "Access policies (ABAC) & app-to-app";
+    ViewData["DocsActive"] = "access-policies";
+    ViewData["Description"] = "Fine-grained authorization with attribute-based access policies, plus machine-to-machine (client-credentials) calls between your services.";
+}
+
+<p class="eyebrow">Protocol &amp; API</p>
+<h1 class="mt-2 font-display text-3xl font-bold tracking-tight">Access policies &amp; app-to-app.</h1>
+<p class="mt-3 text-muted-foreground">Two related pieces: <strong>ABAC</strong> for "who may do what, on which resource, in what context", and <strong>client-credentials</strong> so your services can call each other with their own tokens.</p>
+
+<!-- ============ PART A — ABAC ============ -->
+<h2 class="font-display text-2xl font-bold mt-10 mb-2">Part A · Access policies (ABAC)</h2>
+<p class="text-sm text-muted-foreground">Roles (RBAC) answer "is this person an admin?". Real rules are finer — "engineers may read engineering docs", "you may edit only your own record", "delete only from the office IP". <strong>Attribute-Based Access Control</strong> decides on attributes of the <strong>subject</strong> (who), the <strong>resource</strong> (what), and the <strong>environment</strong> (context). You write policies; Authly returns Allow / Deny.</p>
+
+<h3 class="font-display font-bold mt-6 mb-1.5">A policy's parts</h3>
+<p class="text-sm text-muted-foreground">Manage them under <strong>Tenant&nbsp;Admin → Access policies</strong> (<code>/tenantadmin/policies</code>).</p>
+<div class="mt-3 overflow-x-auto">
+    <table class="w-full text-sm border border-border rounded-lg overflow-hidden">
+        <thead class="bg-muted text-left">
+            <tr><th class="px-3 py-2 font-semibold">Field</th><th class="px-3 py-2 font-semibold">Meaning</th></tr>
+        </thead>
+        <tbody>
+            <tr class="border-t border-border"><td class="px-3 py-2"><strong>Effect</strong></td><td class="px-3 py-2"><code>Allow</code> or <code>Deny</code>.</td></tr>
+            <tr class="border-t border-border"><td class="px-3 py-2"><strong>Action</strong></td><td class="px-3 py-2">Exact (<code>document.read</code>), prefix (<code>document.*</code>), or all (<code>*</code>).</td></tr>
+            <tr class="border-t border-border"><td class="px-3 py-2"><strong>Resource type</strong></td><td class="px-3 py-2">Exact, prefix, or <code>*</code>.</td></tr>
+            <tr class="border-t border-border"><td class="px-3 py-2"><strong>Conditions</strong></td><td class="px-3 py-2">JSON array of attribute tests — <strong>all</strong> must hold. Empty <code>[]</code> = match on action + resource only.</td></tr>
+            <tr class="border-t border-border"><td class="px-3 py-2"><strong>Priority</strong></td><td class="px-3 py-2">Among Allows, the highest priority wins.</td></tr>
+            <tr class="border-t border-border"><td class="px-3 py-2"><strong>Enabled</strong></td><td class="px-3 py-2">Off policies are ignored.</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<h3 class="font-display font-bold mt-6 mb-1.5">How a decision is made</h3>
+<p class="text-sm text-muted-foreground"><strong>Deny-overrides, default-deny.</strong> Among policies whose action + resource match and whose conditions all hold:</p>
+<ol class="list-decimal pl-5 space-y-1.5 text-sm mt-2">
+    <li>Any matching <strong>Deny</strong> → denied (<code>explicit_deny</code>) — beats every Allow, regardless of priority.</li>
+    <li>Otherwise the highest-priority <strong>Allow</strong> → allowed (<code>allow</code>).</li>
+    <li>Nothing matched → denied (<code>default_deny</code>).</li>
+</ol>
+<div class="mt-3 card card-body !py-3 flex items-start gap-3 border-l-4 border-l-primary text-sm">
+    <i data-lucide="info" class="size-4 text-primary mt-0.5 shrink-0"></i>
+    <div>No policies at all = everything denied. You must write an explicit Allow to permit anything — and a single matching Deny stops the request.</div>
+</div>
+
+<h3 class="font-display font-bold mt-6 mb-1.5">Conditions &amp; operators</h3>
+<p class="text-sm text-muted-foreground">Each condition is <code>{ "attribute": "scope.key", "operator": "...", "value": "..." }</code>. Scopes: <code>subject.*</code>, <code>resource.*</code>, <code>environment.*</code>. Operators: <code>equals</code>, <code>notEquals</code>, <code>contains</code>, <code>in</code> (comma list), <code>greaterThan</code>, <code>lessThan</code>, <code>exists</code>.</p>
+<p class="mt-4 text-sm font-medium">Example — engineers may read documents:</p>
+<div class="mt-2 code-surface px-4 py-3 text-sm"><code>Effect Allow · Action document.read · Resource type document
+[
+  { "attribute": "subject.department", "operator": "equals", "value": "eng" }
+]</code></div>
+<p class="mt-4 text-sm font-medium">Example — require a signed-in user (a userId must be present):</p>
+<div class="mt-2 code-surface px-4 py-3 text-sm"><code>Effect Allow · Action document.read · Resource type document
+[
+  { "attribute": "subject.userId", "operator": "exists" }
+]</code></div>
+
+<h3 class="font-display font-bold mt-6 mb-1.5">Test without deploying</h3>
+<p class="text-sm text-muted-foreground">The <strong>Test a decision</strong> panel on the policies page takes an action, resource type, and the three attribute bags, and shows <code>Allowed / Policy / Reason</code> live.</p>
+
+<h3 class="font-display font-bold mt-6 mb-1.5">Ask for a decision from your code</h3>
+<p class="text-sm text-muted-foreground">Your service calls the decision API at runtime and enforces the result:</p>
+<div class="mt-2 code-surface px-4 py-3 text-sm"><code>POST /api/v1/access/evaluate
+X-API-Key: &lt;tenant-api-key&gt;   <span class="tok-com"># or Authorization: Bearer &lt;jwt&gt;</span>
+
+{
+  "action": "document.read",
+  "resourceType": "document",
+  "subject":     { "userId": "u_123", "department": "eng" },
+  "resource":    { "owner": "u_123", "classification": "internal" },
+  "environment": { "ipAddress": "10.0.0.5" }
+}
+<span class="tok-com"># → { "allowed": true, "policy": "engineers-read-docs", "reason": "allow" }</span></code></div>
+<div class="mt-3 card card-body !py-3 flex items-start gap-3 border-l-4 border-l-primary text-sm">
+    <i data-lucide="info" class="size-4 text-primary mt-0.5 shrink-0"></i>
+    <div><strong>You supply the attributes.</strong> The engine evaluates only what you pass — derive <code>subject</code> from the user's <em>validated</em> token (call it from your backend, not the browser). Authentication ("is the token valid / is there a user?") happens first at your resource server (a 401); ABAC ("may this subject do this?") comes after. ABAC policies are created in the UI only — there's no policy-CRUD API.</div>
+</div>
+
+<!-- ============ PART B — App-to-App ============ -->
+<h2 class="font-display text-2xl font-bold mt-12 mb-2">Part B · App-to-app (machine-to-machine)</h2>
+<p class="text-sm text-muted-foreground">When service A calls service B there's no user and no login screen. A registers as a <strong>Machine</strong> application, gets a token with the <strong>client-credentials</strong> grant, and sends it to B. B validates it — no shared secret needed.</p>
+
+<h3 class="font-display font-bold mt-6 mb-1.5">1 · Register a Machine app</h3>
+<p class="text-sm text-muted-foreground">Under <strong>Applications → New application → Type = Machine</strong>. Give it a name and the scopes it needs; leave redirect URIs blank. On creation you get a <strong>Client ID</strong> and a <strong>Client secret shown once</strong> — store it in a secret manager. (Or create it via <code>POST /api/v1/applications</code>.)</p>
+
+<h3 class="font-display font-bold mt-6 mb-1.5">2 · Get a token</h3>
+<div class="mt-2 code-surface px-4 py-3 text-sm"><code>curl -X POST /connect/token \
+  -d grant_type=client_credentials \
+  -d client_id=client_… \
+  -d client_secret=secret_… \
+  -d scope=&quot;api inventory:read&quot;
+<span class="tok-com"># → { access_token (JWT, 1h), token_type: Bearer, expires_in: 3600, scope }</span></code></div>
+<p class="mt-3 text-sm text-muted-foreground">The token's <code>sub</code> is the client id (the service's identity, not a user), and it carries <code>tenant_id</code> + <code>scope</code>. Cache it until it expires; don't fetch one per call.</p>
+
+<h3 class="font-display font-bold mt-6 mb-1.5">3 · The receiver validates it</h3>
+<p class="text-sm text-muted-foreground">B verifies the JWT against Authly's public keys — discovery at <code>/.well-known/openid-configuration</code>, keys at <code>/.well-known/jwks</code>. Check signature, <code>iss</code>, <code>exp</code>, the required <code>scope</code>, and <code>tenant_id</code>. <strong>Only the caller registers</strong> — a receive-only service needs no app of its own.</p>
+
+<h3 class="font-display font-bold mt-6 mb-1.5">Multi-hop: A → B → C</h3>
+<p class="text-sm text-muted-foreground">If B also calls C, the same rule applies: <strong>whoever requests a token needs its own Machine app.</strong></p>
+<div class="mt-2 overflow-x-auto">
+    <table class="w-full text-sm border border-border rounded-lg overflow-hidden">
+        <thead class="bg-muted text-left">
+            <tr><th class="px-3 py-2 font-semibold">Service</th><th class="px-3 py-2 font-semibold">Role</th><th class="px-3 py-2 font-semibold">Machine app?</th></tr>
+        </thead>
+        <tbody>
+            <tr class="border-t border-border"><td class="px-3 py-2"><strong>A</strong></td><td class="px-3 py-2">calls B</td><td class="px-3 py-2">Yes (scope <code>b.call</code>)</td></tr>
+            <tr class="border-t border-border"><td class="px-3 py-2"><strong>B</strong></td><td class="px-3 py-2">receives A + calls C</td><td class="px-3 py-2">Yes (scope <code>c.call</code>)</td></tr>
+            <tr class="border-t border-border"><td class="px-3 py-2"><strong>C</strong></td><td class="px-3 py-2">receives only</td><td class="px-3 py-2">No — just validates</td></tr>
+        </tbody>
+    </table>
+</div>
+<p class="mt-3 text-sm text-muted-foreground">B does <strong>not</strong> forward A's token to C — it gets its own token from its own app (a relayed token has the wrong audience and scope). And the token is always the calling service's identity; the original user context doesn't travel automatically — pass it explicitly (a validated field) or make an ABAC <code>evaluate</code> call with the user's attributes.</p>
+
+<div class="mt-4 card card-body !py-3 flex items-start gap-3 border-l-4 border-l-primary text-sm">
+    <i data-lucide="key-round" class="size-4 text-primary mt-0.5 shrink-0"></i>
+    <div><strong>Rotate secrets</strong> from the app's page, or via <code>POST /api/v1/applications/{id}/secrets/rotate</code>. The new secret is shown once; deploy it, then the old one stops working.</div>
+</div>
+
+<div class="mt-8 flex items-center justify-between border-t border-border pt-5 text-sm">
+    <a class="text-muted-foreground hover:text-foreground" href="/docs/api">← Management REST API</a>
+    <a class="text-primary hover:underline" href="/docs/webhooks">Webhooks &amp; events →</a>
+</div>

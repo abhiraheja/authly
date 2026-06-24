@@ -1,0 +1,96 @@
+@{
+    Layout = "_DocsLayout";
+    ViewData["Title"] = "Sign-in methods & WhatsApp OTP";
+    ViewData["DocsActive"] = "sign-in";
+    ViewData["Description"] = "Choose which sign-in methods your hosted login page offers, and set up phone sign-in / sign-up with a WhatsApp OTP end to end.";
+}
+
+<p class="eyebrow">Product guides</p>
+<h1 class="mt-2 font-display text-3xl font-bold tracking-tight">Sign-in methods &amp; WhatsApp OTP.</h1>
+<p class="mt-3 text-muted-foreground">Your hosted login page can offer up to five sign-in methods. You decide which ones are on — and at least one always stays enabled so nobody gets locked out. This guide also walks the full WhatsApp OTP login setup.</p>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">The five sign-in methods</h2>
+<p class="text-sm text-muted-foreground">Configure them under <strong>Tenant&nbsp;Admin → Security → Sign-in methods</strong>. Toggle each independently; a method only works while it's enabled.</p>
+<div class="mt-3 overflow-x-auto">
+    <table class="w-full text-sm border border-border rounded-lg overflow-hidden">
+        <thead class="bg-muted text-left">
+            <tr><th class="px-3 py-2 font-semibold">Method</th><th class="px-3 py-2 font-semibold">What it is</th><th class="px-3 py-2 font-semibold">Needs first</th></tr>
+        </thead>
+        <tbody>
+            <tr class="border-t border-border"><td class="px-3 py-2"><strong>Email &amp; password</strong></td><td class="px-3 py-2">Classic email + password sign-in.</td><td class="px-3 py-2 text-muted-foreground">—</td></tr>
+            <tr class="border-t border-border"><td class="px-3 py-2"><strong>Email sign-in link</strong></td><td class="px-3 py-2">Passwordless "magic link" emailed to the user.</td><td class="px-3 py-2 text-muted-foreground">An email provider</td></tr>
+            <tr class="border-t border-border"><td class="px-3 py-2"><strong>Passkey</strong></td><td class="px-3 py-2">WebAuthn / FIDO2 — Face ID, Touch ID, security keys.</td><td class="px-3 py-2 text-muted-foreground">—</td></tr>
+            <tr class="border-t border-border"><td class="px-3 py-2"><strong>Social</strong></td><td class="px-3 py-2">Google / Microsoft / GitHub / Facebook / custom OIDC.</td><td class="px-3 py-2 text-muted-foreground">≥ 1 active social provider</td></tr>
+            <tr class="border-t border-border"><td class="px-3 py-2"><strong>Phone (WhatsApp)</strong></td><td class="px-3 py-2">Sign in with a mobile number via a WhatsApp OTP (or phone + password).</td><td class="px-3 py-2 text-muted-foreground">WhatsApp + a linked OTP template</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="mt-4 card card-body !py-3 flex items-start gap-3 border-l-4 border-l-primary text-sm">
+    <i data-lucide="shield-check" class="size-4 text-primary mt-0.5 shrink-0"></i>
+    <div><strong>At least one effective method stays on.</strong> A method counts only when it's toggled on <em>and</em> its prerequisite is met (Social needs a provider; Phone needs WhatsApp + OTP ready). If you try to turn off the last working one, the page refuses to save — so a tenant can never lock everyone out.</div>
+</div>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">The login page adapts</h2>
+<p class="text-sm text-muted-foreground">You don't get a wall of buttons. The page picks a <strong>primary</strong> method and shows the rest as secondary options:</p>
+<ul class="list-disc pl-5 space-y-1.5 text-sm mt-2">
+    <li><strong>Only phone enabled</strong> → the phone-number field shows directly (no extra "Sign in with phone" button).</li>
+    <li><strong>Email + phone</strong> → email/password form, with "Sign in with phone" as a secondary button.</li>
+    <li><strong>Only social</strong> → just the provider buttons, no dangling divider.</li>
+    <li><strong>Only passkey</strong> → email field + "Sign in with a passkey".</li>
+</ul>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-4">Set up WhatsApp OTP login — end to end</h2>
+
+<h3 class="font-display font-bold mt-2 mb-1.5">Step 1 · Connect a WhatsApp provider</h3>
+<p class="text-sm text-muted-foreground">Go to <strong>Tenant&nbsp;Admin → WhatsApp</strong> and add your provider credentials (e.g. MSG91 / Gupshup) — auth key, sender number, and account/namespace where required. Mark it <strong>active</strong>. Secrets are encrypted at rest and never shown again.</p>
+
+<h3 class="font-display font-bold mt-4 mb-1.5">Step 2 · Link your approved OTP template</h3>
+<p class="text-sm text-muted-foreground">WhatsApp only delivers messages built from <strong>provider-approved templates</strong> — free text fails. On the WhatsApp page, hit <strong>Link template</strong> on the <code>otp</code> message type, pick one of your approved templates, and map its variables.</p>
+<div class="mt-3 card card-body !py-3 flex items-start gap-3 border-l-4 border-l-primary text-sm">
+    <i data-lucide="info" class="size-4 text-primary mt-0.5 shrink-0"></i>
+    <div>Authly only binds <strong>named variables it recognises</strong> (<code>{{otp}}</code>, <code>{{user_name}}</code>, <code>{{expiry_minutes}}</code>, <code>{{app_name}}</code>); the required one for <code>otp</code> is <code>{{otp}}</code>. <strong>AUTHENTICATION</strong> copy-code templates (positional + a copy button) are supported too. Unknown/custom variables are not bound — edit your template to use the supported names, or to use your own variable, edit it on the provider side.</div>
+</div>
+
+<h3 class="font-display font-bold mt-4 mb-1.5">Step 3 · Turn on phone sign-in / sign-up</h3>
+<p class="text-sm text-muted-foreground">Once a WhatsApp provider is active <em>and</em> the <code>otp</code> template is linked, the phone toggles unlock:</p>
+<ul class="list-disc pl-5 space-y-1.5 text-sm mt-2">
+    <li><strong>Security → Sign-in methods → Phone (WhatsApp)</strong> — lets existing users sign in with their number.</li>
+    <li><strong>Security → Phone authentication → Allow phone sign-up</strong> — lets new users register with a number.</li>
+</ul>
+<p class="mt-2 text-sm text-muted-foreground">Until WhatsApp + OTP are ready, these switches stay disabled with a link to the WhatsApp page — so you can't enable a channel that can't actually send a code.</p>
+
+<h3 class="font-display font-bold mt-4 mb-1.5">What the end user sees</h3>
+<div class="card overflow-hidden mt-2">
+    <div class="timeline card-body !pl-9">
+        @foreach (var step in new[]
+        {
+            "On the login page, the user enters their mobile number and taps \"Send WhatsApp code\".",
+            "Authly sends a one-time code over WhatsApp using your linked template.",
+            "The user enters the code → verified → signed in. (A correct code also verifies an as-yet-unverified number.)",
+            "Prefer a password? \"Use password instead\" signs in with phone + password (once the number is verified).",
+        })
+        {
+            <div class="timeline-item"><div class="text-sm">@step</div></div>
+        }
+    </div>
+</div>
+<p class="mt-3 text-sm text-muted-foreground">Phone is tied to the user's email account — one identity, two channels. A number is unique per tenant, so the same person resolves to the same account whether they came in by email or phone.</p>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">Email delivery — a quick gotcha</h2>
+<div class="card card-body !py-3 flex items-start gap-3 border-l-4 border-l-danger text-sm">
+    <i data-lucide="alert-triangle" class="size-4 text-coral mt-0.5 shrink-0"></i>
+    <div>The email sign-in link, password reset, email OTP, etc. need a <strong>real email provider</strong>. If none is configured under <strong>Messaging</strong>, Authly falls back to a dev "log" transport that records the message as "sent" but never delivers it. If your emails aren't arriving, add an active SMTP / ZeptoMail provider first.</div>
+</div>
+
+<h2 class="font-display text-xl font-bold mt-8 mb-2">Magic link with your OIDC app</h2>
+<p class="text-sm text-muted-foreground">When a single-page app starts an OIDC flow (<code>/connect/authorize</code>) and the user picks the email sign-in link, Authly carries your continuation through the emailed link. Opening it lands the user back at <strong>your app's origin</strong> — not the hosted portal — where your app finishes login silently against the now-established session. The original "check your email" tab also completes on its own once the link is opened in the same browser.</p>
+<div class="mt-3 card card-body !py-3 flex items-start gap-3 border-l-4 border-l-primary text-sm">
+    <i data-lucide="info" class="size-4 text-primary mt-0.5 shrink-0"></i>
+    <div>For this to work, register your app's callback (e.g. <code>https://app.yourco.com/auth/callback</code>) as a redirect URI under <strong>Applications</strong>. The landing origin is derived from that registered URI — never from untrusted input.</div>
+</div>
+
+<div class="mt-8 flex items-center justify-between border-t border-border pt-5 text-sm">
+    <a class="text-muted-foreground hover:text-foreground" href="/docs/admin">← Admin console</a>
+    <a class="text-primary hover:underline" href="/docs/portal">End-user portal →</a>
+</div>

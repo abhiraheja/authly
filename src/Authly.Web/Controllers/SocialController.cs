@@ -80,6 +80,10 @@ public sealed class SocialController : Controller
         {
             return RedirectToLogin("That account didn't share a verified email, so we couldn't sign you in.");
         }
+        catch (SocialSignupDisabledException)
+        {
+            return RedirectToLogin($"No account exists for this {provider} identity, and sign-ups are disabled. Contact your administrator for access.");
+        }
         catch (Exception ex) when (ex is SocialAuthException or SocialProviderConfigInvalidException or SocialProviderNotConfiguredException)
         {
             return RedirectToLogin("We couldn't complete sign-in with that provider. Please try again.");

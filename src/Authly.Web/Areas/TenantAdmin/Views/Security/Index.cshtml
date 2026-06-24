@@ -13,6 +13,22 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div class="space-y-4">
             <div class="card">
+                <div class="card-header"><h2 class="card-title">Sign-up policy</h2></div>
+                <div class="card-body space-y-4">
+                    <div class="flex items-center gap-3">
+                        <label class="switch"><input asp-for="AllowPasswordSignup" type="checkbox" /><span class="track"></span></label>
+                        <label class="label !mb-0" asp-for="AllowPasswordSignup"></label>
+                    </div>
+                    <p class="-mt-2 text-xs text-muted-foreground">When off, the hosted register page is closed. Only accounts you create (dashboard, import, or API) can sign in.</p>
+                    <div class="flex items-center gap-3">
+                        <label class="switch"><input asp-for="AllowSocialSignup" type="checkbox" /><span class="track"></span></label>
+                        <label class="label !mb-0" asp-for="AllowSocialSignup"></label>
+                    </div>
+                    <p class="-mt-2 text-xs text-muted-foreground">When off, social login still signs in (and links to) existing accounts, but won't create a brand-new account from a social identity.</p>
+                </div>
+            </div>
+
+            <div class="card">
                 <div class="card-header"><h2 class="card-title">Brute-force &amp; passwords</h2></div>
                 <div class="card-body space-y-4">
                     <div class="flex items-center gap-3">

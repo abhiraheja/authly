@@ -36,7 +36,7 @@ public sealed class MagicLinkService : IMagicLinkService
         _logger = logger;
     }
 
-    public async Task RequestAsync(Guid tenantId, string email, RequestInfo info, CancellationToken ct = default)
+    public async Task RequestAsync(Guid tenantId, string email, RequestInfo info, string? returnUrl = null, CancellationToken ct = default)
     {
         var user = await _users.GetByEmailAsync(tenantId, Normalize(email), ct);
         if (user is null || user.Status != UserStatus.Active)
@@ -63,7 +63,7 @@ public sealed class MagicLinkService : IMagicLinkService
             MessageChannel.Email, user.Email, new Dictionary<string, string>
             {
                 ["user_name"] = NameOf(user),
-                ["action_url"] = _urls.BuildMagicLinkUrl(tenantId, raw),
+                ["action_url"] = _urls.BuildMagicLinkUrl(tenantId, raw, returnUrl),
                 ["expiry_minutes"] = "15"
             }));
 

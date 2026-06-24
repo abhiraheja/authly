@@ -44,7 +44,10 @@ public interface IAuthUrlBuilder
     string BuildPasswordResetUrl(Guid tenantId, string rawToken);
 
     // Phase 11 — advanced auth links.
-    string BuildMagicLinkUrl(Guid tenantId, string rawToken);
+    /// <summary>Builds the magic sign-in link. When <paramref name="returnUrl"/> is supplied (e.g. the
+    /// local /connect/authorize continuation), it is carried through so the user lands back on the
+    /// relying app after sign-in.</summary>
+    string BuildMagicLinkUrl(Guid tenantId, string rawToken, string? returnUrl = null);
     string BuildContactChangeVerifyUrl(Guid tenantId, string rawToken);
     string BuildContactChangeCancelUrl(Guid tenantId, string rawToken);
     string BuildRecoveryUrl(Guid tenantId, string rawToken);

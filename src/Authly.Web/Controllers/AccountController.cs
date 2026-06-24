@@ -424,15 +424,16 @@ public sealed class AccountController : Controller
         ViewData["Title"] = "Email me a sign-in link";
         if (!ModelState.IsValid) return View(model);
 
-        await _magic.RequestAsync(_tenant.TenantId!.Value, model.Email, CurrentRequest(), ct);
+        var returnUrl = SafeReturnUrl(model.ReturnUrl);
+        await _magic.RequestAsync(_tenant.TenantId!.Value, model.Email, CurrentRequest(), returnUrl, ct);
         // Always the same response, whether or not the account exists (anti-enumeration).
         ViewData["Email"] = model.Email;
-        ViewData["ReturnUrl"] = SafeReturnUrl(model.ReturnUrl);
+        ViewData["ReturnUrl"] = returnUrl;
         return View("MagicLinkSent");
     }
 
     [HttpGet("magic")]
-    public async Task<IActionResult> Magic(string? token, CancellationToken ct)
+    public async Task<IActionResult> Magic(string? token, string? returnUrl, CancellationToken ct)
     {
         if (RequireTenant() is { } noTenant) return noTenant;
 
@@ -449,7 +450,10 @@ public sealed class AccountController : Controller
         var session = await _auth.StartSessionAsync(user, "magic_link", CurrentRequest(), ct);
         QueueSuspiciousLoginCheck(user.Id);
         await UserSignIn.SignInAsync(HttpContext, user.Id, user.Email, user.TenantId, session.Id, user.EmailVerified);
-        return Portal();
+        // Carry the relying-app continuation (e.g. /connect/authorize) so the user lands back on the
+        // app that started the sign-in; re-validated as a safe local URL (defense-in-depth).
+        var safe = SafeReturnUrl(returnUrl);
+        return safe is not null ? Redirect(safe) : Portal();
     }
 
     // --- Phone sign-in (WhatsApp OTP or password) ---

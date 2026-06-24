@@ -309,7 +309,7 @@ internal sealed class FakeUrlBuilder : IAuthUrlBuilder
 {
     public string BuildEmailVerificationUrl(Guid tenantId, string rawToken) => rawToken;
     public string BuildPasswordResetUrl(Guid tenantId, string rawToken) => rawToken;
-    public string BuildMagicLinkUrl(Guid tenantId, string rawToken) => rawToken;
+    public string BuildMagicLinkUrl(Guid tenantId, string rawToken, string? returnUrl = null) => rawToken;
     public string BuildContactChangeVerifyUrl(Guid tenantId, string rawToken) => rawToken;
     public string BuildContactChangeCancelUrl(Guid tenantId, string rawToken) => rawToken;
     public string BuildRecoveryUrl(Guid tenantId, string rawToken) => rawToken;

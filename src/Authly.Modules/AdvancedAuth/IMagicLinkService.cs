@@ -12,8 +12,10 @@ public interface IMagicLinkService
     /// <summary>
     /// Issues a magic-link email if the address belongs to an active user. Silent either way
     /// (anti-enumeration) — the caller shows the same confirmation regardless.
+    /// <paramref name="returnUrl"/> (a validated local URL, e.g. the /connect/authorize continuation)
+    /// is carried in the link so the user lands back on the relying app after sign-in.
     /// </summary>
-    Task RequestAsync(Guid tenantId, string email, RequestInfo info, CancellationToken ct = default);
+    Task RequestAsync(Guid tenantId, string email, RequestInfo info, string? returnUrl = null, CancellationToken ct = default);
 
     /// <summary>
     /// Consumes a magic-link token. Returns the user on success (single-use, unexpired, active),

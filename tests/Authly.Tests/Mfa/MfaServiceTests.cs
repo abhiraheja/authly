@@ -205,6 +205,48 @@ public class MfaServiceTests
         Assert.False(await h.Service.VerifyEmailOtpAsync(Tenant, user.Id, code, AuditContext.System));
     }
 
+    // --- Phone OTP (WhatsApp) ----------------------------------------------
+
+    [Fact]
+    public async Task Phone_otp_is_sent_over_whatsapp_to_the_users_number_and_verifies_once()
+    {
+        var h = new Harness();
+        var user = h.NewUser();
+        user.Phone = "+15550001111";
+
+        await h.Service.SendPhoneOtpAsync(Tenant, user);
+        var req = Assert.Single(h.Messages.Sent);
+        Assert.Equal("otp", req.TemplateKey);
+        Assert.Equal(MessageChannel.WhatsApp, req.Channel);
+        Assert.Equal("+15550001111", req.Recipient);
+        var code = req.Variables["otp"];
+
+        Assert.True(await h.Service.VerifyPhoneOtpAsync(Tenant, user.Id, code, AuditContext.System));
+        Assert.False(await h.Service.VerifyPhoneOtpAsync(Tenant, user.Id, code, AuditContext.System)); // burned
+    }
+
+    [Fact]
+    public async Task Phone_otp_is_isolated_from_email_otp_channel()
+    {
+        var h = new Harness();
+        var user = h.NewUser();
+        user.Phone = "+15550001111";
+
+        await h.Service.SendEmailOtpAsync(Tenant, user);
+        var emailCode = h.Messages.Sent[0].Variables["otp"];
+
+        // A phone-channel verify must not accept the email-channel code.
+        Assert.False(await h.Service.VerifyPhoneOtpAsync(Tenant, user.Id, emailCode, AuditContext.System));
+    }
+
+    [Fact]
+    public async Task Phone_otp_without_a_number_throws()
+    {
+        var h = new Harness();
+        var user = h.NewUser(); // no phone
+        await Assert.ThrowsAsync<InvalidOperationException>(() => h.Service.SendPhoneOtpAsync(Tenant, user));
+    }
+
     [Fact]
     public async Task Disable_factor_revokes_it()
     {

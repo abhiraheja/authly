@@ -29,6 +29,31 @@
             </div>
 
             <div class="card">
+                <div class="card-header"><h2 class="card-title">Phone authentication (WhatsApp)</h2></div>
+                <div class="card-body space-y-4">
+                    @if (!Model.WhatsAppOtpReady)
+                    {
+                        <div class="rounded bg-muted p-2 text-xs flex items-start gap-1">
+                            <i data-lucide="info" class="size-3.5 mt-0.5 shrink-0"></i>
+                            <span>
+                                To enable phone sign-up / sign-in, first
+                                <a class="text-primary underline" asp-area="TenantAdmin" asp-controller="WhatsApp" asp-action="Index">configure WhatsApp and link the OTP template</a>.
+                            </span>
+                        </div>
+                    }
+                    <div class="flex items-center gap-3">
+                        <label class="switch"><input asp-for="AllowPhoneLogin" type="checkbox" disabled="@(!Model.WhatsAppOtpReady ? "disabled" : null)" /><span class="track"></span></label>
+                        <label class="label !mb-0" asp-for="AllowPhoneLogin"></label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <label class="switch"><input asp-for="AllowPhoneSignup" type="checkbox" disabled="@(!Model.WhatsAppOtpReady ? "disabled" : null)" /><span class="track"></span></label>
+                        <label class="label !mb-0" asp-for="AllowPhoneSignup"></label>
+                    </div>
+                    <p class="-mt-2 text-xs text-muted-foreground">Users sign in / sign up with a mobile number; the verification code is delivered via your linked WhatsApp OTP template.</p>
+                </div>
+            </div>
+
+            <div class="card">
                 <div class="card-header"><h2 class="card-title">Brute-force &amp; passwords</h2></div>
                 <div class="card-body space-y-4">
                     <div class="flex items-center gap-3">

@@ -26,6 +26,9 @@ public sealed class AccountController : Controller
     private readonly ITenantContext _tenant;
     private readonly IMfaService _mfa;
     private readonly MfaPendingStore _mfaPending;
+    private readonly IUserRepository _users;
+    private readonly Authly.Modules.Messaging.IMessagingService _messaging;
+    private readonly Authly.Web.Infrastructure.Auth.PhoneLoginPendingStore _phonePending;
     private readonly Authly.Modules.Social.ISocialLoginService _social;
     private readonly Authly.Modules.AdvancedAuth.IMagicLinkService _magic;
     private readonly Authly.Modules.AdvancedAuth.IContactChangeService _contactChange;
@@ -43,6 +46,9 @@ public sealed class AccountController : Controller
     private readonly Hangfire.IBackgroundJobClient _jobs;
 
     public AccountController(IAuthService auth, ITenantContext tenant, IMfaService mfa, MfaPendingStore mfaPending,
+        IUserRepository users,
+        Authly.Modules.Messaging.IMessagingService messaging,
+        Authly.Web.Infrastructure.Auth.PhoneLoginPendingStore phonePending,
         Authly.Modules.Social.ISocialLoginService social,
         Authly.Modules.AdvancedAuth.IMagicLinkService magic,
         Authly.Modules.AdvancedAuth.IContactChangeService contactChange,
@@ -63,6 +69,9 @@ public sealed class AccountController : Controller
         _tenant = tenant;
         _mfa = mfa;
         _mfaPending = mfaPending;
+        _users = users;
+        _messaging = messaging;
+        _phonePending = phonePending;
         _social = social;
         _magic = magic;
         _contactChange = contactChange;
@@ -88,6 +97,7 @@ public sealed class AccountController : Controller
         if (RequireTenant() is { } noTenant) return noTenant;
         if (!await SignupAllowedAsync(ct)) return SignupClosed(returnUrl);
         ViewData["Title"] = "Create your account";
+        ViewData["AllowPhoneSignup"] = await PhoneAuthEnabledAsync(login: false, ct);
         await PopulateCaptchaAsync(ct);
         return View(new RegisterViewModel { ReturnUrl = returnUrl });
     }
@@ -100,6 +110,7 @@ public sealed class AccountController : Controller
         // Server-side guard: the page may have been left open or the route hit directly.
         if (!await SignupAllowedAsync(ct)) return SignupClosed(model.ReturnUrl);
         ViewData["Title"] = "Create your account";
+        ViewData["AllowPhoneSignup"] = await PhoneAuthEnabledAsync(login: false, ct);
         await PopulateCaptchaAsync(ct);
         if (!ModelState.IsValid) return View(model);
 
@@ -116,14 +127,27 @@ public sealed class AccountController : Controller
             return View(model);
         }
 
+        var tenantId = _tenant.TenantId!.Value;
+
+        // Phone sign-up: only when enabled + WhatsApp ready, and the number must be free.
+        var phoneSignup = await PhoneAuthEnabledAsync(login: false, ct);
+        var normalizedPhone = phoneSignup ? Authly.Modules.Common.PhoneNumber.Normalize(model.Phone) : null;
+        if (!string.IsNullOrEmpty(normalizedPhone)
+            && await _users.GetByVerifiedPhoneAsync(tenantId, normalizedPhone, ct) is not null)
+        {
+            ModelState.AddModelError(nameof(model.Phone), "An account with this mobile number already exists.");
+            return View(model);
+        }
+
+        Authly.Core.Entities.User user;
         try
         {
-            var user = await _auth.RegisterAsync(_tenant.TenantId!.Value,
+            user = await _auth.RegisterAsync(tenantId,
                 new RegisterRequest(model.Email, model.Password, model.FirstName, model.LastName),
                 CurrentRequest(), ct);
 
             // GDPR/DPDP: record the terms + privacy consent the user gave at signup.
-            await _consent.RecordSignupConsentAsync(_tenant.TenantId!.Value, user.Id, policyVersion: null,
+            await _consent.RecordSignupConsentAsync(tenantId, user.Id, policyVersion: null,
                 new AuditContext(user.Id, "user", HttpContext.Connection.RemoteIpAddress?.ToString(),
                     Request.Headers.UserAgent.ToString() is { Length: > 0 } ua ? ua : null), ct);
         }
@@ -132,6 +156,20 @@ public sealed class AccountController : Controller
             // Don't confirm or deny existence beyond what the user already supplied.
             ModelState.AddModelError(nameof(model.Email), "An account with this email already exists.");
             return View(model);
+        }
+
+        // If a phone was supplied, attach it (unverified) and send a WhatsApp OTP to verify it now,
+        // so it can be used to sign in. Email verification proceeds via its link as usual.
+        if (!string.IsNullOrEmpty(normalizedPhone))
+        {
+            user.Phone = normalizedPhone;
+            user.PhoneVerified = false;
+            await _users.UpdateAsync(user, ct);
+            await _mfa.SendPhoneOtpAsync(tenantId, user, ct);
+            _phonePending.Save(HttpContext, new Authly.Web.Infrastructure.Auth.PhonePendingOtp(
+                user.Id, tenantId, "signup_verify", SafeReturnUrl(model.ReturnUrl)));
+            TempData["PhoneOtpSent"] = true;
+            return RedirectToAction(nameof(PhoneOtp), new { returnUrl = SafeReturnUrl(model.ReturnUrl) });
         }
 
         TempData["Email"] = model.Email;
@@ -156,6 +194,7 @@ public sealed class AccountController : Controller
         ViewData["Title"] = "Sign in";
         ViewData["SocialOptions"] = await _social.ListActiveOptionsAsync(_tenant.TenantId!.Value, ct);
         ViewData["AllowPasswordSignup"] = await SignupAllowedAsync(ct);
+        ViewData["AllowPhoneLogin"] = await PhoneAuthEnabledAsync(login: true, ct);
         await PopulateCaptchaAsync(ct);
         return View(new UserLoginViewModel { ReturnUrl = returnUrl });
     }
@@ -413,6 +452,143 @@ public sealed class AccountController : Controller
         return Portal();
     }
 
+    // --- Phone sign-in (WhatsApp OTP or password) ---
+
+    [HttpGet("phone-login")]
+    public async Task<IActionResult> PhoneLogin(string? returnUrl = null, CancellationToken ct = default)
+    {
+        if (RequireTenant() is { } noTenant) return noTenant;
+        if (!await PhoneAuthEnabledAsync(login: true, ct)) return RedirectToAction(nameof(Login), new { returnUrl = SafeReturnUrl(returnUrl) });
+        ViewData["Title"] = "Sign in with phone";
+        await PopulateCaptchaAsync(ct);
+        return View(new PhoneLoginViewModel { ReturnUrl = returnUrl });
+    }
+
+    [HttpPost("phone-login")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PhoneLogin(PhoneLoginViewModel model, CancellationToken ct)
+    {
+        if (RequireTenant() is { } noTenant) return noTenant;
+        if (!await PhoneAuthEnabledAsync(login: true, ct)) return RedirectToAction(nameof(Login), new { returnUrl = SafeReturnUrl(model.ReturnUrl) });
+        ViewData["Title"] = "Sign in with phone";
+        await PopulateCaptchaAsync(ct);
+        if (!ModelState.IsValid) return View(model);
+
+        var tenantId = _tenant.TenantId!.Value;
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var phone = Authly.Modules.Common.PhoneNumber.Normalize(model.Phone) ?? string.Empty;
+
+        if (!await _blockList.IsIpAllowedAsync(tenantId, ip, ct) || await _blockList.IsIpBlockedAsync(tenantId, ip, ct))
+        {
+            ModelState.AddModelError(string.Empty, "Sign-in isn't available from your network.");
+            return View(model);
+        }
+        if (await _lockout.IsLockedAsync(tenantId, phone, ct))
+        {
+            ModelState.AddModelError(string.Empty, "Too many failed attempts. Try again later.");
+            return View(model);
+        }
+        if (!await _screening.VerifyCaptchaAsync(tenantId, CaptchaToken(), ip, ct))
+        {
+            ModelState.AddModelError(string.Empty, "Please complete the verification challenge.");
+            return View(model);
+        }
+
+        // Password mode: resolve by verified phone, verify password, then the usual access/MFA gate.
+        if (string.Equals(model.Mode, "password", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrEmpty(model.Password))
+            {
+                ModelState.AddModelError(nameof(model.Password), "Enter your password.");
+                return View(model);
+            }
+            var result = await _auth.AuthenticateByPhoneAsync(tenantId, phone, model.Password, CurrentRequest(), ct);
+            if (!result.Succeeded || result.User is null || result.Session is null)
+            {
+                await _lockout.RecordFailureAsync(tenantId, phone, ct);
+                ModelState.AddModelError(string.Empty, "Invalid phone number or password.");
+                return View(model);
+            }
+            await _lockout.ResetAsync(tenantId, phone, ct);
+            return await CompleteUserLoginAsync(result.User, result.Session, SafeReturnUrl(model.ReturnUrl),
+                onBlocked: () => { ModelState.AddModelError(string.Empty, "Sign-in was blocked by your organization's access policy."); return View(model); }, ct);
+        }
+
+        // OTP mode: resolve by verified phone and send a code. Anti-enumeration — same response either way.
+        var user = await _users.GetByVerifiedPhoneAsync(tenantId, phone, ct);
+        if (user is not null && user.Status == Authly.Core.Enums.UserStatus.Active)
+        {
+            await _mfa.SendPhoneOtpAsync(tenantId, user, ct);
+            _phonePending.Save(HttpContext, new Authly.Web.Infrastructure.Auth.PhonePendingOtp(
+                user.Id, tenantId, "login", SafeReturnUrl(model.ReturnUrl)));
+        }
+        else
+        {
+            // No pending cookie set — the OTP page will reject any code, but we still show "sent".
+            _phonePending.Clear(HttpContext);
+        }
+        TempData["PhoneOtpSent"] = true;
+        return RedirectToAction(nameof(PhoneOtp), new { returnUrl = SafeReturnUrl(model.ReturnUrl) });
+    }
+
+    [HttpGet("phone-otp")]
+    public async Task<IActionResult> PhoneOtp(string? returnUrl = null, CancellationToken ct = default)
+    {
+        if (RequireTenant() is { } noTenant) return noTenant;
+        // Reachable both after a login OTP request and after signup phone verification.
+        if (_phonePending.Read(HttpContext) is null && TempData["PhoneOtpSent"] is null)
+            return RedirectToAction(nameof(Login));
+        ViewData["Title"] = "Enter your code";
+        return View(new PhoneOtpViewModel { ReturnUrl = returnUrl });
+    }
+
+    [HttpPost("phone-otp")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PhoneOtp(PhoneOtpViewModel model, CancellationToken ct)
+    {
+        if (RequireTenant() is { } noTenant) return noTenant;
+        ViewData["Title"] = "Enter your code";
+        if (!ModelState.IsValid) return View(model);
+
+        var pending = _phonePending.Read(HttpContext);
+        if (pending is null)
+        {
+            ModelState.AddModelError(string.Empty, "This verification has expired. Start again.");
+            return View(model);
+        }
+
+        var actor = new AuditContext(pending.UserId, "user",
+            HttpContext.Connection.RemoteIpAddress?.ToString(), CurrentRequest().UserAgent);
+        var ok = await _mfa.VerifyPhoneOtpAsync(pending.TenantId, pending.UserId, model.Code, actor, ct);
+        if (!ok)
+        {
+            ModelState.AddModelError(nameof(model.Code), "That code is invalid or has expired.");
+            return View(model);
+        }
+
+        var user = await _users.GetByIdAsync(pending.TenantId, pending.UserId, ct);
+        if (user is null)
+        {
+            _phonePending.Clear(HttpContext);
+            return RedirectToAction(nameof(Login));
+        }
+
+        // Signup verification: just mark the phone verified and continue to sign-in.
+        if (pending.Purpose == "signup_verify" && !user.PhoneVerified)
+        {
+            user.PhoneVerified = true;
+            await _users.UpdateAsync(user, ct);
+        }
+
+        _phonePending.Clear(HttpContext);
+
+        // OTP is itself a possession factor — sign the user in directly (mirrors magic-link).
+        var session = await _auth.StartSessionAsync(user, "phone_otp", CurrentRequest(), ct);
+        QueueSuspiciousLoginCheck(user.Id);
+        await UserSignIn.SignInAsync(HttpContext, user.Id, user.Email, user.TenantId, session.Id, user.EmailVerified);
+        return pending.ReturnUrl is not null ? Redirect(pending.ReturnUrl) : Portal();
+    }
+
     // --- Account recovery ---
 
     [HttpGet("recover-request")]
@@ -509,6 +685,54 @@ public sealed class AccountController : Controller
     /// <summary>Whether self-service password sign-up is open for the current tenant.</summary>
     private async Task<bool> SignupAllowedAsync(CancellationToken ct)
         => (await _securitySettings.GetAsync(_tenant.TenantId!.Value, ct)).AllowPasswordSignup;
+
+    /// <summary>Whether phone login / signup is enabled by policy AND WhatsApp + the OTP template are ready.</summary>
+    private async Task<bool> PhoneAuthEnabledAsync(bool login, CancellationToken ct)
+    {
+        var tenantId = _tenant.TenantId!.Value;
+        var s = await _securitySettings.GetAsync(tenantId, ct);
+        var toggled = login ? s.AllowPhoneLogin : s.AllowPhoneSignup;
+        return toggled && await _messaging.IsWhatsAppOtpReadyAsync(tenantId, ct);
+    }
+
+    /// <summary>Shared post-credential completion (device record, conditional-access, MFA gate, sign-in)
+    /// for a resolved user + session. <paramref name="onBlocked"/> renders the caller's view when a
+    /// conditional-access policy blocks the sign-in.</summary>
+    private async Task<IActionResult> CompleteUserLoginAsync(Authly.Core.Entities.User user,
+        Authly.Core.Entities.Session session, string? returnUrl, Func<IActionResult> onBlocked, CancellationToken ct)
+    {
+        var tenantId = user.TenantId;
+        await _devices.RecordLoginAsync(tenantId, user.Id, CurrentRequest(), ct);
+        QueueSuspiciousLoginCheck(user.Id);
+
+        var access = await _conditional.EvaluateAsync(tenantId, user, CurrentRequest(), ct);
+        if (access.Action == Authly.Modules.Security.ConditionalAction.Block)
+        {
+            await _auth.RevokeSessionAsync(session.Id, ct);
+            var actor = new AuditContext(user.Id, "user", HttpContext.Connection.RemoteIpAddress?.ToString(), CurrentRequest().UserAgent);
+            await _audit.LogAsync("user.login_blocked", actor, tenantId, "user", user.Id,
+                result: "blocked", metadata: new { reason = access.Reason }, ct: ct);
+            return onBlocked();
+        }
+        var forceStepUp = access.Action == Authly.Modules.Security.ConditionalAction.RequireMfa;
+
+        var decision = await _mfa.EvaluateLoginAsync(tenantId, user, ct);
+        var requirement = decision.Requirement;
+        if (forceStepUp && requirement == MfaLoginRequirement.NotRequired)
+            requirement = MfaLoginRequirement.EnrollmentRequired;
+
+        if (requirement != MfaLoginRequirement.NotRequired)
+        {
+            _mfaPending.Save(HttpContext, new MfaPendingLogin(
+                user.Id, user.TenantId, session.Id, user.Email, user.EmailVerified, returnUrl));
+            return requirement == MfaLoginRequirement.EnrollmentRequired
+                ? RedirectToAction(nameof(MfaController.Enroll), "Mfa")
+                : RedirectToAction(nameof(MfaController.Challenge), "Mfa");
+        }
+
+        await UserSignIn.SignInAsync(HttpContext, user.Id, user.Email, user.TenantId, session.Id, user.EmailVerified);
+        return returnUrl is not null ? Redirect(returnUrl) : Portal();
+    }
 
     /// <summary>Sign-up is closed by policy: send the visitor to the login page with a notice.</summary>
     private IActionResult SignupClosed(string? returnUrl)

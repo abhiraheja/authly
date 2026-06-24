@@ -1,4 +1,5 @@
 using Authly.Core.Interfaces;
+using Authly.Modules.Messaging;
 using Authly.Modules.Security;
 using Authly.Web.Areas.TenantAdmin.Models;
 using Authly.Web.Infrastructure;
@@ -11,9 +12,13 @@ namespace Authly.Web.Areas.TenantAdmin.Controllers;
 public sealed class SecurityController : TenantAdminControllerBase
 {
     private readonly ISecuritySettingsService _settings;
+    private readonly IMessagingService _messaging;
 
-    public SecurityController(ISecuritySettingsService settings, ITenantContext tenant) : base(tenant)
-        => _settings = settings;
+    public SecurityController(ISecuritySettingsService settings, IMessagingService messaging, ITenantContext tenant) : base(tenant)
+    {
+        _settings = settings;
+        _messaging = messaging;
+    }
 
     [RequireOperatorPermission("project.read")]
     [HttpGet("")]
@@ -21,10 +26,14 @@ public sealed class SecurityController : TenantAdminControllerBase
     {
         ViewData["Title"] = "Security";
         var s = await _settings.GetAsync(TenantId, ct);
+        var whatsAppReady = await _messaging.IsWhatsAppOtpReadyAsync(TenantId, ct);
         return View(new SecuritySettingsViewModel
         {
             AllowPasswordSignup = s.AllowPasswordSignup,
             AllowSocialSignup = s.AllowSocialSignup,
+            AllowPhoneSignup = s.AllowPhoneSignup,
+            AllowPhoneLogin = s.AllowPhoneLogin,
+            WhatsAppOtpReady = whatsAppReady,
             LockoutEnabled = s.LockoutEnabled,
             LockoutThreshold = s.LockoutThreshold,
             BreachedPasswordCheck = s.BreachedPasswordCheck,
@@ -49,12 +58,20 @@ public sealed class SecurityController : TenantAdminControllerBase
     public async Task<IActionResult> Index(SecuritySettingsViewModel model, CancellationToken ct)
     {
         ViewData["Title"] = "Security";
-        if (!ModelState.IsValid) return View(model);
+        var whatsAppReady = await _messaging.IsWhatsAppOtpReadyAsync(TenantId, ct);
+        if (!ModelState.IsValid)
+        {
+            model.WhatsAppOtpReady = whatsAppReady;
+            return View(model);
+        }
 
         await _settings.SaveAsync(TenantId, new TenantSecuritySettings
         {
             AllowPasswordSignup = model.AllowPasswordSignup,
             AllowSocialSignup = model.AllowSocialSignup,
+            // Phone auth can only be enabled when WhatsApp + the OTP template are ready (server guard).
+            AllowPhoneSignup = whatsAppReady && model.AllowPhoneSignup,
+            AllowPhoneLogin = whatsAppReady && model.AllowPhoneLogin,
             LockoutEnabled = model.LockoutEnabled,
             LockoutThreshold = model.LockoutThreshold,
             BreachedPasswordCheck = model.BreachedPasswordCheck,

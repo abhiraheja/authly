@@ -120,6 +120,9 @@ public class AppDbContext : DbContext
 
             // Email is unique PER tenant, not globally.
             e.HasIndex(x => new { x.TenantId, x.Email }).IsUnique().HasDatabaseName("idx_users_email");
+            // Phone is also unique per tenant where present (enables phone login resolution).
+            e.HasIndex(x => new { x.TenantId, x.Phone }).IsUnique().HasDatabaseName("idx_users_phone")
+                .HasFilter("phone IS NOT NULL");
             e.HasIndex(x => x.TenantId).HasDatabaseName("idx_users_tenant");
 
             e.HasOne(x => x.Tenant).WithMany(t => t.Users).HasForeignKey(x => x.TenantId)

@@ -209,16 +209,30 @@ public sealed class MfaService : IMfaService
             metadata: new { type = "email_otp" }, ct: ct);
     }
 
-    public async Task SendEmailOtpAsync(Guid tenantId, User user, CancellationToken ct = default)
+    public Task SendEmailOtpAsync(Guid tenantId, User user, CancellationToken ct = default)
+        => SendOtpAsync(tenantId, user, OtpChannel.Email, MessageChannel.Email, user.Email, ct);
+
+    public Task SendPhoneOtpAsync(Guid tenantId, User user, CancellationToken ct = default)
     {
-        await _otpCodes.InvalidateOutstandingAsync(tenantId, user.Id, OtpChannel.Email, ct);
+        if (string.IsNullOrWhiteSpace(user.Phone))
+            throw new InvalidOperationException("Cannot send a phone OTP to a user without a phone number.");
+        return SendOtpAsync(tenantId, user, OtpChannel.WhatsApp, MessageChannel.WhatsApp, user.Phone!, ct);
+    }
+
+    /// <summary>Generates and delivers a fresh OTP over the given channel (invalidating any
+    /// outstanding one for that channel). The raw code travels only inside the queued message
+    /// variables; it is never logged.</summary>
+    private async Task SendOtpAsync(Guid tenantId, User user, OtpChannel otpChannel,
+        MessageChannel messageChannel, string recipient, CancellationToken ct)
+    {
+        await _otpCodes.InvalidateOutstandingAsync(tenantId, user.Id, otpChannel, ct);
 
         var raw = _generator.GenerateNumericOtp(OtpDigits);
         await _otpCodes.AddAsync(new OtpCode
         {
             UserId = user.Id,
             TenantId = tenantId,
-            Channel = OtpChannel.Email,
+            Channel = otpChannel,
             CodeHash = _hasher.Hash(raw),
             Attempts = 0,
             ExpiresAt = DateTimeOffset.UtcNow.Add(OtpLifetime),
@@ -226,14 +240,13 @@ public sealed class MfaService : IMfaService
         }, ct);
 
         _messages.Enqueue(new MessageSendRequest(tenantId, MessageTemplateKeys.Otp,
-            MessageChannel.Email, user.Email, new Dictionary<string, string>
+            messageChannel, recipient, new Dictionary<string, string>
             {
                 ["user_name"] = string.IsNullOrWhiteSpace(user.FirstName) ? "there" : user.FirstName!,
                 ["otp"] = raw,
                 ["expiry_minutes"] = "10"
             }));
-        _logger.LogInformation("Email OTP issued for user {UserId} in tenant {TenantId}.", user.Id, tenantId);
-        // The raw code travels only inside the queued message variables; never logged.
+        _logger.LogInformation("{Channel} OTP issued for user {UserId} in tenant {TenantId}.", otpChannel, user.Id, tenantId);
     }
 
     // --- Backup codes -------------------------------------------------------
@@ -285,12 +298,19 @@ public sealed class MfaService : IMfaService
         return ok;
     }
 
-    public async Task<bool> VerifyEmailOtpAsync(Guid tenantId, Guid userId, string code, AuditContext actor, CancellationToken ct = default)
+    public Task<bool> VerifyEmailOtpAsync(Guid tenantId, Guid userId, string code, AuditContext actor, CancellationToken ct = default)
+        => VerifyOtpAsync(tenantId, userId, code, OtpChannel.Email, "email_otp", actor, ct);
+
+    public Task<bool> VerifyPhoneOtpAsync(Guid tenantId, Guid userId, string code, AuditContext actor, CancellationToken ct = default)
+        => VerifyOtpAsync(tenantId, userId, code, OtpChannel.WhatsApp, "phone_otp", actor, ct);
+
+    private async Task<bool> VerifyOtpAsync(Guid tenantId, Guid userId, string code, OtpChannel channel,
+        string auditMethod, AuditContext actor, CancellationToken ct)
     {
-        var otp = await _otpCodes.GetLatestActiveAsync(tenantId, userId, OtpChannel.Email, ct);
+        var otp = await _otpCodes.GetLatestActiveAsync(tenantId, userId, channel, ct);
         if (otp is null)
         {
-            await LogVerifyAsync(tenantId, userId, "email_otp", false, actor, ct);
+            await LogVerifyAsync(tenantId, userId, auditMethod, false, actor, ct);
             return false;
         }
 
@@ -298,7 +318,7 @@ public sealed class MfaService : IMfaService
         {
             otp.Used = true; // burn it — too many guesses
             await _otpCodes.UpdateAsync(otp, ct);
-            await LogVerifyAsync(tenantId, userId, "email_otp", false, actor, ct);
+            await LogVerifyAsync(tenantId, userId, auditMethod, false, actor, ct);
             return false;
         }
 
@@ -314,7 +334,7 @@ public sealed class MfaService : IMfaService
             await _otpCodes.UpdateAsync(otp, ct);
         }
 
-        await LogVerifyAsync(tenantId, userId, "email_otp", ok, actor, ct);
+        await LogVerifyAsync(tenantId, userId, auditMethod, ok, actor, ct);
         return ok;
     }
 

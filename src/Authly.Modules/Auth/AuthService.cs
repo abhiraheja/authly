@@ -88,16 +88,31 @@ public sealed class AuthService : IAuthService
     {
         email = Normalize(email);
         var user = await _users.GetByEmailAsync(tenantId, email, ct);
+        return await CompletePasswordLoginAsync(tenantId, user, password, "password", info, ct);
+    }
 
+    public async Task<LoginResult> AuthenticateByPhoneAsync(Guid tenantId, string phone, string password, RequestInfo info, CancellationToken ct = default)
+    {
+        var normalized = Authly.Modules.Common.PhoneNumber.Normalize(phone) ?? string.Empty;
+        var user = string.IsNullOrEmpty(normalized) ? null : await _users.GetByVerifiedPhoneAsync(tenantId, normalized, ct);
+        return await CompletePasswordLoginAsync(tenantId, user, password, "password_phone", info, ct);
+    }
+
+    /// <summary>Shared password-login completion once the user has been resolved (by email or phone):
+    /// status check, password verify, session issue + login history. <paramref name="method"/> tags
+    /// the channel in login history.</summary>
+    private async Task<LoginResult> CompletePasswordLoginAsync(Guid tenantId, User? user, string password,
+        string method, RequestInfo info, CancellationToken ct)
+    {
         if (user is null)
         {
-            await RecordLoginAsync(tenantId, null, "failed", "unknown_user", "password", info, ct);
+            await RecordLoginAsync(tenantId, null, "failed", "unknown_user", method, info, ct);
             return new LoginResult(LoginOutcome.InvalidCredentials);
         }
 
         if (user.Status is UserStatus.Suspended or UserStatus.Deleted)
         {
-            await RecordLoginAsync(tenantId, user.Id, "blocked", $"status_{user.Status}".ToLowerInvariant(), "password", info, ct);
+            await RecordLoginAsync(tenantId, user.Id, "blocked", $"status_{user.Status}".ToLowerInvariant(), method, info, ct);
             await _audit.LogAsync("user.login", Actor(user.Id, info), tenantId, "user", user.Id,
                 result: "failure", metadata: new { reason = "blocked" }, ct: ct);
             return new LoginResult(LoginOutcome.Suspended, user);
@@ -105,13 +120,13 @@ public sealed class AuthService : IAuthService
 
         if (string.IsNullOrEmpty(user.PasswordHash) || !_passwordHasher.Verify(user.PasswordHash, password))
         {
-            await RecordLoginAsync(tenantId, user.Id, "failed", "bad_password", "password", info, ct);
+            await RecordLoginAsync(tenantId, user.Id, "failed", "bad_password", method, info, ct);
             await _audit.LogAsync("user.login", Actor(user.Id, info), tenantId, "user", user.Id,
                 result: "failure", metadata: new { reason = "bad_password" }, ct: ct);
             return new LoginResult(LoginOutcome.InvalidCredentials);
         }
 
-        var session = await StartSessionAsync(user, "password", info, ct);
+        var session = await StartSessionAsync(user, method, info, ct);
         return new LoginResult(LoginOutcome.Success, user, session);
     }
 

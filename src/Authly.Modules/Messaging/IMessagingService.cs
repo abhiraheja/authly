@@ -27,6 +27,10 @@ public interface IMessagingService
     Task SaveTemplateAsync(Guid tenantId, TemplateInput input, AuditContext actor, CancellationToken ct = default);
     Task DeleteTemplateAsync(Guid tenantId, Guid id, AuditContext actor, CancellationToken ct = default);
 
+    /// <summary>True when the tenant can send WhatsApp OTPs: an active WhatsApp provider is configured
+    /// AND the <c>otp</c> key is linked to an approved provider template. Gates phone-based auth.</summary>
+    Task<bool> IsWhatsAppOtpReadyAsync(Guid tenantId, CancellationToken ct = default);
+
     /// <summary>Lists the WhatsApp templates registered at the tenant's active WhatsApp provider (MSG91).</summary>
     Task<IReadOnlyList<WhatsAppRemoteTemplate>> SyncWhatsAppTemplatesAsync(Guid tenantId, CancellationToken ct = default);
 

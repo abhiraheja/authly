@@ -35,6 +35,10 @@ public interface IMfaService
     /// <summary>Generates and emails a fresh OTP (invalidating any outstanding one).</summary>
     Task SendEmailOtpAsync(Guid tenantId, User user, CancellationToken ct = default);
 
+    /// <summary>Generates and sends a fresh OTP to the user's phone over WhatsApp (invalidating any
+    /// outstanding one). Throws if the user has no phone number.</summary>
+    Task SendPhoneOtpAsync(Guid tenantId, User user, CancellationToken ct = default);
+
     // --- Backup codes ---
     Task<BackupCodesResult> GenerateBackupCodesAsync(Guid tenantId, Guid userId, AuditContext actor, CancellationToken ct = default);
     Task<int> CountUnusedBackupCodesAsync(Guid userId, CancellationToken ct = default);
@@ -42,5 +46,6 @@ public interface IMfaService
     // --- Login challenge verification ---
     Task<bool> VerifyTotpAsync(Guid tenantId, Guid userId, string code, AuditContext actor, CancellationToken ct = default);
     Task<bool> VerifyEmailOtpAsync(Guid tenantId, Guid userId, string code, AuditContext actor, CancellationToken ct = default);
+    Task<bool> VerifyPhoneOtpAsync(Guid tenantId, Guid userId, string code, AuditContext actor, CancellationToken ct = default);
     Task<bool> VerifyBackupCodeAsync(Guid tenantId, Guid userId, string rawCode, AuditContext actor, CancellationToken ct = default);
 }

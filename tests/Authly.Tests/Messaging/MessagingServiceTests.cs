@@ -317,6 +317,33 @@ public class MessagingServiceTests
     }
 
     [Fact]
+    public async Task WhatsAppOtpReady_false_without_provider()
+    {
+        var h = new Harness();
+        Assert.False(await h.Service.IsWhatsAppOtpReadyAsync(Tenant));
+    }
+
+    [Fact]
+    public async Task WhatsAppOtpReady_false_when_provider_but_no_otp_binding()
+    {
+        var h = new Harness();
+        await h.SetActiveWhatsAppProviderAsync("testwa", succeeds: true);
+        Assert.False(await h.Service.IsWhatsAppOtpReadyAsync(Tenant));
+    }
+
+    [Fact]
+    public async Task WhatsAppOtpReady_true_when_provider_and_otp_bound()
+    {
+        var h = new Harness();
+        await h.SetActiveWhatsAppProviderAsync("testwa", succeeds: true);
+        AddRemote(h, "authly_otp", "{{app_name}}: code {{otp}}");
+        await h.Service.BindWhatsAppTemplateValidatedAsync(Tenant, MessageTemplateKeys.Otp, "en",
+            "authly_otp", "en", AuditContext.System);
+
+        Assert.True(await h.Service.IsWhatsAppOtpReadyAsync(Tenant));
+    }
+
+    [Fact]
     public async Task Sync_without_active_provider_throws()
     {
         var h = new Harness();

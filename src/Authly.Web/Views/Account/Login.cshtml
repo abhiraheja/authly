@@ -8,7 +8,14 @@
     var showPasskey = ViewData["ShowPasskey"] as bool? ?? true;
     var showMagic = ViewData["ShowMagicLink"] as bool? ?? true;
     var showPhone = ViewData["AllowPhoneLogin"] as bool? ?? false;
-    var hasAlternatives = showPasskey || showMagic || showPhone;
+    var hasSocial = socialOptions.Count > 0;
+    // Primary inline credential area: password > passkey > phone. Phone is only the primary form when
+    // there's no email-based method; magic link & social are never the primary inline form.
+    var primary = showPassword ? "password" : showPasskey ? "passkey" : showPhone ? "phone" : "none";
+    // Secondary buttons = a method that isn't already the primary inline form.
+    var passkeyButton = showPasskey && primary != "passkey";
+    var phoneButton = showPhone && primary != "phone";
+    var hasSecondary = passkeyButton || showMagic || phoneButton;
     var brand = await Branding.GetAsync();
     var headingClass = brand.HeadingSize switch
     {
@@ -30,7 +37,9 @@
     <div class="card card-body !py-2.5 mb-4 flex items-center gap-2 border-l-4 border-l-danger text-sm"><i data-lucide="alert-circle" class="size-4 text-coral"></i>@error</div>
 }
 
-@if (socialOptions.Count > 0)
+@Html.AntiForgeryToken()
+
+@if (hasSocial)
 {
     <div class="space-y-2.5 mb-4">
         @foreach (var opt in socialOptions)
@@ -42,10 +51,15 @@
             </a>
         }
     </div>
-    <div class="my-4 flex items-center gap-3"><div class="h-px flex-1 bg-border"></div><span class="text-xs text-muted-foreground">or</span><div class="h-px flex-1 bg-border"></div></div>
+    @* Divider only when something follows the social buttons. *@
+    @if (primary != "none" || hasSecondary)
+    {
+        <div class="my-4 flex items-center gap-3"><div class="h-px flex-1 bg-border"></div><span class="text-xs text-muted-foreground">or</span><div class="h-px flex-1 bg-border"></div></div>
+    }
 }
 
-@if (showPassword)
+@* --- Primary inline credential method --- *@
+@if (primary == "password")
 {
     <form asp-controller="Account" asp-action="Login" method="post" class="space-y-4">
         <input type="hidden" asp-for="ReturnUrl" />
@@ -78,42 +92,58 @@
         <button type="submit" class="btn btn-primary btn-lg w-full">Sign in</button>
     </form>
 }
-else if (showPasskey)
+else if (primary == "passkey")
 {
-    @* Passkey needs an email to resolve the account; provide a standalone field when the password form is hidden. *@
-    <div class="space-y-1">
-        <label class="label">Email</label>
-        <input name="Email" class="input" autocomplete="username" placeholder="you@example.com" />
+    @* Passkey needs an email to resolve the account. *@
+    <div class="space-y-3">
+        <div>
+            <label class="label">Email</label>
+            <input name="Email" class="input" autocomplete="username" placeholder="you@example.com" />
+        </div>
+        <button type="button" id="passkeyBtn" class="btn btn-outline btn-lg w-full">
+            <i data-lucide="key-round" class="size-4"></i> Sign in with a passkey
+        </button>
     </div>
 }
+else if (primary == "phone")
+{
+    <partial name="_PhoneLoginForm" model="@Model.ReturnUrl" />
+}
 
-@if (showPassword && hasAlternatives)
+@* Divider between the primary form and the secondary buttons. *@
+@if (primary != "none" && hasSecondary)
 {
     <div class="my-4 flex items-center gap-3"><div class="h-px flex-1 bg-border"></div><span class="text-xs text-muted-foreground">or</span><div class="h-px flex-1 bg-border"></div></div>
 }
 
-@Html.AntiForgeryToken()
-<div class="space-y-2">
-    @if (showPasskey)
-    {
-        <button type="button" id="passkeyBtn" class="btn btn-outline w-full">
-            <i data-lucide="key-round" class="size-4"></i> Sign in with a passkey
-        </button>
-    }
-    @if (showMagic)
-    {
-        <a class="btn btn-outline w-full" asp-controller="Account" asp-action="MagicLink" asp-route-returnUrl="@Model.ReturnUrl">
-            <i data-lucide="mail" class="size-4"></i> Email me a sign-in link
-        </a>
-    }
-    @if (showPhone)
-    {
-        <a class="btn btn-outline w-full" asp-controller="Account" asp-action="PhoneLogin" asp-route-returnUrl="@Model.ReturnUrl">
-            <i data-lucide="smartphone" class="size-4"></i> Sign in with phone
-        </a>
-    }
-</div>
-<div id="passkeyError" class="text-danger text-xs text-center mt-2 hidden"></div>
+@* --- Secondary method buttons --- *@
+@if (hasSecondary)
+{
+    <div class="space-y-2">
+        @if (passkeyButton)
+        {
+            <button type="button" id="passkeyBtn" class="btn btn-outline w-full">
+                <i data-lucide="key-round" class="size-4"></i> Sign in with a passkey
+            </button>
+        }
+        @if (showMagic)
+        {
+            <a class="btn btn-outline w-full" asp-controller="Account" asp-action="MagicLink" asp-route-returnUrl="@Model.ReturnUrl">
+                <i data-lucide="mail" class="size-4"></i> Email me a sign-in link
+            </a>
+        }
+        @if (phoneButton)
+        {
+            <a class="btn btn-outline w-full" asp-controller="Account" asp-action="PhoneLogin" asp-route-returnUrl="@Model.ReturnUrl">
+                <i data-lucide="smartphone" class="size-4"></i> Sign in with phone
+            </a>
+        }
+    </div>
+}
+@if (showPasskey)
+{
+    <div id="passkeyError" class="text-danger text-xs text-center mt-2 hidden"></div>
+}
 
 @if (ViewData["AllowPasswordSignup"] as bool? ?? true)
 {

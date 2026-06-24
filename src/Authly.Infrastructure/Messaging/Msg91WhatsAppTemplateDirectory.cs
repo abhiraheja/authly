@@ -93,11 +93,16 @@ public sealed partial class Msg91WhatsAppTemplateDirectory : IWhatsAppTemplateDi
                             break;
                         }
 
-                var varCount = TryGetArray(lang, "variables", out var vars)
-                    ? vars.GetArrayLength()
-                    : CountPlaceholders(bodyText);
+                var hasVars = TryGetArray(lang, "variables", out var vars);
+                var varNames = hasVars ? ExtractVariableNames(vars) : null;
+                // Prefer the provider-reported names; for named templates the body carries {{name}}
+                // tokens which are the source of truth for binding validation.
+                if (varNames is null || varNames.Count == 0)
+                    varNames = ParseNamedPlaceholders(bodyText);
 
-                results.Add(new WhatsAppRemoteTemplate(name, language, status, category, bodyText, varCount));
+                var varCount = hasVars ? vars.GetArrayLength() : CountPlaceholders(bodyText);
+
+                results.Add(new WhatsAppRemoteTemplate(name, language, status, category, bodyText, varCount, varNames));
             }
         }
         return results;
@@ -122,8 +127,37 @@ public sealed partial class Msg91WhatsAppTemplateDirectory : IWhatsAppTemplateDi
     private static int CountPlaceholders(string? body)
         => string.IsNullOrEmpty(body) ? 0 : PlaceholderRegex().Matches(body).Select(m => m.Value).Distinct().Count();
 
+    /// <summary>The distinct named tokens (<c>{{otp}}</c>) referenced by a body, in first-seen order.
+    /// Pure-digit positional tokens (<c>{{1}}</c>) are included too so the bind validator can reject them.</summary>
+    private static IReadOnlyList<string> ParseNamedPlaceholders(string? body)
+        => string.IsNullOrEmpty(body)
+            ? Array.Empty<string>()
+            : NamedPlaceholderRegex().Matches(body).Select(m => m.Groups[1].Value).Distinct().ToList();
+
+    /// <summary>Reads variable names from MSG91's <c>variables</c> array, tolerating both bare string
+    /// entries and objects keyed by <c>name</c>/<c>value</c>/<c>field</c>.</summary>
+    private static IReadOnlyList<string> ExtractVariableNames(JsonElement vars)
+    {
+        var names = new List<string>();
+        foreach (var v in vars.EnumerateArray())
+        {
+            string? n = v.ValueKind switch
+            {
+                JsonValueKind.String => v.GetString(),
+                JsonValueKind.Object => Str(v, "name") ?? Str(v, "value") ?? Str(v, "field"),
+                _ => null
+            };
+            if (!string.IsNullOrWhiteSpace(n) && !names.Contains(n))
+                names.Add(n);
+        }
+        return names;
+    }
+
     private static string Truncate(string s) => s.Length > 300 ? s[..300] : s;
 
     [GeneratedRegex(@"\{\{\s*\d+\s*\}\}")]
     private static partial Regex PlaceholderRegex();
+
+    [GeneratedRegex(@"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")]
+    private static partial Regex NamedPlaceholderRegex();
 }

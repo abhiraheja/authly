@@ -1,0 +1,158 @@
+@using Authly.Web.Areas.TenantAdmin.Controllers
+@model WhatsAppIndexViewModel
+@{
+    var provider = Model.Provider;
+}
+
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">WhatsApp</h1>
+        <p class="text-sm text-muted-foreground mt-0.5">Configure WhatsApp delivery and link your approved templates to the messages Authly sends.</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <a class="btn btn-outline btn-sm" asp-area="TenantAdmin" asp-controller="WhatsApp" asp-action="Provider" asp-route-id="@provider?.Id">
+            <i data-lucide="settings" class="size-4"></i> Provider settings
+        </a>
+        <a class="btn btn-primary btn-sm" asp-area="TenantAdmin" asp-controller="WhatsApp" asp-action="Link">
+            <i data-lucide="link" class="size-4"></i> Link a template
+        </a>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-body">
+        <h6 class="flex items-center gap-2 font-semibold"><i data-lucide="message-circle" class="size-4"></i> WhatsApp provider</h6>
+        @if (provider is not null)
+        {
+            <p class="text-sm flex items-center gap-2 mb-0 mt-2">
+                <code>@provider.Provider</code>
+                @if (provider.IsActive) { <span class="badge badge-success">active</span> } else { <span class="badge badge-neutral">inactive</span> }
+            </p>
+        }
+        else
+        {
+            <p class="text-sm text-muted-foreground mb-0 mt-2">No provider configured — WhatsApp messages are logged locally. Configure MSG91 to send real messages.</p>
+        }
+    </div>
+</div>
+
+<div class="mt-2 mb-1 flex items-center gap-2">
+    <h2 class="font-display text-base font-semibold mt-4">Message types</h2>
+</div>
+<p class="text-sm text-muted-foreground mb-3">
+    Create each template in MSG91 / Meta using <strong>named</strong> variables (e.g. <code>{{otp}}</code>) drawn only from the allowed
+    list below — then link it here. Templates using an unknown variable or positional <code>{{1}}</code> placeholders can't be linked.
+</p>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+@foreach (var vset in Model.VariableSets)
+{
+    var binding = Model.Bindings.TryGetValue(vset.Key, out var b) ? b : null;
+    var isLinked = binding is not null && !string.IsNullOrWhiteSpace(binding.ProviderTemplateName);
+    <div class="card">
+        <div class="card-body">
+            <div class="flex items-center justify-between gap-2">
+                <h6 class="font-semibold flex items-center gap-2"><code>@vset.Key</code></h6>
+                @if (isLinked) { <span class="badge badge-success">linked</span> } else { <span class="badge badge-neutral">not linked</span> }
+            </div>
+
+            <div class="mt-3">
+                <div class="text-xs font-medium text-muted-foreground mb-1">Allowed variables</div>
+                <div class="flex flex-wrap gap-1">
+                    @foreach (var v in vset.Allowed)
+                    {
+                        if (v == vset.Required) { <span class="badge badge-warning" title="Required">{{@v}} *</span> }
+                        else { <span class="badge badge-neutral">{{@v}}</span> }
+                    }
+                </div>
+                <div class="text-xs text-muted-foreground mt-1">* required</div>
+            </div>
+
+            <div class="mt-3">
+                <div class="text-xs font-medium text-muted-foreground mb-1">Suggested template name &amp; category</div>
+                <p class="text-sm mb-0"><code>@vset.SuggestedName</code> &middot; <span class="badge badge-neutral">@vset.Category</span> &middot; <span class="text-muted-foreground">@vset.Language</span></p>
+            </div>
+
+            <div class="mt-3">
+                <div class="text-xs font-medium text-muted-foreground mb-1 flex items-center justify-between">
+                    <span>Recommended body</span>
+                    <button type="button" class="btn btn-ghost btn-xs js-copy" data-copy="@vset.RecommendedBody"><i data-lucide="copy" class="size-3"></i> Copy</button>
+                </div>
+                <pre class="text-xs bg-muted rounded p-2 whitespace-pre-wrap break-words mb-0">@vset.RecommendedBody</pre>
+            </div>
+
+            <hr class="my-3 border-border" />
+
+            @if (isLinked)
+            {
+                <p class="text-sm mb-2">Linked to <code>@binding!.ProviderTemplateName</code> <span class="badge badge-neutral">@binding.ProviderLanguage</span></p>
+                <div class="flex flex-wrap gap-2 items-center">
+                    <form asp-area="TenantAdmin" asp-controller="WhatsApp" asp-action="SendTest" method="post" class="flex gap-1 m-0">
+                        <input type="hidden" name="key" value="@vset.Key" />
+                        <input type="text" name="recipient" class="input input-sm" style="width:160px" placeholder="phone (E.164)" />
+                        <button type="submit" class="btn btn-outline btn-sm">Test</button>
+                    </form>
+                    @if (binding.Id is { } bid)
+                    {
+                        <form asp-area="TenantAdmin" asp-controller="WhatsApp" asp-action="Unlink" asp-route-id="@bid" method="post" class="m-0"
+                              onsubmit="return confirm('Unlink this template? OTP/verification will fall back to free text (24h window only).');">
+                            <button type="submit" class="btn btn-danger btn-sm">Unlink</button>
+                        </form>
+                    }
+                </div>
+            }
+            else
+            {
+                <a class="btn btn-primary btn-sm" asp-area="TenantAdmin" asp-controller="WhatsApp" asp-action="Link">
+                    <i data-lucide="link" class="size-4"></i> Link a template
+                </a>
+            }
+        </div>
+    </div>
+}
+</div>
+
+<div class="card mt-4">
+    <div class="card-body">
+        <h6 class="mb-3 font-semibold">Recent WhatsApp deliveries</h6>
+        @if (Model.Logs.Count == 0)
+        {
+            <p class="text-muted-foreground mb-0">No WhatsApp messages sent yet.</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto scroll-thin">
+                <table class="table">
+                    <thead><tr><th>When</th><th>Recipient</th><th>Template</th><th>Status</th><th>Error</th></tr></thead>
+                    <tbody>
+                    @foreach (var l in Model.Logs)
+                    {
+                        <tr>
+                            <td class="text-sm text-muted-foreground">@l.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td class="text-sm">@l.Recipient</td>
+                            <td class="text-sm"><code>@l.TemplateKey</code></td>
+                            <td>
+                                @if (l.Status == "sent") { <span class="badge badge-success">sent</span> }
+                                else if (l.Status == "failed") { <span class="badge badge-danger">failed</span> }
+                                else { <span class="badge badge-neutral">@l.Status</span> }
+                            </td>
+                            <td class="text-sm text-danger">@l.Error</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('.js-copy').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            navigator.clipboard.writeText(btn.getAttribute('data-copy') || '');
+            var original = btn.innerHTML;
+            btn.textContent = 'Copied';
+            setTimeout(function () { btn.innerHTML = original; if (window.lucide) lucide.createIcons(); }, 1200);
+        });
+    });
+</script>

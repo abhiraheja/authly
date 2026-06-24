@@ -1,0 +1,67 @@
+@model ProviderConfigInput
+@{
+    var configured = Model.Id is not null;
+}
+
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">WhatsApp provider</h1>
+        <p class="text-sm text-muted-foreground mt-0.5">Connect your MSG91 WhatsApp number so Authly can send template messages.</p>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-body">
+        <form asp-area="TenantAdmin" asp-controller="WhatsApp" asp-action="SaveProvider" method="post">
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="Channel" />
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label asp-for="Provider" class="label">Provider</label>
+                    <select asp-for="Provider" class="select">
+                        <option value="msg91">MSG91</option>
+                        <option value="gupshup">Gupshup</option>
+                        <option value="log">Log (dev)</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <label class="switch"><input asp-for="IsActive" type="checkbox" id="isActive" /><span class="track"></span></label>
+                    <span class="ml-2">Active</span>
+                </div>
+            </div>
+
+            <hr class="my-4 border-border" />
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label asp-for="Sender" class="label">Sender / integrated number</label>
+                    <input asp-for="Sender" class="input" placeholder="15550001111" />
+                </div>
+                <div>
+                    <label asp-for="AccountId" class="label">Account / namespace id</label>
+                    <input asp-for="AccountId" class="input" />
+                </div>
+                <div class="md:col-span-2">
+                    <label asp-for="ApiKey" class="label">API key / authkey @(configured ? "(leave blank to keep)" : "")</label>
+                    <input asp-for="ApiKey" type="password" class="input" autocomplete="new-password" />
+                </div>
+            </div>
+
+            <div class="flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary">Save</button>
+                <a class="btn btn-outline" asp-area="TenantAdmin" asp-controller="WhatsApp" asp-action="Index">Cancel</a>
+                @if (configured)
+                {
+                    <form asp-area="TenantAdmin" asp-controller="WhatsApp" asp-action="DeleteProvider" asp-route-id="@Model.Id" method="post"
+                          class="ms-auto" onsubmit="return confirm('Remove this provider? Delivery will fall back to local logging.');">
+                        <button type="submit" class="btn btn-danger">Remove</button>
+                    </form>
+                }
+            </div>
+        </form>
+    </div>
+</div>
+
+<p class="text-sm text-muted-foreground mt-3 flex items-center gap-2">
+    <i data-lucide="shield" class="size-4"></i> Secret fields (API keys) are encrypted at rest and never shown again after saving.
+</p>

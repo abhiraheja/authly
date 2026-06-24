@@ -35,6 +35,21 @@ public interface IMessagingService
     Task BindWhatsAppTemplateAsync(Guid tenantId, string key, string locale, string providerTemplateName,
         string providerLanguage, AuditContext actor, CancellationToken ct = default);
 
+    /// <summary>The allowed/required named variables for a WhatsApp-supported key (otp,
+    /// verify_new_contact), or null for unsupported keys.</summary>
+    WhatsAppVariableSet? GetWhatsAppVariableSet(string key);
+
+    /// <summary>Syncs the tenant's WhatsApp templates and annotates each with the named variables it
+    /// uses and a per-supported-key bind verdict (so the link UI can show what's bindable).</summary>
+    Task<IReadOnlyList<WhatsAppSyncedTemplate>> ListSyncableWhatsAppTemplatesAsync(Guid tenantId, CancellationToken ct = default);
+
+    /// <summary>Validating bind for the named-parameter flow: confirms the chosen approved template
+    /// uses only the key's allowed named variables (no unknown/positional) and includes the required
+    /// one, then persists the binding plus the ordered variable names. Throws
+    /// <see cref="TemplateValidationException"/> on any violation.</summary>
+    Task BindWhatsAppTemplateValidatedAsync(Guid tenantId, string key, string locale,
+        string providerTemplateName, string providerLanguage, AuditContext actor, CancellationToken ct = default);
+
     /// <summary>Renders a template against sample variables (no send).</summary>
     Task<RenderedPreview> PreviewAsync(Guid tenantId, string key, MessageChannel channel, string locale, IReadOnlyDictionary<string, string> sampleVariables, CancellationToken ct = default);
 

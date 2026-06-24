@@ -148,6 +148,110 @@ public class MessagingServiceTests
         Assert.Equal("778899", msg.WhatsAppParameters![0]); // {{1}} = otp, per the spec
     }
 
+    // --- named-parameter validated binding (new WhatsApp flow) --------------
+
+    private void AddRemote(Harness h, string name, string body, string status = "APPROVED", string lang = "en")
+        => h.Directory.Templates.Add(new WhatsAppRemoteTemplate(name, lang, status, "AUTHENTICATION", body, 0));
+
+    [Fact]
+    public async Task Validated_bind_accepts_template_with_only_allowed_named_vars()
+    {
+        var h = new Harness();
+        await h.SetActiveWhatsAppProviderAsync("testwa", succeeds: true);
+        AddRemote(h, "authly_otp", "{{app_name}}: code {{otp}} expires in {{expiry_minutes}} min");
+
+        await h.Service.BindWhatsAppTemplateValidatedAsync(Tenant, MessageTemplateKeys.Otp, "en",
+            "authly_otp", "en", AuditContext.System);
+
+        var stored = h.Templates.Items.Single(x => x.Key == MessageTemplateKeys.Otp && x.Channel == MessageChannel.WhatsApp);
+        Assert.Equal("authly_otp", stored.ProviderTemplateName);
+        Assert.NotNull(stored.ProviderVariables);
+        Assert.Contains("otp", stored.ProviderVariables!);
+    }
+
+    [Fact]
+    public async Task Validated_bind_rejects_unknown_variable()
+    {
+        var h = new Harness();
+        await h.SetActiveWhatsAppProviderAsync("testwa", succeeds: true);
+        AddRemote(h, "authly_otp", "{{coupon}} and {{otp}}");
+
+        await Assert.ThrowsAsync<TemplateValidationException>(() =>
+            h.Service.BindWhatsAppTemplateValidatedAsync(Tenant, MessageTemplateKeys.Otp, "en",
+                "authly_otp", "en", AuditContext.System));
+    }
+
+    [Fact]
+    public async Task Validated_bind_rejects_positional_placeholder()
+    {
+        var h = new Harness();
+        await h.SetActiveWhatsAppProviderAsync("testwa", succeeds: true);
+        AddRemote(h, "authly_otp", "{{1}} is your code");
+
+        await Assert.ThrowsAsync<TemplateValidationException>(() =>
+            h.Service.BindWhatsAppTemplateValidatedAsync(Tenant, MessageTemplateKeys.Otp, "en",
+                "authly_otp", "en", AuditContext.System));
+    }
+
+    [Fact]
+    public async Task Validated_bind_rejects_missing_required_variable()
+    {
+        var h = new Harness();
+        await h.SetActiveWhatsAppProviderAsync("testwa", succeeds: true);
+        AddRemote(h, "authly_otp", "Hello {{app_name}}, welcome");   // no {{otp}}
+
+        await Assert.ThrowsAsync<TemplateValidationException>(() =>
+            h.Service.BindWhatsAppTemplateValidatedAsync(Tenant, MessageTemplateKeys.Otp, "en",
+                "authly_otp", "en", AuditContext.System));
+    }
+
+    [Fact]
+    public async Task Validated_bind_rejects_unsupported_key()
+    {
+        var h = new Harness();
+        await h.SetActiveWhatsAppProviderAsync("testwa", succeeds: true);
+
+        await Assert.ThrowsAsync<TemplateValidationException>(() =>
+            h.Service.BindWhatsAppTemplateValidatedAsync(Tenant, MessageTemplateKeys.VerifyEmail, "en",
+                "anything", "en", AuditContext.System));
+    }
+
+    [Fact]
+    public async Task Send_uses_named_params_after_validated_bind()
+    {
+        var h = new Harness();
+        await h.SetActiveWhatsAppProviderAsync("testwa", succeeds: true);
+        AddRemote(h, "authly_otp", "{{app_name}}: code {{otp}} expires in {{expiry_minutes}} min", lang: "en_US");
+
+        await h.Service.BindWhatsAppTemplateValidatedAsync(Tenant, MessageTemplateKeys.Otp, "en",
+            "authly_otp", "en_US", AuditContext.System);
+
+        await h.Service.DeliverAsync(new MessageSendRequest(Tenant, MessageTemplateKeys.Otp,
+            MessageChannel.WhatsApp, "+15550001111", Vars(("otp", "778899"), ("expiry_minutes", "10"))));
+
+        var msg = h.WhatsApp.LastMessage!;
+        Assert.Equal("authly_otp", msg.WhatsAppTemplateName);
+        Assert.Equal("en_US", msg.WhatsAppLanguage);
+        Assert.NotNull(msg.WhatsAppNamedParameters);
+        Assert.Contains(msg.WhatsAppNamedParameters!, p => p.Name == "otp" && p.Value == "778899");
+    }
+
+    [Fact]
+    public async Task ListSyncable_annotates_bind_errors_per_key()
+    {
+        var h = new Harness();
+        await h.SetActiveWhatsAppProviderAsync("testwa", succeeds: true);
+        AddRemote(h, "good_otp", "{{app_name}}: code {{otp}} ({{expiry_minutes}}m)");
+        AddRemote(h, "bad_otp", "{{coupon}} {{otp}}");
+
+        var result = await h.Service.ListSyncableWhatsAppTemplatesAsync(Tenant);
+
+        var good = result.Single(r => r.Remote.Name == "good_otp");
+        var bad = result.Single(r => r.Remote.Name == "bad_otp");
+        Assert.Null(good.BindErrors[MessageTemplateKeys.Otp]);          // bindable
+        Assert.NotNull(bad.BindErrors[MessageTemplateKeys.Otp]);        // unknown var → error
+    }
+
     [Fact]
     public async Task Sync_returns_provider_templates()
     {

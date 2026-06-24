@@ -44,3 +44,17 @@ public sealed class SocialProviderConfigInvalidException : Exception
 {
     public SocialProviderConfigInvalidException(string message) : base(message) { }
 }
+
+/// <summary>
+/// Raised when a social login resolves to a brand-new identity (no linked account and no
+/// matching email) but the tenant has turned off self-service social sign-up. Existing accounts
+/// are unaffected — only just-in-time creation of a new account is refused.
+/// </summary>
+public sealed class SocialSignupDisabledException : Exception
+{
+    public string Provider { get; }
+
+    public SocialSignupDisabledException(string provider)
+        : base($"Social sign-up is disabled for this tenant; no account exists for the '{provider}' identity.")
+        => Provider = provider;
+}

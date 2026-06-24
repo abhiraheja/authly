@@ -23,6 +23,8 @@ public sealed class SecurityController : TenantAdminControllerBase
         var s = await _settings.GetAsync(TenantId, ct);
         return View(new SecuritySettingsViewModel
         {
+            AllowPasswordSignup = s.AllowPasswordSignup,
+            AllowSocialSignup = s.AllowSocialSignup,
             LockoutEnabled = s.LockoutEnabled,
             LockoutThreshold = s.LockoutThreshold,
             BreachedPasswordCheck = s.BreachedPasswordCheck,
@@ -51,6 +53,8 @@ public sealed class SecurityController : TenantAdminControllerBase
 
         await _settings.SaveAsync(TenantId, new TenantSecuritySettings
         {
+            AllowPasswordSignup = model.AllowPasswordSignup,
+            AllowSocialSignup = model.AllowSocialSignup,
             LockoutEnabled = model.LockoutEnabled,
             LockoutThreshold = model.LockoutThreshold,
             BreachedPasswordCheck = model.BreachedPasswordCheck,

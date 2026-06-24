@@ -6,6 +6,14 @@ namespace Authly.Modules.Security;
 /// </summary>
 public sealed class TenantSecuritySettings
 {
+    // --- Self-service sign-up policy ---
+    /// <summary>When false, the hosted register page is closed and only admin-provisioned
+    /// accounts can sign in (no self-service password sign-up).</summary>
+    public bool AllowPasswordSignup { get; set; } = true;
+    /// <summary>When false, social login may sign in or link to an EXISTING account but will not
+    /// just-in-time create a brand-new account from a social identity.</summary>
+    public bool AllowSocialSignup { get; set; } = true;
+
     // --- Account lockout ---
     public bool LockoutEnabled { get; set; } = true;
     /// <summary>Consecutive failures before the account is locked.</summary>

@@ -34,6 +34,7 @@ public sealed class AccountController : Controller
     private readonly Authly.Modules.Security.ISecurityScreeningService _screening;
     private readonly Authly.Modules.Security.IBlockListService _blockList;
     private readonly Authly.Modules.Security.IConditionalAccessService _conditional;
+    private readonly Authly.Modules.Security.ISecuritySettingsService _securitySettings;
     private readonly Authly.Web.Infrastructure.Security.SecurityViewState _securityView;
     private readonly Authly.Modules.Compliance.IConsentService _consent;
     private readonly Authly.Modules.Users.IImpersonationService _impersonation;
@@ -50,6 +51,7 @@ public sealed class AccountController : Controller
         Authly.Modules.Security.ISecurityScreeningService screening,
         Authly.Modules.Security.IBlockListService blockList,
         Authly.Modules.Security.IConditionalAccessService conditional,
+        Authly.Modules.Security.ISecuritySettingsService securitySettings,
         Authly.Web.Infrastructure.Security.SecurityViewState securityView,
         Authly.Modules.Compliance.IConsentService consent,
         Authly.Modules.Users.IImpersonationService impersonation,
@@ -69,6 +71,7 @@ public sealed class AccountController : Controller
         _screening = screening;
         _blockList = blockList;
         _conditional = conditional;
+        _securitySettings = securitySettings;
         _securityView = securityView;
         _consent = consent;
         _impersonation = impersonation;
@@ -83,6 +86,7 @@ public sealed class AccountController : Controller
     public async Task<IActionResult> Register(string? returnUrl = null, CancellationToken ct = default)
     {
         if (RequireTenant() is { } noTenant) return noTenant;
+        if (!await SignupAllowedAsync(ct)) return SignupClosed(returnUrl);
         ViewData["Title"] = "Create your account";
         await PopulateCaptchaAsync(ct);
         return View(new RegisterViewModel { ReturnUrl = returnUrl });
@@ -93,6 +97,8 @@ public sealed class AccountController : Controller
     public async Task<IActionResult> Register(RegisterViewModel model, CancellationToken ct)
     {
         if (RequireTenant() is { } noTenant) return noTenant;
+        // Server-side guard: the page may have been left open or the route hit directly.
+        if (!await SignupAllowedAsync(ct)) return SignupClosed(model.ReturnUrl);
         ViewData["Title"] = "Create your account";
         await PopulateCaptchaAsync(ct);
         if (!ModelState.IsValid) return View(model);
@@ -149,6 +155,7 @@ public sealed class AccountController : Controller
         if (RequireTenant() is { } noTenant) return noTenant;
         ViewData["Title"] = "Sign in";
         ViewData["SocialOptions"] = await _social.ListActiveOptionsAsync(_tenant.TenantId!.Value, ct);
+        ViewData["AllowPasswordSignup"] = await SignupAllowedAsync(ct);
         await PopulateCaptchaAsync(ct);
         return View(new UserLoginViewModel { ReturnUrl = returnUrl });
     }
@@ -498,6 +505,17 @@ public sealed class AccountController : Controller
     /// <summary>Returns a view result when no tenant is resolved; null when a tenant is in scope.</summary>
     private IActionResult? RequireTenant()
         => _tenant.HasTenant ? null : View("TenantRequired");
+
+    /// <summary>Whether self-service password sign-up is open for the current tenant.</summary>
+    private async Task<bool> SignupAllowedAsync(CancellationToken ct)
+        => (await _securitySettings.GetAsync(_tenant.TenantId!.Value, ct)).AllowPasswordSignup;
+
+    /// <summary>Sign-up is closed by policy: send the visitor to the login page with a notice.</summary>
+    private IActionResult SignupClosed(string? returnUrl)
+    {
+        TempData["Error"] = "Sign-ups are disabled. Contact your administrator for access.";
+        return RedirectToAction(nameof(Login), new { returnUrl = SafeReturnUrl(returnUrl) });
+    }
 
     /// <summary>
     /// Returns <paramref name="url"/> only if it is a safe local redirect target (the OAuth

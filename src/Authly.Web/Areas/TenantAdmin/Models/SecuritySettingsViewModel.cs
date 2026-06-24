@@ -5,6 +5,12 @@ namespace Authly.Web.Areas.TenantAdmin.Models;
 /// <summary>Tenant-admin form for the workspace security policy (Phase 12).</summary>
 public sealed class SecuritySettingsViewModel
 {
+    [Display(Name = "Allow self-service password sign-up")]
+    public bool AllowPasswordSignup { get; set; } = true;
+
+    [Display(Name = "Allow new account creation via social login")]
+    public bool AllowSocialSignup { get; set; } = true;
+
     [Display(Name = "Lock accounts after repeated failures")]
     public bool LockoutEnabled { get; set; } = true;
 

@@ -84,10 +84,13 @@
 </div>
 <div id="passkeyError" class="text-danger text-xs text-center mt-2 hidden"></div>
 
-<p class="text-center text-sm text-muted-foreground mt-6">
-    Don't have an account? <a class="text-primary hover:underline" asp-controller="Account" asp-action="Register" asp-route-returnUrl="@Model.ReturnUrl">Create one</a>
-</p>
-<p class="text-center text-sm text-muted-foreground">
+@if (ViewData["AllowPasswordSignup"] as bool? ?? true)
+{
+    <p class="text-center text-sm text-muted-foreground mt-6">
+        Don't have an account? <a class="text-primary hover:underline" asp-controller="Account" asp-action="Register" asp-route-returnUrl="@Model.ReturnUrl">Create one</a>
+    </p>
+}
+<p class="text-center text-sm text-muted-foreground @(ViewData["AllowPasswordSignup"] as bool? ?? true ? "" : "mt-6")">
     <a class="text-primary hover:underline" asp-controller="Account" asp-action="RecoverRequest" asp-route-returnUrl="@Model.ReturnUrl">Can't access your account?</a>
 </p>
 

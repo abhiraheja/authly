@@ -6,6 +6,7 @@ using Authly.Core.OAuth;
 using Authly.Modules.Audit;
 using Authly.Modules.Auth;
 using Authly.Modules.Common;
+using Authly.Modules.Security;
 using Microsoft.Extensions.Logging;
 
 namespace Authly.Modules.Social;
@@ -20,6 +21,7 @@ public sealed class SocialLoginService : ISocialLoginService
     private readonly ISocialAuthGateway _gateway;
     private readonly IEncryptionService _encryption;
     private readonly IAuditLogger _audit;
+    private readonly ISecuritySettingsService _securitySettings;
     private readonly ILogger<SocialLoginService> _logger;
 
     public SocialLoginService(
@@ -30,6 +32,7 @@ public sealed class SocialLoginService : ISocialLoginService
         ISocialAuthGateway gateway,
         IEncryptionService encryption,
         IAuditLogger audit,
+        ISecuritySettingsService securitySettings,
         ILogger<SocialLoginService> logger)
     {
         _providers = providers;
@@ -39,6 +42,7 @@ public sealed class SocialLoginService : ISocialLoginService
         _gateway = gateway;
         _encryption = encryption;
         _audit = audit;
+        _securitySettings = securitySettings;
         _logger = logger;
     }
 
@@ -98,6 +102,12 @@ public sealed class SocialLoginService : ISocialLoginService
             }
             else
             {
+                // No linked identity and no existing account → this would just-in-time create a
+                // brand-new account. Refuse when the tenant has closed social sign-up.
+                var settings = await _securitySettings.GetAsync(tenantId, ct);
+                if (!settings.AllowSocialSignup)
+                    throw new SocialSignupDisabledException(provider);
+
                 user = new User
                 {
                     TenantId = tenantId,

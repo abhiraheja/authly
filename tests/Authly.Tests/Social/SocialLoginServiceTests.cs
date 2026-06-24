@@ -100,6 +100,36 @@ public class SocialLoginServiceTests
     }
 
     [Fact]
+    public async Task Social_signup_disabled_blocks_brand_new_account_creation()
+    {
+        var h = new Harness();
+        h.ConfigureGoogle();
+        h.Security.Settings.AllowSocialSignup = false;
+
+        await Assert.ThrowsAsync<SocialSignupDisabledException>(() =>
+            h.Service.CompleteLoginAsync(Tenant, "google", "code", "https://x/cb", RequestInfo.Unknown));
+        Assert.Empty(h.Users.Items);
+        Assert.Empty(h.Identities.Items);
+    }
+
+    [Fact]
+    public async Task Social_signup_disabled_still_links_an_existing_account()
+    {
+        var h = new Harness();
+        h.ConfigureGoogle();
+        h.Security.Settings.AllowSocialSignup = false;
+        var existing = new User { Id = Guid.NewGuid(), TenantId = Tenant, Email = "ada@example.com", PasswordHash = "argon" };
+        h.Users.Items.Add(existing);
+
+        var result = await h.Service.CompleteLoginAsync(Tenant, "google", "code", "https://x/cb", RequestInfo.Unknown);
+
+        Assert.False(result.IsNewUser);
+        Assert.True(result.Linked);                          // existing account => allowed even when signup is off
+        Assert.Equal(existing.Id, result.User.Id);
+        Assert.Single(h.Identities.Items);
+    }
+
+    [Fact]
     public async Task Unconfigured_provider_cannot_start_a_login()
     {
         var h = new Harness();
@@ -129,19 +159,30 @@ public class SocialLoginServiceTests
         public readonly FakeGateway Gateway = new();
         public readonly AesEncryptionService Encryption =
             new(Options.Create(new EncryptionOptions { Key = "3J8mZ1qg9X0vQpYb2sR7tU4wK6nL5cD8eF1aH0iJ2kM=" }));
+        public readonly FakeSecuritySettings Security = new();
         public readonly SocialLoginService Service;
 
         public Harness()
         {
             Gateway.UserInfoJson = GoogleProfile;
             Service = new SocialLoginService(Providers, Identities, Users, Auth, Gateway, Encryption,
-                new RecordingAuditLogger(), NullLogger<SocialLoginService>.Instance);
+                new RecordingAuditLogger(), Security, NullLogger<SocialLoginService>.Instance);
         }
 
         public void ConfigureGoogle() => Providers.Items.Add(new SocialProvider
         {
             Id = Guid.NewGuid(), TenantId = Tenant, Provider = "google", ClientId = "cid", IsActive = true
         });
+    }
+
+    private sealed class FakeSecuritySettings : Authly.Modules.Security.ISecuritySettingsService
+    {
+        public Authly.Modules.Security.TenantSecuritySettings Settings { get; set; } = new();
+        public Task<Authly.Modules.Security.TenantSecuritySettings> GetAsync(Guid tenantId, CancellationToken ct = default)
+            => Task.FromResult(Settings);
+        public Task SaveAsync(Guid tenantId, Authly.Modules.Security.TenantSecuritySettings settings, string? newCaptchaSecret, AuditContext actor, CancellationToken ct = default)
+            => Task.CompletedTask;
+        public string? DecryptCaptchaSecret(Authly.Modules.Security.TenantSecuritySettings settings) => null;
     }
 
     private sealed class FakeGateway : ISocialAuthGateway

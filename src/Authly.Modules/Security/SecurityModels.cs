@@ -21,6 +21,17 @@ public sealed class TenantSecuritySettings
     /// Only effective when WhatsApp is configured and the OTP template is linked.</summary>
     public bool AllowPhoneLogin { get; set; }
 
+    // --- Sign-in methods (which login options the hosted login page offers) ---
+    // Defaults true so existing tenants (whose stored JSON lacks these keys) keep every method on.
+    /// <summary>Offer email + password sign-in.</summary>
+    public bool AllowPasswordLogin { get; set; } = true;
+    /// <summary>Offer the emailed "magic" sign-in link.</summary>
+    public bool AllowMagicLinkLogin { get; set; } = true;
+    /// <summary>Offer passkey (WebAuthn) sign-in.</summary>
+    public bool AllowPasskeyLogin { get; set; } = true;
+    /// <summary>Offer social sign-in. Only effective when at least one social provider is active.</summary>
+    public bool AllowSocialLogin { get; set; } = true;
+
     // --- Account lockout ---
     public bool LockoutEnabled { get; set; } = true;
     /// <summary>Consecutive failures before the account is locked.</summary>

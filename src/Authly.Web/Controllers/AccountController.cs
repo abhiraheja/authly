@@ -38,6 +38,7 @@ public sealed class AccountController : Controller
     private readonly Authly.Modules.Security.IBlockListService _blockList;
     private readonly Authly.Modules.Security.IConditionalAccessService _conditional;
     private readonly Authly.Modules.Security.ISecuritySettingsService _securitySettings;
+    private readonly Authly.Modules.Security.IAuthMethodPolicy _authMethods;
     private readonly Authly.Web.Infrastructure.Security.SecurityViewState _securityView;
     private readonly Authly.Modules.Compliance.IConsentService _consent;
     private readonly Authly.Modules.Users.IImpersonationService _impersonation;
@@ -59,6 +60,7 @@ public sealed class AccountController : Controller
         Authly.Modules.Security.IBlockListService blockList,
         Authly.Modules.Security.IConditionalAccessService conditional,
         Authly.Modules.Security.ISecuritySettingsService securitySettings,
+        Authly.Modules.Security.IAuthMethodPolicy authMethods,
         Authly.Web.Infrastructure.Security.SecurityViewState securityView,
         Authly.Modules.Compliance.IConsentService consent,
         Authly.Modules.Users.IImpersonationService impersonation,
@@ -83,6 +85,7 @@ public sealed class AccountController : Controller
         _blockList = blockList;
         _conditional = conditional;
         _securitySettings = securitySettings;
+        _authMethods = authMethods;
         _securityView = securityView;
         _consent = consent;
         _impersonation = impersonation;
@@ -195,9 +198,17 @@ public sealed class AccountController : Controller
     {
         if (RequireTenant() is { } noTenant) return noTenant;
         ViewData["Title"] = "Sign in";
-        ViewData["SocialOptions"] = await _social.ListActiveOptionsAsync(_tenant.TenantId!.Value, ct);
+        var tenantId = _tenant.TenantId!.Value;
+        var methods = await _authMethods.GetEffectiveAsync(tenantId, ct);
+        ViewData["ShowPasswordLogin"] = methods.Password;
+        ViewData["ShowMagicLink"] = methods.MagicLink;
+        ViewData["ShowPasskey"] = methods.Passkey;
+        ViewData["AllowPhoneLogin"] = methods.Phone;
+        // Social buttons only when the method is on AND a provider is active.
+        ViewData["SocialOptions"] = methods.Social
+            ? await _social.ListActiveOptionsAsync(tenantId, ct)
+            : System.Array.Empty<Authly.Modules.Social.SocialLoginOption>();
         ViewData["AllowPasswordSignup"] = await SignupAllowedAsync(ct);
-        ViewData["AllowPhoneLogin"] = await PhoneAuthEnabledAsync(login: true, ct);
         await PopulateCaptchaAsync(ct);
         return View(new UserLoginViewModel { ReturnUrl = returnUrl });
     }
@@ -213,6 +224,13 @@ public sealed class AccountController : Controller
 
         var tenantId = _tenant.TenantId!.Value;
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+        // Sign-in method must be enabled (the UI hides the form when it isn't; this guards direct posts).
+        if (!(await _securitySettings.GetAsync(tenantId, ct)).AllowPasswordLogin)
+        {
+            ModelState.AddModelError(string.Empty, "Password sign-in isn't available.");
+            return View(model);
+        }
 
         // Network allow/block list.
         if (!await _blockList.IsIpAllowedAsync(tenantId, ip, ct) || await _blockList.IsIpBlockedAsync(tenantId, ip, ct))
@@ -412,9 +430,11 @@ public sealed class AccountController : Controller
     // --- Magic link (passwordless) ---
 
     [HttpGet("magic-link")]
-    public IActionResult MagicLink(string? returnUrl = null)
+    public async Task<IActionResult> MagicLink(string? returnUrl = null, CancellationToken ct = default)
     {
         if (RequireTenant() is { } noTenant) return noTenant;
+        if (!(await _securitySettings.GetAsync(_tenant.TenantId!.Value, ct)).AllowMagicLinkLogin)
+            return RedirectToAction(nameof(Login), new { returnUrl = SafeReturnUrl(returnUrl) });
         ViewData["Title"] = "Email me a sign-in link";
         return View(new EmailOnlyViewModel { ReturnUrl = returnUrl });
     }
@@ -424,6 +444,8 @@ public sealed class AccountController : Controller
     public async Task<IActionResult> MagicLink(EmailOnlyViewModel model, CancellationToken ct)
     {
         if (RequireTenant() is { } noTenant) return noTenant;
+        if (!(await _securitySettings.GetAsync(_tenant.TenantId!.Value, ct)).AllowMagicLinkLogin)
+            return RedirectToAction(nameof(Login), new { returnUrl = SafeReturnUrl(model.ReturnUrl) });
         ViewData["Title"] = "Email me a sign-in link";
         if (!ModelState.IsValid) return View(model);
 

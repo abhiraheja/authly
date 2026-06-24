@@ -24,15 +24,18 @@ public sealed class PasskeyController : Controller
     private readonly IAuthService _auth;
     private readonly ITenantContext _tenant;
     private readonly WebAuthnChallengeStore _store;
+    private readonly Authly.Modules.Security.ISecuritySettingsService _securitySettings;
 
     public PasskeyController(IPasskeyService passkeys, IUserRepository users, IAuthService auth,
-        ITenantContext tenant, WebAuthnChallengeStore store)
+        ITenantContext tenant, WebAuthnChallengeStore store,
+        Authly.Modules.Security.ISecuritySettingsService securitySettings)
     {
         _passkeys = passkeys;
         _users = users;
         _auth = auth;
         _tenant = tenant;
         _store = store;
+        _securitySettings = securitySettings;
     }
 
     [HttpPost("options")]
@@ -42,6 +45,8 @@ public sealed class PasskeyController : Controller
         if (!_tenant.HasTenant) return BadRequest(new { error = "no_tenant" });
 
         var tenantId = _tenant.TenantId!.Value;
+        if (!(await _securitySettings.GetAsync(tenantId, ct)).AllowPasskeyLogin)
+            return BadRequest(new { error = "disabled" });
         var user = await _users.GetByEmailAsync(tenantId, (email ?? "").Trim().ToLowerInvariant(), ct);
         if (user is null) return BadRequest(new { error = "no_passkey" });
 

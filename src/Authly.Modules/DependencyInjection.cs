@@ -64,6 +64,7 @@ public static class DependencyInjection
 
         // Phase 12 — security hardening.
         services.AddScoped<ISecuritySettingsService, SecuritySettingsService>();
+        services.AddScoped<IAuthMethodPolicy, AuthMethodPolicy>();
         services.AddScoped<IBlockListService, BlockListService>();
         services.AddScoped<IAccountLockoutService, AccountLockoutService>();
         services.AddScoped<ISecurityScreeningService, SecurityScreeningService>();

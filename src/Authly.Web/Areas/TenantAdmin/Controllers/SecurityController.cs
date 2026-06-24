@@ -1,6 +1,7 @@
 using Authly.Core.Interfaces;
 using Authly.Modules.Messaging;
 using Authly.Modules.Security;
+using Authly.Modules.Social;
 using Authly.Web.Areas.TenantAdmin.Models;
 using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
@@ -13,11 +14,16 @@ public sealed class SecurityController : TenantAdminControllerBase
 {
     private readonly ISecuritySettingsService _settings;
     private readonly IMessagingService _messaging;
+    private readonly ISocialLoginService _social;
+    private readonly IAuthMethodPolicy _authMethods;
 
-    public SecurityController(ISecuritySettingsService settings, IMessagingService messaging, ITenantContext tenant) : base(tenant)
+    public SecurityController(ISecuritySettingsService settings, IMessagingService messaging,
+        ISocialLoginService social, IAuthMethodPolicy authMethods, ITenantContext tenant) : base(tenant)
     {
         _settings = settings;
         _messaging = messaging;
+        _social = social;
+        _authMethods = authMethods;
     }
 
     [RequireOperatorPermission("project.read")]
@@ -27,6 +33,7 @@ public sealed class SecurityController : TenantAdminControllerBase
         ViewData["Title"] = "Security";
         var s = await _settings.GetAsync(TenantId, ct);
         var whatsAppReady = await _messaging.IsWhatsAppOtpReadyAsync(TenantId, ct);
+        var hasSocial = (await _social.ListActiveOptionsAsync(TenantId, ct)).Count > 0;
         return View(new SecuritySettingsViewModel
         {
             AllowPasswordSignup = s.AllowPasswordSignup,
@@ -34,6 +41,11 @@ public sealed class SecurityController : TenantAdminControllerBase
             AllowPhoneSignup = s.AllowPhoneSignup,
             AllowPhoneLogin = s.AllowPhoneLogin,
             WhatsAppOtpReady = whatsAppReady,
+            AllowPasswordLogin = s.AllowPasswordLogin,
+            AllowMagicLinkLogin = s.AllowMagicLinkLogin,
+            AllowPasskeyLogin = s.AllowPasskeyLogin,
+            AllowSocialLogin = s.AllowSocialLogin,
+            HasSocialProvider = hasSocial,
             LockoutEnabled = s.LockoutEnabled,
             LockoutThreshold = s.LockoutThreshold,
             BreachedPasswordCheck = s.BreachedPasswordCheck,
@@ -59,19 +71,30 @@ public sealed class SecurityController : TenantAdminControllerBase
     {
         ViewData["Title"] = "Security";
         var whatsAppReady = await _messaging.IsWhatsAppOtpReadyAsync(TenantId, ct);
-        if (!ModelState.IsValid)
+        var hasSocial = (await _social.ListActiveOptionsAsync(TenantId, ct)).Count > 0;
+
+        IActionResult Rerender()
         {
             model.WhatsAppOtpReady = whatsAppReady;
+            model.HasSocialProvider = hasSocial;
             return View(model);
         }
 
-        await _settings.SaveAsync(TenantId, new TenantSecuritySettings
+        if (!ModelState.IsValid) return Rerender();
+
+        var settings = new TenantSecuritySettings
         {
             AllowPasswordSignup = model.AllowPasswordSignup,
             AllowSocialSignup = model.AllowSocialSignup,
             // Phone auth can only be enabled when WhatsApp + the OTP template are ready (server guard).
             AllowPhoneSignup = whatsAppReady && model.AllowPhoneSignup,
             AllowPhoneLogin = whatsAppReady && model.AllowPhoneLogin,
+            // Sign-in methods. Social can only be enabled when a provider is active (server guard);
+            // password/magic/passkey have no prerequisite.
+            AllowPasswordLogin = model.AllowPasswordLogin,
+            AllowMagicLinkLogin = model.AllowMagicLinkLogin,
+            AllowPasskeyLogin = model.AllowPasskeyLogin,
+            AllowSocialLogin = hasSocial && model.AllowSocialLogin,
             LockoutEnabled = model.LockoutEnabled,
             LockoutThreshold = model.LockoutThreshold,
             BreachedPasswordCheck = model.BreachedPasswordCheck,
@@ -86,7 +109,18 @@ public sealed class SecurityController : TenantAdminControllerBase
             ConditionalAccessEnabled = model.ConditionalAccessEnabled,
             NewDeviceAction = model.NewDeviceAction,
             UnverifiedEmailAction = model.UnverifiedEmailAction
-        }, model.CaptchaSecret, CurrentAudit(), ct);
+        };
+
+        // At least one sign-in method must actually work, or the tenant locks everyone out.
+        var effective = await _authMethods.GetEffectiveAsync(TenantId, settings, ct);
+        if (!effective.Any)
+        {
+            ModelState.AddModelError(nameof(model.AllowPasswordLogin),
+                "At least one sign-in method must remain enabled.");
+            return Rerender();
+        }
+
+        await _settings.SaveAsync(TenantId, settings, model.CaptchaSecret, CurrentAudit(), ct);
 
         TempData["Success"] = "Security settings saved.";
         return RedirectToAction(nameof(Index));

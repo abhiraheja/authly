@@ -83,6 +83,7 @@ internal sealed class FakeUserRepo : IUserRepository
 
     // Unused by these tests.
     public Task<User?> GetByEmailAsync(Guid tenantId, string email, CancellationToken ct = default) => Task.FromResult<User?>(null);
+    public Task<User?> GetByVerifiedPhoneAsync(Guid tenantId, string normalizedPhone, CancellationToken ct = default) => Task.FromResult<User?>(null);
     public Task<IReadOnlyList<User>> ListByTenantAsync(Guid tenantId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<User>>(Array.Empty<User>());
     public Task<Authly.Core.Common.PagedResult<User>> ListPagedAsync(Guid tenantId, Authly.Core.Common.Pagination page, string? emailContains = null, CancellationToken ct = default) => throw new NotImplementedException();
     public Task DeleteAsync(User user, CancellationToken ct = default) => Task.CompletedTask;
@@ -106,6 +107,7 @@ internal sealed class FakeAuth : IAuthService
     // Unused by these tests.
     public Task<User> RegisterAsync(Guid tenantId, RegisterRequest request, RequestInfo info, CancellationToken ct = default) => throw new NotImplementedException();
     public Task<LoginResult> AuthenticateAsync(Guid tenantId, string email, string password, RequestInfo info, CancellationToken ct = default) => throw new NotImplementedException();
+    public Task<LoginResult> AuthenticateByPhoneAsync(Guid tenantId, string phone, string password, RequestInfo info, CancellationToken ct = default) => throw new NotImplementedException();
     public Task ResendVerificationEmailAsync(Guid tenantId, string email, CancellationToken ct = default) => throw new NotImplementedException();
     public Task<bool> VerifyEmailAsync(Guid tenantId, string rawToken, CancellationToken ct = default) => throw new NotImplementedException();
     public Task RequestPasswordResetAsync(Guid tenantId, string email, RequestInfo info, CancellationToken ct = default) => throw new NotImplementedException();

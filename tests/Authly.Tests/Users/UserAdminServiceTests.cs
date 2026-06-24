@@ -97,6 +97,8 @@ public class UserAdminServiceTests
             => Task.FromResult(Items.FirstOrDefault(u => u.TenantId == tenantId && u.Id == id));
         public Task<User?> GetByEmailAsync(Guid tenantId, string email, CancellationToken ct = default)
             => Task.FromResult(Items.FirstOrDefault(u => u.TenantId == tenantId && u.Email == email));
+        public Task<User?> GetByVerifiedPhoneAsync(Guid tenantId, string normalizedPhone, CancellationToken ct = default)
+            => Task.FromResult(Items.FirstOrDefault(u => u.TenantId == tenantId && u.PhoneVerified && u.Phone == normalizedPhone));
         public Task<bool> EmailExistsAsync(Guid tenantId, string email, CancellationToken ct = default)
             => Task.FromResult(Items.Any(u => u.TenantId == tenantId && u.Email == email));
         public Task<IReadOnlyList<User>> ListByTenantAsync(Guid tenantId, CancellationToken ct = default)
@@ -147,6 +149,7 @@ public class UserAdminServiceTests
         // Unused by UserAdminService:
         public Task<User> RegisterAsync(Guid tenantId, RegisterRequest request, RequestInfo info, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<LoginResult> AuthenticateAsync(Guid tenantId, string email, string password, RequestInfo info, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<LoginResult> AuthenticateByPhoneAsync(Guid tenantId, string phone, string password, RequestInfo info, CancellationToken ct = default) => throw new NotImplementedException();
         public Task ResendVerificationEmailAsync(Guid tenantId, string email, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<bool> VerifyEmailAsync(Guid tenantId, string rawToken, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<bool> ResetPasswordAsync(Guid tenantId, string rawToken, string newPassword, CancellationToken ct = default) => throw new NotImplementedException();

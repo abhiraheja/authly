@@ -94,6 +94,46 @@ public class AuthServiceTests
     }
 
     [Fact]
+    public async Task AuthenticateByPhone_succeeds_for_verified_phone_and_correct_password()
+    {
+        var h = new Harness();
+        var user = await h.Service.RegisterAsync(Tenant, new RegisterRequest("p@example.com", "Sup3rSecret!"), RequestInfo.Unknown);
+        user.Phone = "+919876543210";
+        user.PhoneVerified = true;
+
+        // Different formatting of the same number still resolves.
+        var result = await h.Service.AuthenticateByPhoneAsync(Tenant, "+91 98765 43210", "Sup3rSecret!", RequestInfo.Unknown);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(user.Id, result.User!.Id);
+        Assert.Contains(h.Logins.Items, l => l.Result == "success" && l.Method == "password_phone");
+    }
+
+    [Fact]
+    public async Task AuthenticateByPhone_fails_when_phone_is_unverified()
+    {
+        var h = new Harness();
+        var user = await h.Service.RegisterAsync(Tenant, new RegisterRequest("p@example.com", "Sup3rSecret!"), RequestInfo.Unknown);
+        user.Phone = "+919876543210";
+        user.PhoneVerified = false; // not verified → not matchable
+
+        var result = await h.Service.AuthenticateByPhoneAsync(Tenant, "+919876543210", "Sup3rSecret!", RequestInfo.Unknown);
+        Assert.Equal(LoginOutcome.InvalidCredentials, result.Outcome);
+    }
+
+    [Fact]
+    public async Task AuthenticateByPhone_fails_for_wrong_password()
+    {
+        var h = new Harness();
+        var user = await h.Service.RegisterAsync(Tenant, new RegisterRequest("p@example.com", "Sup3rSecret!"), RequestInfo.Unknown);
+        user.Phone = "+919876543210";
+        user.PhoneVerified = true;
+
+        var result = await h.Service.AuthenticateByPhoneAsync(Tenant, "+919876543210", "wrong", RequestInfo.Unknown);
+        Assert.Equal(LoginOutcome.InvalidCredentials, result.Outcome);
+    }
+
+    [Fact]
     public async Task VerifyEmail_consumes_token_once_then_rejects_reuse()
     {
         var h = new Harness();
@@ -179,6 +219,8 @@ public class AuthServiceTests
             => Task.FromResult(Items.FirstOrDefault(u => u.TenantId == tenantId && u.Id == id));
         public Task<User?> GetByEmailAsync(Guid tenantId, string email, CancellationToken ct = default)
             => Task.FromResult(Items.FirstOrDefault(u => u.TenantId == tenantId && u.Email == email));
+        public Task<User?> GetByVerifiedPhoneAsync(Guid tenantId, string normalizedPhone, CancellationToken ct = default)
+            => Task.FromResult(Items.FirstOrDefault(u => u.TenantId == tenantId && u.PhoneVerified && u.Phone == normalizedPhone));
         public Task<bool> EmailExistsAsync(Guid tenantId, string email, CancellationToken ct = default)
             => Task.FromResult(Items.Any(u => u.TenantId == tenantId && u.Email == email));
         public Task<IReadOnlyList<User>> ListByTenantAsync(Guid tenantId, CancellationToken ct = default)

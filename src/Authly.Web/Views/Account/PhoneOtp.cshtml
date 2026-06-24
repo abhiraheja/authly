@@ -1,0 +1,26 @@
+@model PhoneOtpViewModel
+@{
+    Layout = "_AuthLayout";
+}
+
+<h2 class="font-display text-2xl font-bold">Enter your code</h2>
+<p class="text-sm text-muted-foreground mt-1 mb-6">We sent a verification code to your WhatsApp. Enter it below to continue.</p>
+
+<form asp-controller="Account" asp-action="PhoneOtp" method="post" class="space-y-4">
+    <input type="hidden" asp-for="ReturnUrl" />
+    <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
+
+    <div>
+        <label asp-for="Code" class="label">Verification code</label>
+        <input asp-for="Code" class="input text-center tracking-[0.4em] text-lg" autocomplete="one-time-code"
+               inputmode="numeric" maxlength="8" placeholder="------" autofocus />
+        <span asp-validation-for="Code" class="text-danger text-xs"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-lg w-full">Verify &amp; continue</button>
+</form>
+
+<p class="text-center text-sm text-muted-foreground mt-6">
+    Didn't get it?
+    <a class="text-primary hover:underline" asp-controller="Account" asp-action="PhoneLogin" asp-route-returnUrl="@Model.ReturnUrl">Try again</a>
+</p>

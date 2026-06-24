@@ -27,6 +27,16 @@
         </div>
     </div>
 
+    @if (ViewData["AllowPhoneSignup"] as bool? ?? false)
+    {
+        <div>
+            <label asp-for="Phone" class="label">Mobile number <span class="text-muted-foreground font-normal">(optional)</span></label>
+            <input asp-for="Phone" class="input" autocomplete="tel" inputmode="tel" placeholder="+91 98765 43210" />
+            <span asp-validation-for="Phone" class="text-danger text-xs"></span>
+            <p class="mt-1 text-xs text-muted-foreground">We'll send a WhatsApp code to verify it so you can sign in by phone.</p>
+        </div>
+    }
+
     <div>
         <label asp-for="Password" class="label">Password</label>
         <input asp-for="Password" class="input" autocomplete="new-password" placeholder="••••••••" />

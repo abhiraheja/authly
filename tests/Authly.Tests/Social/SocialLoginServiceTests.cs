@@ -200,6 +200,7 @@ public class SocialLoginServiceTests
             => Task.FromResult(new Session { Id = Guid.NewGuid(), UserId = user.Id, TenantId = user.TenantId, ExpiresAt = DateTimeOffset.UtcNow.AddHours(1) });
         public Task<User> RegisterAsync(Guid t, RegisterRequest r, RequestInfo i, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<LoginResult> AuthenticateAsync(Guid t, string e, string p, RequestInfo i, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<LoginResult> AuthenticateByPhoneAsync(Guid t, string phone, string p, RequestInfo i, CancellationToken ct = default) => throw new NotImplementedException();
         public Task ResendVerificationEmailAsync(Guid t, string e, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<bool> VerifyEmailAsync(Guid t, string tok, CancellationToken ct = default) => throw new NotImplementedException();
         public Task RequestPasswordResetAsync(Guid t, string e, RequestInfo i, CancellationToken ct = default) => throw new NotImplementedException();
@@ -245,6 +246,8 @@ public class SocialLoginServiceTests
             => Task.FromResult(Items.FirstOrDefault(u => u.TenantId == t && u.Id == id));
         public Task<User?> GetByEmailAsync(Guid t, string email, CancellationToken ct = default)
             => Task.FromResult(Items.FirstOrDefault(u => u.TenantId == t && u.Email == email));
+        public Task<User?> GetByVerifiedPhoneAsync(Guid t, string normalizedPhone, CancellationToken ct = default)
+            => Task.FromResult(Items.FirstOrDefault(u => u.TenantId == t && u.PhoneVerified && u.Phone == normalizedPhone));
         public Task<bool> EmailExistsAsync(Guid t, string email, CancellationToken ct = default)
             => Task.FromResult(Items.Any(u => u.TenantId == t && u.Email == email));
         public Task<IReadOnlyList<User>> ListByTenantAsync(Guid t, CancellationToken ct = default)

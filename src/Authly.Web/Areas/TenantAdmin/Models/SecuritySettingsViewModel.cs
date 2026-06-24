@@ -11,6 +11,16 @@ public sealed class SecuritySettingsViewModel
     [Display(Name = "Allow new account creation via social login")]
     public bool AllowSocialSignup { get; set; } = true;
 
+    [Display(Name = "Allow sign-up with a mobile number (WhatsApp OTP)")]
+    public bool AllowPhoneSignup { get; set; }
+
+    [Display(Name = "Allow sign-in with a mobile number (WhatsApp OTP or password)")]
+    public bool AllowPhoneLogin { get; set; }
+
+    /// <summary>Read-only: whether WhatsApp + a linked OTP template are ready. The phone toggles are
+    /// only effective (and only enabled in the UI) when this is true.</summary>
+    public bool WhatsAppOtpReady { get; set; }
+
     [Display(Name = "Lock accounts after repeated failures")]
     public bool LockoutEnabled { get; set; } = true;
 

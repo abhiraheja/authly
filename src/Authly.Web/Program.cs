@@ -51,6 +51,9 @@ builder.Services.AddScoped<ApiExceptionFilter>();
 // MFA login gate: holds the half-authenticated state in a data-protected cookie.
 builder.Services.AddSingleton<Authly.Web.Infrastructure.Mfa.MfaPendingStore>();
 
+// Phone OTP gate: holds the resolved user between requesting and entering a WhatsApp code.
+builder.Services.AddSingleton<Authly.Web.Infrastructure.Auth.PhoneLoginPendingStore>();
+
 // Social login: protects the OAuth state payload (CSRF defence + tenant/redirect binding).
 builder.Services.AddSingleton<Authly.Web.Infrastructure.Social.SocialStateProtector>();
 

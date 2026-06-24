@@ -14,6 +14,11 @@ public sealed class RegisterViewModel
     [Display(Name = "Last name")]
     public string? LastName { get; set; }
 
+    /// <summary>Optional mobile number (E.164). When phone sign-up is enabled and a number is given,
+    /// it is verified via WhatsApp OTP after registration so it can be used to sign in.</summary>
+    [Phone, Display(Name = "Mobile number")]
+    public string? Phone { get; set; }
+
     [Required, DataType(DataType.Password)]
     [StringLength(128, MinimumLength = 8, ErrorMessage = "Use at least 8 characters.")]
     public string Password { get; set; } = string.Empty;
@@ -39,6 +44,31 @@ public sealed class UserLoginViewModel
 
     [Required, DataType(DataType.Password)]
     public string Password { get; set; } = string.Empty;
+
+    public string? ReturnUrl { get; set; }
+}
+
+/// <summary>End-user phone sign-in form: number plus either a password or a one-time code.</summary>
+public sealed class PhoneLoginViewModel
+{
+    [Required, Phone, Display(Name = "Mobile number")]
+    public string Phone { get; set; } = string.Empty;
+
+    /// <summary>Optional — only used when the user chose the password sign-in mode.</summary>
+    [DataType(DataType.Password)]
+    public string? Password { get; set; }
+
+    /// <summary>"otp" (default, WhatsApp code) or "password".</summary>
+    public string Mode { get; set; } = "otp";
+
+    public string? ReturnUrl { get; set; }
+}
+
+/// <summary>Entering the WhatsApp OTP for a phone sign-in or a post-signup phone verification.</summary>
+public sealed class PhoneOtpViewModel
+{
+    [Required, Display(Name = "Verification code")]
+    public string Code { get; set; } = string.Empty;
 
     public string? ReturnUrl { get; set; }
 }

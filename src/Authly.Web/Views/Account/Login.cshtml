@@ -81,6 +81,12 @@
     <a class="btn btn-outline w-full" asp-controller="Account" asp-action="MagicLink" asp-route-returnUrl="@Model.ReturnUrl">
         <i data-lucide="mail" class="size-4"></i> Email me a sign-in link
     </a>
+    @if (ViewData["AllowPhoneLogin"] as bool? ?? false)
+    {
+        <a class="btn btn-outline w-full" asp-controller="Account" asp-action="PhoneLogin" asp-route-returnUrl="@Model.ReturnUrl">
+            <i data-lucide="smartphone" class="size-4"></i> Sign in with phone
+        </a>
+    }
 </div>
 <div id="passkeyError" class="text-danger text-xs text-center mt-2 hidden"></div>
 

@@ -16,6 +16,10 @@ public interface IAuthService
     /// <summary>Validates credentials; on success creates a session and updates last-login. Always records login history.</summary>
     Task<LoginResult> AuthenticateAsync(Guid tenantId, string email, string password, RequestInfo info, CancellationToken ct = default);
 
+    /// <summary>Validates credentials against the user resolved by VERIFIED phone (normalized);
+    /// otherwise identical to <see cref="AuthenticateAsync"/>.</summary>
+    Task<LoginResult> AuthenticateByPhoneAsync(Guid tenantId, string phone, string password, RequestInfo info, CancellationToken ct = default);
+
     /// <summary>Re-issues a verification email if the user exists and is still unverified. Silent either way.</summary>
     Task ResendVerificationEmailAsync(Guid tenantId, string email, CancellationToken ct = default);
 

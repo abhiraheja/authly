@@ -310,6 +310,16 @@ public sealed class MessagingService : IMessagingService
             metadata: new { entity.Key, entity.Channel, entity.Locale }, ct: ct);
     }
 
+    public async Task<bool> IsWhatsAppOtpReadyAsync(Guid tenantId, CancellationToken ct = default)
+    {
+        var provider = await _providers.GetActiveAsync(tenantId, MessageChannel.WhatsApp, ct);
+        if (provider is null || !provider.IsActive)
+            return false;
+
+        var otp = await _templates.GetAsync(tenantId, MessageTemplateKeys.Otp, MessageChannel.WhatsApp, "en", ct);
+        return otp is not null && !string.IsNullOrWhiteSpace(otp.ProviderTemplateName);
+    }
+
     public async Task<IReadOnlyList<WhatsAppRemoteTemplate>> SyncWhatsAppTemplatesAsync(Guid tenantId, CancellationToken ct = default)
     {
         var entity = await _providers.GetActiveAsync(tenantId, MessageChannel.WhatsApp, ct)

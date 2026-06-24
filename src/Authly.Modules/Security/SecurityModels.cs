@@ -14,6 +14,13 @@ public sealed class TenantSecuritySettings
     /// just-in-time create a brand-new account from a social identity.</summary>
     public bool AllowSocialSignup { get; set; } = true;
 
+    /// <summary>Allow end users to sign up providing a mobile number (verified via WhatsApp OTP).
+    /// Only effective when WhatsApp is configured and the OTP template is linked.</summary>
+    public bool AllowPhoneSignup { get; set; }
+    /// <summary>Allow end users to sign in with their verified mobile number (WhatsApp OTP or password).
+    /// Only effective when WhatsApp is configured and the OTP template is linked.</summary>
+    public bool AllowPhoneLogin { get; set; }
+
     // --- Account lockout ---
     public bool LockoutEnabled { get; set; } = true;
     /// <summary>Consecutive failures before the account is locked.</summary>

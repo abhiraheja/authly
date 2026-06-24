@@ -57,8 +57,22 @@ public sealed class DocsController : Controller
         return View();
     }
 
+    [HttpGet("access-policies")]
+    public IActionResult AccessPolicies()
+    {
+        PopulateEndpoints();
+        return View();
+    }
+
     [HttpGet("admin")]
     public IActionResult Admin()
+    {
+        PopulateEndpoints();
+        return View();
+    }
+
+    [HttpGet("sign-in")]
+    public IActionResult SignIn()
     {
         PopulateEndpoints();
         return View();

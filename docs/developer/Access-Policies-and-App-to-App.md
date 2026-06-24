@@ -131,6 +131,33 @@ Attribute hamesha **scope.key** hota hai:
 ```
 Yeh Deny baaki saare Allows pe haavi rahega.
 
+**Example 4 — "Token me userId honi chahiye" (signed-in user gate):**
+Sirf un requests ko allow karo jinme ek user ki pehchaan (`userId`) maujood ho — yani anonymous
+ya pure machine-token (jisme user nahi) requests deny ho jaayein.
+- Effect: `Allow`, Action: `document.read` (ya jo action protect karna ho), Resource type: `document`, Priority: `10`
+- Conditions (`exists` me `value` ki zaroorat nahi):
+```json
+[
+  { "attribute": "subject.userId", "operator": "exists" }
+]
+```
+- Enabled: on
+
+Kaise kaam karega: agar `subject.userId` aaya → policy match → **allow**. Agar nahi aaya → yeh
+policy match nahi karti → koi aur Allow na ho to **default_deny**. Yani "userId hai to hi chalega".
+
+> **Relying app ki zimmedari:** evaluate call me `subject.userId` ko token ke **`sub`** claim
+> (user id) se bharo. Machine (client-credentials) token me `sub` = `client_id` hota hai, user
+> nahi — to wahan `userId` mat bhejo, jisse aisi requests is gate se deny ho jaayein.
+>
+> ⚠️ `Action`/`Resource type` ko `*`/`*` rakhna **blanket allow-for-any-user** ban jaata hai
+> (har identified user ko sab allowed) — isliye specific action/resource pe lagao, jab tak aap
+> waqai poora tenant "koi bhi signed-in user → sab allowed" nahi karna chahte.
+
+**Test karke dekho** (`/tenantadmin/policies` → Test a decision):
+- Action `document.read`, Resource type `document`, Subject `{ "userId": "u_123" }` → **Allowed = true**, reason `allow`.
+- Wahi, Subject `{}` (koi userId nahi) → **Allowed = false**, reason `default_deny`.
+
 ## A7. "Test a decision" (admin) — bina deploy ke check
 
 `/tenantadmin/policies` ke right panel me Action + Resource type + teen JSON bags
@@ -147,9 +174,11 @@ Admin test ke alawa ek **public REST API** hai jise aapki services call kar sakt
 
 ```
 POST /api/v1/access/evaluate
-Authorization: <API key>        (tenant API credential se — tenant API key se resolve)
+X-API-Key: <tenant-api-key>      (ya: Authorization: Bearer <jwt> — dono chalte hain)
 Content-Type: application/json
 ```
+> Auth: Management API `X-API-Key` header se (ya machine token `Bearer`) authenticate hota
+> hai; tenant credential ke `tenant_id` se resolve hota hai.
 
 **Request** (action + resourceType **required**; teeno bags string→string):
 ```json
@@ -177,6 +206,52 @@ environment banakar bhejti hai. Yani:
 
 Isse Authly ek **Policy Decision Point (PDP)** ban jaata hai — rules ek jagah, services bas
 "haan/na" poochti hain.
+
+## A9. Client code se enforce (example)
+
+Aapka **backend** har request pe evaluate call karke allow/deny enforce karta hai:
+
+```csharp
+var body = new
+{
+    action = "document.read",
+    resourceType = "document",
+    subject = new Dictionary<string,string>
+    {
+        ["userId"]     = user.Sub,        // validated token ke 'sub' se
+        ["department"] = user.Department,
+        ["role"]       = user.Role
+    },
+    resource    = new Dictionary<string,string> { ["owner"] = doc.OwnerId },
+    environment = new Dictionary<string,string> { ["ipAddress"] = ip }
+};
+
+var req = new HttpRequestMessage(HttpMethod.Post, "https://auth.example.com/api/v1/access/evaluate");
+req.Headers.Add("X-API-Key", apiKey);                     // ya: Authorization: Bearer <jwt>
+req.Content = JsonContent.Create(body);
+
+var resp = await http.SendAsync(req);
+var decision = await resp.Content.ReadFromJsonAsync<EvaluateResponse>();  // { allowed, policy, reason }
+if (!decision.Allowed) return Forbid();
+```
+
+- Evaluate **backend se** call karo (API key/JWT protected) — frontend se nahi.
+- Policies UI me likho; code sirf evaluate + enforce karta hai. Policy badli → code change nahi.
+- Note: ABAC policies **code se create nahi** hoti (`/api/v1/policies` nahi hai) — sirf
+  `/tenantadmin/policies` UI se. Code se per-user control chahiye to **RBAC** APIs use karo
+  (`/api/v1/users`, `/api/v1/roles`, `/api/v1/permissions`).
+
+## A10. Authentication ≠ Authorization (kya kahan)
+
+| Layer | Sawaal | Kahan |
+|---|---|---|
+| **Authentication** | "Valid token hai? User (`sub`) hai?" | Resource server JWT validate kare → na ho to **401**, ABAC tak baat hi na jaaye |
+| **Authorization (ABAC)** | "Yeh identified subject, is action ko is resource pe kar sakta hai?" | `/api/v1/access/evaluate` |
+
+> **"Token me userId honi chahiye" asal me authentication (token validation) hai, ABAC nahi.**
+> ABAC me attributes **caller bhejta hai** — engine token khud inspect nahi karta. To primary
+> trust **JWT validation** pe rakho (`sub` se userId nikaalo); ABAC ka `subject.userId exists`
+> sirf ek secondary belt-and-suspenders gate hai.
 
 ---
 
@@ -305,9 +380,10 @@ Yani: token = "yeh kaun hai", ABAC = "yeh yeh kar sakta hai ya nahi".
 
 ## B9. Secret rotation aur dev note
 
-- **Rotate:** secret leak/expire ho to TenantAdmin → Applications → app → **Rotate secret**
-  (`POST /tenantadmin/applications/{id}/rotate-secret`). Naya secret ek baar dikhega; purana
-  band. Services ko naya secret deploy karo.
+- **Rotate:** secret leak/expire ho to rotate karo — UI: TenantAdmin → Applications → app →
+  **Rotate secret** (`POST /tenantadmin/applications/{id}/rotate-secret`); ya code se (API):
+  `POST /api/v1/applications/{id}/secrets/rotate` (`application.write` permission chahiye).
+  Naya secret ek baar dikhega; purana band. Services ko naya secret deploy karo.
 - **Dev vs prod:** development me signing certificate **ephemeral** hota hai (har restart pe
   badalta hai) → JWKS bhi badalta hai, tokens invalidate ho sakte hain. **Production me
   persisted X.509 signing/encryption keys** configure karna zaroori hai (warna restart pe
@@ -330,6 +406,36 @@ Service A                         Authly (/connect/token)          Service B
    |<------------------------------------------------------------------|
 ```
 
+## B11. Multi-hop service calls (A → B → C)
+
+Agar **A → B** aur **B → C** dono chains hon, rule wahi: **"jise token MAANGNA hai, usi ki
+Machine app." Receiver-only service ko registration nahi chahiye.**
+
+| Service | Role | Machine app? |
+|---|---|---|
+| **A** | B ko call karta hai | ✅ App-A (scope `b.call`) |
+| **B** | A se receive **+** C ko call | ✅ App-B (scope `c.call`) |
+| **C** | sirf B se receive | ❌ koi nahi — bas JWKS se validate |
+
+Dono apps **same project** me; har ek ko **sirf zaroori scope** (least privilege).
+
+**Token flow — 2 alag token bante hain:**
+```
+A --(client_credentials: App-A, scope=b.call)--> /connect/token --> tokenA
+A --Bearer tokenA--> B          [B validates tokenA: JWKS, iss, exp, scope=b.call]
+
+B --(client_credentials: App-B, scope=c.call)--> /connect/token --> tokenB   (B ka APNA naya token)
+B --Bearer tokenB--> C          [C validates tokenB: JWKS, iss, exp, scope=c.call]
+```
+
+**Zaroori:**
+1. `tokenA` aur `tokenB` **alag** hain — B, A ka `tokenA` **C ko forward NAHI karta**; B apne
+   App-B se naya `tokenB` leta hai. (Token relay galat: audience/scope mismatch.)
+2. Har token us **calling service** ki pehchaan hai (`sub` = uska client_id), original user
+   nahi. **User-context apne aap aage nahi jaata** — explicitly bhejo (validated header) ya
+   ABAC `evaluate` se decide karo.
+3. Aage C → D hua to C ki bhi ek Machine app ban jaayegi (wahi pattern).
+
 ---
 
 ## Quick reference
@@ -338,11 +444,14 @@ Service A                         Authly (/connect/token)          Service B
 |---|---|
 | Policies admin | `/tenantadmin/policies` |
 | Policy test | `POST /tenantadmin/policies/test` |
-| **Runtime decision API** | `POST /api/v1/access/evaluate` (API key) |
+| **Runtime decision API** | `POST /api/v1/access/evaluate` (`X-API-Key` ya `Bearer`) |
 | Machine app banao | `/tenantadmin/applications` (Type=Machine) ya `POST /api/v1/applications` |
 | **Token lo** | `POST /connect/token` (grant_type=client_credentials) |
-| Secret rotate | `POST /tenantadmin/applications/{id}/rotate-secret` |
+| Secret rotate | UI `/tenantadmin/applications/{id}/rotate-secret` · API `POST /api/v1/applications/{id}/secrets/rotate` |
 | Discovery / JWKS | `/.well-known/openid-configuration`, `/.well-known/jwks` |
+
+> ⚠️ ABAC policy create/edit ke liye **koi API nahi** — sirf `/tenantadmin/policies` UI. Code se
+> per-user control chahiye to RBAC (`/api/v1/users`, `/api/v1/roles`, `/api/v1/permissions`).
 
 **Core files:** ABAC engine [AbacEngine.cs](../../src/Authly.Modules/Abac/AbacEngine.cs),
 services [AbacServices.cs](../../src/Authly.Modules/Abac/AbacServices.cs); OAuth/token

@@ -173,8 +173,10 @@ public class MessagingServiceTests
         var msg = h.WhatsApp.LastMessage!;
         Assert.Equal("otp_saarvix", msg.WhatsAppTemplateName);
         Assert.NotNull(msg.WhatsAppNamedParameters);
+        // Both the body code and the copy-code URL button must carry the OTP (Meta rejects the send
+        // otherwise: "Button … of type Url requires a parameter").
         Assert.Contains(msg.WhatsAppNamedParameters!, p => p.Name == "body_1" && p.Value == "445566");
-        Assert.DoesNotContain(msg.WhatsAppNamedParameters!, p => p.Name.StartsWith("button_")); // button not sent
+        Assert.Contains(msg.WhatsAppNamedParameters!, p => p.Name == "button_1" && p.Value == "445566");
     }
 
     [Fact]

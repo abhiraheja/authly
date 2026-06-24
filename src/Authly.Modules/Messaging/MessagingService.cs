@@ -465,22 +465,28 @@ public sealed class MessagingService : IMessagingService
         if (!string.Equals(remote.Status, "APPROVED", StringComparison.OrdinalIgnoreCase))
             return (null, $"Template isn't approved yet (status: {remote.Status}).");
 
-        // Body params only — buttons (copy-code) and header media are not sent as components.
-        var bodyTokens = ParseTemplateVariables(remote)
+        var allTokens = ParseTemplateVariables(remote);
+        var isAuth = string.Equals(remote.Category, "AUTHENTICATION", StringComparison.OrdinalIgnoreCase);
+
+        // Meta authentication templates carry exactly the verification code, in BOTH the body ({{1}})
+        // and the copy-code / URL button (button_1) — the button is a dynamic URL param Meta rejects
+        // the send without ("Button … of type Url requires a parameter"). Route every param (body and
+        // button, excluding static header media) to {{otp}} so both receive the code.
+        if (isAuth && vset.Key == MessageTemplateKeys.Otp)
+        {
+            var authTokens = allTokens
+                .Where(t => !t.StartsWith("header_", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (authTokens.Count == 0)
+                return (null, "Authentication template has no parameter for the code.");
+            return (authTokens.ToDictionary(t => t, _ => "otp"), null);
+        }
+
+        // Named/Utility path: body params only — buttons and header media aren't sent as components.
+        var bodyTokens = allTokens
             .Where(t => !t.StartsWith("button_", StringComparison.OrdinalIgnoreCase)
                      && !t.StartsWith("header_", StringComparison.OrdinalIgnoreCase))
             .ToList();
-
-        var isAuth = string.Equals(remote.Category, "AUTHENTICATION", StringComparison.OrdinalIgnoreCase);
-
-        // Meta authentication templates are positional and carry exactly the verification code; accept
-        // them for the OTP key and route every body param to {{otp}}.
-        if (isAuth && vset.Key == MessageTemplateKeys.Otp)
-        {
-            if (bodyTokens.Count == 0)
-                return (null, "Authentication template has no body parameter for the code.");
-            return (bodyTokens.ToDictionary(t => t, _ => "otp"), null);
-        }
 
         var map = new Dictionary<string, string>();
         foreach (var token in bodyTokens)

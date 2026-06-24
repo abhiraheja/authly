@@ -100,6 +100,8 @@ public sealed class AuthorizationController : Controller
             .SetClaim(Claims.Email, user.Email)
             .SetClaim(Claims.EmailVerified, user.EmailVerified.ToString().ToLowerInvariant())
             .SetClaim(Claims.Name, DisplayName(user.FirstName, user.LastName, user.Email))
+            // Standard OIDC profile claim; SetClaim no-ops on a null/empty avatar.
+            .SetClaim(Claims.Picture, user.AvatarUrl)
             .SetClaim(TenantClaim, application.TenantId.ToString());
 
         // RBAC: inject the user's effective roles + flattened permissions (§5.6).
@@ -237,6 +239,9 @@ public sealed class AuthorizationController : Controller
         if (principal.HasScope(Scopes.Profile) && principal.GetClaim(Claims.Name) is { } name)
             claims[Claims.Name] = name;
 
+        if (principal.HasScope(Scopes.Profile) && principal.GetClaim(Claims.Picture) is { } picture)
+            claims[Claims.Picture] = picture;
+
         if (principal.GetClaim(TenantClaim) is { } tenant)
             claims[TenantClaim] = tenant;
 
@@ -328,6 +333,13 @@ public sealed class AuthorizationController : Controller
         {
             case Claims.Name:
                 yield return Destinations.AccessToken;
+                if (claim.Subject!.HasScope(Scopes.Profile))
+                    yield return Destinations.IdentityToken;
+                yield break;
+
+            // Avatar is display-only identity data: id_token only (under the profile
+            // scope), never the access token — APIs don't authorize on it.
+            case Claims.Picture:
                 if (claim.Subject!.HasScope(Scopes.Profile))
                     yield return Destinations.IdentityToken;
                 yield break;

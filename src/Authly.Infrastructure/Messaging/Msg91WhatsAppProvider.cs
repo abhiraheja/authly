@@ -36,14 +36,27 @@ public sealed class Msg91WhatsAppProvider : IWhatsAppProvider
             object payload;
             if (!string.IsNullOrWhiteSpace(message.WhatsAppTemplateName))
             {
-                // Template message (required for business-initiated sends like OTP). Shape matches the
-                // official MSG91 WhatsApp SDK: language is a string, `to` is a single recipient string,
-                // and body params are an ordered component array. Named-parameter templates carry a
-                // `parameter_name` per Meta's Cloud API; legacy bindings send positional components.
-                object[] components = message.WhatsAppNamedParameters is { Count: > 0 } named
-                    ? named.Select(p => (object)new { type = "text", parameter_name = p.Name, text = p.Value }).ToArray()
-                    : (message.WhatsAppParameters ?? Array.Empty<string>())
-                        .Select(p => (object)new { type = "text", text = p }).ToArray();
+                // Template message (required for business-initiated sends like OTP). Shape mirrors the
+                // working Saar-WhatsApp MSG91 integration: `components` is an OBJECT keyed by the
+                // template's component name (body_1, body_otp, …) with {type:"text", value}; `to` is an
+                // array of recipients; `language` is an object; `messaging_product` is included.
+                // Buttons (copy-code) are template-level metadata and are NOT sent as components.
+                var components = new Dictionary<string, object>();
+                if (message.WhatsAppNamedParameters is { Count: > 0 } named)
+                {
+                    foreach (var p in named)
+                    {
+                        // A bare numeric key ("1") is a positional body param → "body_1".
+                        var key = int.TryParse(p.Name, out var n) ? $"body_{n}" : p.Name;
+                        components[key] = new { type = "text", value = p.Value };
+                    }
+                }
+                else
+                {
+                    var positional = message.WhatsAppParameters ?? Array.Empty<string>();
+                    for (var i = 0; i < positional.Count; i++)
+                        components[$"body_{i + 1}"] = new { type = "text", value = positional[i] };
+                }
 
                 payload = new
                 {
@@ -55,12 +68,13 @@ public sealed class Msg91WhatsAppProvider : IWhatsAppProvider
                         template = new
                         {
                             name = message.WhatsAppTemplateName,
-                            language = message.WhatsAppLanguage ?? "en",
+                            language = new { code = message.WhatsAppLanguage ?? "en", policy = "deterministic" },
                             to_and_components = new[]
                             {
-                                new { to = message.Recipient, components }
+                                new { to = new[] { message.Recipient }, components }
                             }
-                        }
+                        },
+                        messaging_product = "whatsapp"
                     }
                 };
             }

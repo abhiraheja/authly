@@ -150,8 +150,32 @@ public class MessagingServiceTests
 
     // --- named-parameter validated binding (new WhatsApp flow) --------------
 
-    private void AddRemote(Harness h, string name, string body, string status = "APPROVED", string lang = "en")
-        => h.Directory.Templates.Add(new WhatsAppRemoteTemplate(name, lang, status, "AUTHENTICATION", body, 0));
+    private void AddRemote(Harness h, string name, string body, string status = "APPROVED", string lang = "en", string category = "UTILITY")
+        => h.Directory.Templates.Add(new WhatsAppRemoteTemplate(name, lang, status, category, body, 0));
+
+    [Fact]
+    public async Task Authentication_otp_template_binds_positionally_and_sends_code()
+    {
+        var h = new Harness();
+        await h.SetActiveWhatsAppProviderAsync("testwa", succeeds: true);
+        // Meta auto-creates AUTHENTICATION OTP templates: positional {{1}} body code + copy-code button.
+        h.Directory.Templates.Add(new WhatsAppRemoteTemplate(
+            "otp_saarvix", "en", "APPROVED", "AUTHENTICATION",
+            "{{1}} is your verification code.", 2,
+            new[] { "body_1", "button_1" }));
+
+        await h.Service.BindWhatsAppTemplateValidatedAsync(Tenant, MessageTemplateKeys.Otp, "en",
+            "otp_saarvix", "en", AuditContext.System);
+
+        await h.Service.DeliverAsync(new MessageSendRequest(Tenant, MessageTemplateKeys.Otp,
+            MessageChannel.WhatsApp, "+15550001111", Vars(("otp", "445566"))));
+
+        var msg = h.WhatsApp.LastMessage!;
+        Assert.Equal("otp_saarvix", msg.WhatsAppTemplateName);
+        Assert.NotNull(msg.WhatsAppNamedParameters);
+        Assert.Contains(msg.WhatsAppNamedParameters!, p => p.Name == "body_1" && p.Value == "445566");
+        Assert.DoesNotContain(msg.WhatsAppNamedParameters!, p => p.Name.StartsWith("button_")); // button not sent
+    }
 
     [Fact]
     public async Task Validated_bind_accepts_template_with_only_allowed_named_vars()
@@ -176,7 +200,7 @@ public class MessagingServiceTests
         await h.SetActiveWhatsAppProviderAsync("testwa", succeeds: true);
         // MSG91 reports body params prefixed with body_ even though the body is authored plain.
         h.Directory.Templates.Add(new WhatsAppRemoteTemplate(
-            "authly_otp", "en", "APPROVED", "AUTHENTICATION",
+            "authly_otp", "en", "APPROVED", "UTILITY",
             "{{app_name}}: code {{otp}} ({{expiry_minutes}}m)", 3,
             new[] { "body_app_name", "body_otp", "body_expiry_minutes" }));
 

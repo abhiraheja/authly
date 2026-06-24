@@ -1,0 +1,35 @@
+@{
+    var phone = ViewData["Phone"] as string;
+}
+
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Verify your phone</h1>
+    </div>
+</div>
+
+<p class="text-sm text-muted-foreground mt-2">
+    We sent a verification code over WhatsApp to <strong>@phone</strong>. Enter it below to confirm the number.
+</p>
+
+<div class="card mt-4 max-w-md">
+    <div class="card-body">
+        <div asp-validation-summary="ModelOnly" class="validation-summary-errors @(ViewData.ModelState.IsValid ? "hidden" : "")"></div>
+        <form asp-area="Portal" asp-controller="Contact" asp-action="VerifyPhone" method="post" class="space-y-4">
+            <div>
+                <label class="label">Verification code</label>
+                <input name="code" class="input text-center tracking-[0.4em] text-lg" autocomplete="one-time-code"
+                       inputmode="numeric" maxlength="8" placeholder="------" autofocus required />
+            </div>
+            <button type="submit" class="btn btn-primary w-full">Verify</button>
+        </form>
+
+        <form asp-area="Portal" asp-controller="Contact" asp-action="ResendPhoneOtp" method="post" class="mt-3">
+            <button type="submit" class="btn btn-ghost btn-sm w-full">Didn't get it? Resend code</button>
+        </form>
+    </div>
+</div>
+
+<a class="btn btn-outline btn-sm mt-4" asp-area="Portal" asp-controller="Contact" asp-action="Index">
+    <i data-lucide="arrow-left" class="size-4"></i> Back
+</a>

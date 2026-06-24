@@ -42,6 +42,7 @@ public sealed class AccountController : Controller
     private readonly Authly.Modules.Compliance.IConsentService _consent;
     private readonly Authly.Modules.Users.IImpersonationService _impersonation;
     private readonly Authly.Modules.Devices.IDeviceService _devices;
+    private readonly IApplicationRepository _applications;
     private readonly IAuditLogger _audit;
     private readonly Hangfire.IBackgroundJobClient _jobs;
 
@@ -62,6 +63,7 @@ public sealed class AccountController : Controller
         Authly.Modules.Compliance.IConsentService consent,
         Authly.Modules.Users.IImpersonationService impersonation,
         Authly.Modules.Devices.IDeviceService devices,
+        IApplicationRepository applications,
         IAuditLogger audit,
         Hangfire.IBackgroundJobClient jobs)
     {
@@ -85,6 +87,7 @@ public sealed class AccountController : Controller
         _consent = consent;
         _impersonation = impersonation;
         _devices = devices;
+        _applications = applications;
         _audit = audit;
         _jobs = jobs;
     }
@@ -456,13 +459,42 @@ public sealed class AccountController : Controller
         if (safe is null) return Portal();
 
         // OIDC continuation (e.g. /connect/authorize): the email link usually opens in a NEW tab that
-        // lacks the SPA's PKCE/state, so finishing the flow there would fail. The session cookie is now
-        // set (shared across tabs), so the ORIGINAL tab — which still holds that state — can finish on
-        // its own. The completion page decides client-side: if a live originating tab is detected it
-        // defers to it ("return to your tab"); otherwise (same-tab open) it continues here.
+        // lacks the SPA's PKCE/state, so finishing the flow *here* would fail. The session cookie is
+        // now set, so the cleanest landing is the relying app itself — it re-initiates the (now
+        // silent) authorize against the live session and finishes login in this same tab. We derive
+        // the app's origin from the request's redirect_uri, validated against the client's registered
+        // redirect URIs (never an attacker-supplied value), so there's no open-redirect.
+        var appLanding = await ResolveAppLandingAsync(safe, ct);
+        if (appLanding is not null) return Redirect(appLanding);
+
+        // Couldn't resolve a trusted app origin (unusual): fall back to a page that coordinates with
+        // the original tab, which still holds the PKCE/state, to complete the flow there.
         ViewData["ReturnUrl"] = safe;
         ViewData["Title"] = "You're signed in";
         return View("MagicComplete");
+    }
+
+    /// <summary>Given the local OIDC continuation (/connect/authorize?...&amp;client_id=…&amp;redirect_uri=…),
+    /// returns the relying app's origin to land on — but only when the request's redirect_uri exactly
+    /// matches one registered for that client. Returns null if it can't be safely resolved.</summary>
+    private async Task<string?> ResolveAppLandingAsync(string authorizeUrl, CancellationToken ct)
+    {
+        var q = authorizeUrl.IndexOf('?');
+        if (q < 0) return null;
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(authorizeUrl[q..]);
+        if (!query.TryGetValue("client_id", out var clientId) || !query.TryGetValue("redirect_uri", out var redirectUri))
+            return null;
+
+        var app = await _applications.GetByClientIdAsync(clientId.ToString(), ct);
+        if (app is null) return null;
+
+        var requested = redirectUri.ToString();
+        if (!app.RedirectUris.Any(u => string.Equals(u, requested, StringComparison.OrdinalIgnoreCase)))
+            return null; // not a registered callback → don't trust it
+
+        return Uri.TryCreate(requested, UriKind.Absolute, out var uri)
+            ? uri.GetLeftPart(UriPartial.Authority) // scheme://host[:port]
+            : null;
     }
 
     /// <summary>Lightweight poll for the "check your email" page. Email links typically open in a NEW

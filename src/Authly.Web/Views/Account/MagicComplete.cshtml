@@ -1,6 +1,7 @@
 @{
     Layout = "_AuthLayout";
     var returnUrl = ViewData["ReturnUrl"] as string;
+    var portalUrl = Url.Action("Index", "Profile", new { area = "Portal" });
 }
 
 <div class="text-center">
@@ -18,7 +19,7 @@
             Return to the tab where you started signing in — it'll continue automatically.
             You can close this tab.
         </p>
-        <a href="/portal" class="btn btn-outline w-full">Go to your account here instead</a>
+        <a href="@portalUrl" class="btn btn-outline w-full">Go to your account here instead</a>
     </div>
 </div>
 
@@ -29,7 +30,7 @@
     // navigating to the relying app's callback, which would fail here. Otherwise this IS the
     // originating tab (e.g. the link was opened in the same tab), so we continue here.
     (function () {
-        var target = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(returnUrl)) || '/portal';
+        var target = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(returnUrl)) || @Html.Raw(System.Text.Json.JsonSerializer.Serialize(portalUrl));
         var WAIT_KEY = 'authly_magic_wait';
         var fresh = false;
         try {

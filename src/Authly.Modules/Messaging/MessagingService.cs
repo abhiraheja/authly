@@ -141,8 +141,10 @@ public sealed class MessagingService : IMessagingService
             {
                 var vset = WhatsAppAllowedVariables.Find(request.TemplateKey);
                 language = string.IsNullOrWhiteSpace(ov.ProviderLanguage) ? vset?.Language ?? "en" : ov.ProviderLanguage;
+                // The stored name is the provider's raw parameter id (e.g. "body_otp"); echo it back as
+                // parameter_name, but resolve the value via the normalized Authly variable ("otp").
                 namedParameters = names
-                    .Select(n => new WhatsAppNamedParam(n, vars.TryGetValue(n, out var v) ? v : string.Empty))
+                    .Select(n => new WhatsAppNamedParam(n, vars.TryGetValue(NormalizeVariableName(n), out var v) ? v : string.Empty))
                     .ToList();
             }
             else
@@ -445,7 +447,8 @@ public sealed class MessagingService : IMessagingService
 
     /// <summary>Returns null if <paramref name="parsed"/> is a valid binding for <paramref name="vset"/>,
     /// else a human-readable reason (positional placeholder, unknown variable, missing required,
-    /// or not approved).</summary>
+    /// or not approved). Variable names are normalized (MSG91 prefixes body params with "body_")
+    /// before matching against the allowed set.</summary>
     private static string? ValidateNamedBinding(WhatsAppVariableSet vset, IReadOnlyList<string> parsed, string status)
     {
         if (!string.Equals(status, "APPROVED", StringComparison.OrdinalIgnoreCase))
@@ -453,17 +456,24 @@ public sealed class MessagingService : IMessagingService
 
         foreach (var token in parsed)
         {
-            if (token.All(char.IsDigit))
+            var name = NormalizeVariableName(token);
+            if (name.All(char.IsDigit))
                 return $"Template uses positional placeholder {{{{{token}}}}}. Use named variables like {{{{{vset.Required}}}}} instead.";
-            if (!vset.Allowed.Contains(token))
-                return $"Template uses unknown variable '{token}'. Allowed: {string.Join(", ", vset.Allowed)}.";
+            if (!vset.Allowed.Contains(name))
+                return $"Template uses unknown variable '{name}'. Allowed: {string.Join(", ", vset.Allowed)}.";
         }
 
-        if (!parsed.Contains(vset.Required))
+        if (!parsed.Any(t => NormalizeVariableName(t) == vset.Required))
             return $"Template must include the required {{{{{vset.Required}}}}} variable.";
 
         return null;
     }
+
+    /// <summary>Maps a provider-reported parameter name to the Authly variable name. MSG91 returns
+    /// body parameters prefixed with <c>body_</c> (e.g. <c>body_otp</c>) even when the template body
+    /// is authored with plain <c>{{otp}}</c> tokens; strip that prefix so it matches the allowed set.</summary>
+    private static string NormalizeVariableName(string raw)
+        => raw.StartsWith("body_", StringComparison.OrdinalIgnoreCase) ? raw["body_".Length..] : raw;
 
     private static IReadOnlyList<string>? DeserializeVariableNames(string? json)
     {

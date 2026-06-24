@@ -1,4 +1,5 @@
 using Authly.Core.Enums;
+using Authly.Core.Messaging;
 
 namespace Authly.Modules.Messaging;
 
@@ -52,6 +53,16 @@ public sealed class TemplateInput
 
 /// <summary>Result of rendering a template against sample/real variables (for preview + send-test).</summary>
 public sealed record RenderedPreview(MessageChannel Channel, string? Subject, string Body);
+
+/// <summary>
+/// A provider template surfaced for the WhatsApp link UI, annotated with the named variables parsed
+/// from it and a per-Authly-key bind verdict. <see cref="BindErrors"/> maps each supported key to
+/// null (bindable) or a human-readable reason it can't be linked (unknown/positional/missing var).
+/// </summary>
+public sealed record WhatsAppSyncedTemplate(
+    WhatsAppRemoteTemplate Remote,
+    IReadOnlyList<string> ParsedVariables,
+    IReadOnlyDictionary<string, string?> BindErrors);
 
 public sealed class TemplateNotFoundException : Exception
 {

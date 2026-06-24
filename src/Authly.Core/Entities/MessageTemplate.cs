@@ -35,6 +35,14 @@ public class MessageTemplate
     /// <summary>WhatsApp only: the approved template's language code (e.g. "en", "en_US").</summary>
     public string? ProviderLanguage { get; set; }
 
+    /// <summary>
+    /// WhatsApp only: JSON array of the ordered named variables the bound provider template uses
+    /// (e.g. <c>["app_name","otp","expiry_minutes"]</c>), validated against the key's allowed set at
+    /// bind time. Drives the named-parameter send payload. Null for email, unbound, or legacy
+    /// positional bindings (which fall back to the positional spec).
+    /// </summary>
+    public string? ProviderVariables { get; set; }
+
     public bool IsActive { get; set; } = true;
     public DateTimeOffset CreatedAt { get; set; }
 }

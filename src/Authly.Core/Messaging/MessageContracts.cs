@@ -25,12 +25,17 @@ public sealed record MessageSendRequest(
     bool AllowEmailFallback = false,
     string? FallbackEmail = null);
 
+/// <summary>One named body parameter of a WhatsApp template (<c>{{otp}}</c> → "123456").</summary>
+public sealed record WhatsAppNamedParam(string Name, string Value);
+
 /// <summary>A fully rendered message handed to a channel provider for transport.</summary>
 /// <param name="WhatsAppTemplateName">WhatsApp only: when set, the provider sends a pre-approved
-/// template message by this name (with <paramref name="WhatsAppParameters"/> as the positional
-/// body params) instead of the free-text <paramref name="Body"/>. Null → free text.</param>
+/// template message by this name (with the body params below) instead of the free-text
+/// <paramref name="Body"/>. Null → free text.</param>
 /// <param name="WhatsAppLanguage">Language code of the approved template (e.g. "en", "en_US").</param>
-/// <param name="WhatsAppParameters">Ordered values for the template's <c>{{1}}…{{n}}</c> body params.</param>
+/// <param name="WhatsAppParameters">Legacy positional values for <c>{{1}}…{{n}}</c> body params.</param>
+/// <param name="WhatsAppNamedParameters">Ordered named body params (<c>{{name}}</c> templates).
+/// When set, takes precedence over <paramref name="WhatsAppParameters"/>.</param>
 public sealed record RenderedMessage(
     MessageChannel Channel,
     string Recipient,
@@ -38,11 +43,13 @@ public sealed record RenderedMessage(
     string Body,
     string? WhatsAppTemplateName = null,
     string? WhatsAppLanguage = null,
-    IReadOnlyList<string>? WhatsAppParameters = null);
+    IReadOnlyList<string>? WhatsAppParameters = null,
+    IReadOnlyList<WhatsAppNamedParam>? WhatsAppNamedParameters = null);
 
 /// <summary>
 /// A WhatsApp template as it exists at the provider (MSG91), surfaced for the sync + bind UI.
-/// <paramref name="VariableCount"/> is the number of positional <c>{{1}}…</c> body params.
+/// <paramref name="VariableCount"/> is the number of body params; <paramref name="VariableNames"/>
+/// holds the parsed <c>{{name}}</c> tokens (named templates) when available.
 /// </summary>
 public sealed record WhatsAppRemoteTemplate(
     string Name,
@@ -50,7 +57,8 @@ public sealed record WhatsAppRemoteTemplate(
     string Status,
     string Category,
     string? BodyText,
-    int VariableCount);
+    int VariableCount,
+    IReadOnlyList<string>? VariableNames = null);
 
 /// <summary>Outcome of a single provider send attempt.</summary>
 public sealed record DeliveryResult(bool Success, string ProviderName, string? Error = null)

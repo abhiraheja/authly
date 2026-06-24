@@ -1,0 +1,87 @@
+@model IReadOnlyList<WhatsAppSyncedTemplate>
+@{
+    var supportedKeys = WhatsAppAllowedVariables.All;
+}
+
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Link a WhatsApp template</h1>
+        <p class="text-sm text-muted-foreground mt-0.5">Templates approved at your MSG91 number. Link an approved template to the message type that should use it.</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <a class="btn btn-outline btn-sm" asp-area="TenantAdmin" asp-controller="WhatsApp" asp-action="Link">
+            <i data-lucide="refresh-cw" class="size-4"></i> Re-sync
+        </a>
+        <a class="btn btn-outline btn-sm" asp-area="TenantAdmin" asp-controller="WhatsApp" asp-action="Index">
+            <i data-lucide="arrow-left" class="size-4"></i> Back
+        </a>
+    </div>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="card mt-4">
+        <div class="card-body">
+            <p class="text-sm text-muted-foreground mb-0">No templates found at this number. Create one in MSG91 / Meta using named variables (e.g. <code>{{otp}}</code>), wait for approval, then re-sync.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card mt-4">
+        <div class="card-body">
+            <div class="overflow-x-auto scroll-thin">
+                <table class="table">
+                    <thead><tr><th>Template</th><th>Language</th><th>Status</th><th>Variables</th><th>Link to</th></tr></thead>
+                    <tbody>
+                    @foreach (var s in Model)
+                    {
+                        <tr>
+                            <td class="font-medium">
+                                <code>@s.Remote.Name</code>
+                                @if (!string.IsNullOrEmpty(s.Remote.BodyText))
+                                {
+                                    <div class="text-xs text-muted-foreground max-w-md truncate" title="@s.Remote.BodyText">@s.Remote.BodyText</div>
+                                }
+                            </td>
+                            <td>@s.Remote.Language</td>
+                            <td>
+                                @if (string.Equals(s.Remote.Status, "APPROVED", StringComparison.OrdinalIgnoreCase)) { <span class="badge badge-success">@s.Remote.Status</span> }
+                                else { <span class="badge badge-warning">@s.Remote.Status</span> }
+                            </td>
+                            <td class="text-xs">
+                                @if (s.ParsedVariables.Count == 0) { <span class="text-muted-foreground">none</span> }
+                                else { @foreach (var v in s.ParsedVariables) { <span class="badge badge-neutral">{{@v}}</span> } }
+                            </td>
+                            <td>
+                                <div class="flex flex-col gap-1">
+                                    @foreach (var vset in supportedKeys)
+                                    {
+                                        var error = s.BindErrors.TryGetValue(vset.Key, out var e) ? e : "Unsupported.";
+                                        if (error is null)
+                                        {
+                                            <form asp-area="TenantAdmin" asp-controller="WhatsApp" asp-action="LinkTemplate" method="post" class="flex items-center gap-1 m-0">
+                                                <input type="hidden" name="key" value="@vset.Key" />
+                                                <input type="hidden" name="providerTemplateName" value="@s.Remote.Name" />
+                                                <input type="hidden" name="providerLanguage" value="@s.Remote.Language" />
+                                                <button type="submit" class="btn btn-primary btn-xs"><i data-lucide="link" class="size-3"></i> Link to <code>@vset.Key</code></button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <div class="flex items-center gap-1" title="@error">
+                                                <button type="button" class="btn btn-outline btn-xs" disabled><code>@vset.Key</code></button>
+                                                <span class="text-xs text-danger">@error</span>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}

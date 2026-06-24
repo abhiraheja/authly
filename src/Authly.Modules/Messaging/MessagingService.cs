@@ -126,25 +126,39 @@ public sealed class MessagingService : IMessagingService
         var vars = WithDefaults(request.Variables);
         var body = TemplateRenderer.Render(content.Body, vars, htmlEncode: false);
 
-        // When the tenant has bound an approved provider template, send in template mode: the body
-        // becomes positional {{1}}…{{n}} params resolved from the key's spec. Otherwise fall back to
+        // When the tenant has bound an approved provider template, send in template mode instead of
         // free text (valid only inside WhatsApp's 24-hour service window / for the log provider).
+        // New named-parameter bindings carry ProviderVariables (ordered {{name}} list); legacy
+        // positional bindings have it null and fall back to the {{1}}…{{n}} spec for back-compat.
         string? templateName = null, language = null;
         IReadOnlyList<string>? parameters = null;
+        IReadOnlyList<WhatsAppNamedParam>? namedParameters = null;
         if (ov is not null && !string.IsNullOrWhiteSpace(ov.ProviderTemplateName))
         {
-            var spec = WhatsAppTemplateSpecs.Find(request.TemplateKey);
             templateName = ov.ProviderTemplateName;
-            language = string.IsNullOrWhiteSpace(ov.ProviderLanguage) ? spec?.Language ?? "en" : ov.ProviderLanguage;
-            parameters = spec is null
-                ? Array.Empty<string>()
-                : spec.Parameters.OrderBy(p => p.Position)
-                    .Select(p => vars.TryGetValue(p.Variable, out var val) ? val : string.Empty)
+            var names = DeserializeVariableNames(ov.ProviderVariables);
+            if (names is { Count: > 0 })
+            {
+                var vset = WhatsAppAllowedVariables.Find(request.TemplateKey);
+                language = string.IsNullOrWhiteSpace(ov.ProviderLanguage) ? vset?.Language ?? "en" : ov.ProviderLanguage;
+                namedParameters = names
+                    .Select(n => new WhatsAppNamedParam(n, vars.TryGetValue(n, out var v) ? v : string.Empty))
                     .ToList();
+            }
+            else
+            {
+                var spec = WhatsAppTemplateSpecs.Find(request.TemplateKey);
+                language = string.IsNullOrWhiteSpace(ov.ProviderLanguage) ? spec?.Language ?? "en" : ov.ProviderLanguage;
+                parameters = spec is null
+                    ? Array.Empty<string>()
+                    : spec.Parameters.OrderBy(p => p.Position)
+                        .Select(p => vars.TryGetValue(p.Variable, out var val) ? val : string.Empty)
+                        .ToList();
+            }
         }
 
         var rendered = new RenderedMessage(MessageChannel.WhatsApp, request.Recipient, null, body,
-            templateName, language, parameters);
+            templateName, language, parameters, namedParameters);
 
         var entity = await _providers.GetActiveAsync(request.TenantId, MessageChannel.WhatsApp, ct);
         var providerName = entity?.Provider ?? "log";
@@ -342,6 +356,120 @@ public sealed class MessagingService : IMessagingService
 
         await _audit.LogAsync("messaging.template_bound", actor, tenantId, "message_template", existing?.Id,
             metadata: new { key, locale, providerTemplateName, providerLanguage }, ct: ct);
+    }
+
+    public WhatsAppVariableSet? GetWhatsAppVariableSet(string key) => WhatsAppAllowedVariables.Find(key);
+
+    public async Task<IReadOnlyList<WhatsAppSyncedTemplate>> ListSyncableWhatsAppTemplatesAsync(Guid tenantId, CancellationToken ct = default)
+    {
+        var remotes = await SyncWhatsAppTemplatesAsync(tenantId, ct);
+        var supported = WhatsAppAllowedVariables.All;
+
+        return remotes.Select(r =>
+        {
+            var parsed = ParseTemplateVariables(r);
+            var errors = supported.ToDictionary(
+                vset => vset.Key,
+                vset => ValidateNamedBinding(vset, parsed, r.Status));
+            return new WhatsAppSyncedTemplate(r, parsed, errors);
+        }).ToList();
+    }
+
+    public async Task BindWhatsAppTemplateValidatedAsync(Guid tenantId, string key, string locale,
+        string providerTemplateName, string providerLanguage, AuditContext actor, CancellationToken ct = default)
+    {
+        var vset = WhatsAppAllowedVariables.Find(key)
+            ?? throw new TemplateValidationException("WhatsApp linking supports only the otp and verify_new_contact message types.");
+
+        if (string.IsNullOrWhiteSpace(providerTemplateName))
+            throw new TemplateValidationException("An approved template name is required to link.");
+
+        // Re-sync so we validate against the template as it actually exists at the provider, not
+        // user-supplied claims. Match on (name, language).
+        var remotes = await SyncWhatsAppTemplatesAsync(tenantId, ct);
+        var remote = remotes.FirstOrDefault(r =>
+            string.Equals(r.Name, providerTemplateName.Trim(), StringComparison.OrdinalIgnoreCase)
+            && (string.IsNullOrWhiteSpace(providerLanguage) || string.Equals(r.Language, providerLanguage.Trim(), StringComparison.OrdinalIgnoreCase)))
+            ?? throw new TemplateValidationException($"No approved template named '{providerTemplateName}' was found at your provider.");
+
+        var parsed = ParseTemplateVariables(remote);
+        var error = ValidateNamedBinding(vset, parsed, remote.Status);
+        if (error is not null)
+            throw new TemplateValidationException(error);
+
+        var existing = await _templates.GetAsync(tenantId, key, MessageChannel.WhatsApp, locale, ct);
+        var body = existing?.Body
+            ?? BuiltInTemplates.Find(key, MessageChannel.WhatsApp)?.Body
+            ?? vset.RecommendedBody;
+        var variablesJson = JsonSerializer.Serialize(parsed);
+        var lang = string.IsNullOrWhiteSpace(remote.Language) ? Trim(providerLanguage) : remote.Language;
+
+        if (existing is null)
+        {
+            await _templates.AddAsync(new MessageTemplate
+            {
+                TenantId = tenantId,
+                Key = key,
+                Channel = MessageChannel.WhatsApp,
+                Locale = locale,
+                Subject = null,
+                Body = body,
+                ProviderTemplateName = remote.Name,
+                ProviderLanguage = lang,
+                ProviderVariables = variablesJson,
+                IsActive = true,
+                CreatedAt = DateTimeOffset.UtcNow
+            }, ct);
+        }
+        else
+        {
+            existing.ProviderTemplateName = remote.Name;
+            existing.ProviderLanguage = lang;
+            existing.ProviderVariables = variablesJson;
+            existing.IsActive = true;
+            await _templates.UpdateAsync(existing, ct);
+        }
+
+        await _audit.LogAsync("messaging.template_bound", actor, tenantId, "message_template", existing?.Id,
+            metadata: new { key, locale, providerTemplateName = remote.Name, providerLanguage = lang, named = true }, ct: ct);
+    }
+
+    /// <summary>The named variables a remote template uses: the provider-reported names when present,
+    /// else the <c>{{name}}</c> tokens parsed from its body (preserving body order, de-duplicated).</summary>
+    private static IReadOnlyList<string> ParseTemplateVariables(WhatsAppRemoteTemplate remote)
+    {
+        if (remote.VariableNames is { Count: > 0 })
+            return remote.VariableNames.Distinct().ToList();
+        return TemplateRenderer.Placeholders(remote.BodyText ?? string.Empty);
+    }
+
+    /// <summary>Returns null if <paramref name="parsed"/> is a valid binding for <paramref name="vset"/>,
+    /// else a human-readable reason (positional placeholder, unknown variable, missing required,
+    /// or not approved).</summary>
+    private static string? ValidateNamedBinding(WhatsAppVariableSet vset, IReadOnlyList<string> parsed, string status)
+    {
+        if (!string.Equals(status, "APPROVED", StringComparison.OrdinalIgnoreCase))
+            return $"Template isn't approved yet (status: {status}).";
+
+        foreach (var token in parsed)
+        {
+            if (token.All(char.IsDigit))
+                return $"Template uses positional placeholder {{{{{token}}}}}. Use named variables like {{{{{vset.Required}}}}} instead.";
+            if (!vset.Allowed.Contains(token))
+                return $"Template uses unknown variable '{token}'. Allowed: {string.Join(", ", vset.Allowed)}.";
+        }
+
+        if (!parsed.Contains(vset.Required))
+            return $"Template must include the required {{{{{vset.Required}}}}} variable.";
+
+        return null;
+    }
+
+    private static IReadOnlyList<string>? DeserializeVariableNames(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try { return JsonSerializer.Deserialize<List<string>>(json); }
+        catch (JsonException) { return null; }
     }
 
     public async Task<RenderedPreview> PreviewAsync(Guid tenantId, string key, MessageChannel channel, string locale, IReadOnlyDictionary<string, string> sampleVariables, CancellationToken ct = default)

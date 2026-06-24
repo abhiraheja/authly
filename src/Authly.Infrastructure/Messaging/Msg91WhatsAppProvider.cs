@@ -37,11 +37,13 @@ public sealed class Msg91WhatsAppProvider : IWhatsAppProvider
             if (!string.IsNullOrWhiteSpace(message.WhatsAppTemplateName))
             {
                 // Template message (required for business-initiated sends like OTP). Shape matches the
-                // official MSG91 WhatsApp SDK: language is a string, body params are a positional
-                // [{type:"text", text:"…"}] array, and `to` is a single recipient string.
-                var components = (message.WhatsAppParameters ?? Array.Empty<string>())
-                    .Select(p => new { type = "text", text = p })
-                    .ToArray();
+                // official MSG91 WhatsApp SDK: language is a string, `to` is a single recipient string,
+                // and body params are an ordered component array. Named-parameter templates carry a
+                // `parameter_name` per Meta's Cloud API; legacy bindings send positional components.
+                object[] components = message.WhatsAppNamedParameters is { Count: > 0 } named
+                    ? named.Select(p => (object)new { type = "text", parameter_name = p.Name, text = p.Value }).ToArray()
+                    : (message.WhatsAppParameters ?? Array.Empty<string>())
+                        .Select(p => (object)new { type = "text", text = p }).ToArray();
 
                 payload = new
                 {

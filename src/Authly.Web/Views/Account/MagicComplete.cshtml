@@ -1,0 +1,49 @@
+@{
+    Layout = "_AuthLayout";
+    var returnUrl = ViewData["ReturnUrl"] as string;
+}
+
+<div class="text-center">
+    <span class="logo-mark mb-3"><i data-lucide="check-circle-2"></i></span>
+    <h2 class="font-display text-2xl font-bold">You're signed in</h2>
+
+    <p id="magicContinue" class="text-sm text-muted-foreground mt-1 mb-6">
+        <span class="inline-flex items-center gap-2">
+            <i data-lucide="loader-2" class="size-4 animate-spin"></i> Continuing…
+        </span>
+    </p>
+
+    <div id="magicReturn" class="hidden">
+        <p class="text-sm text-muted-foreground mt-1 mb-6">
+            Return to the tab where you started signing in — it'll continue automatically.
+            You can close this tab.
+        </p>
+        <a href="/portal" class="btn btn-outline w-full">Go to your account here instead</a>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // Decide where to finish. If a live "waiting" tab from the same browser is present, it holds the
+    // PKCE/state and will complete the OIDC flow itself — so this (new) tab defers to it instead of
+    // navigating to the relying app's callback, which would fail here. Otherwise this IS the
+    // originating tab (e.g. the link was opened in the same tab), so we continue here.
+    (function () {
+        var target = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(returnUrl)) || '/portal';
+        var WAIT_KEY = 'authly_magic_wait';
+        var fresh = false;
+        try {
+            var raw = localStorage.getItem(WAIT_KEY);
+            if (raw) { var o = JSON.parse(raw); fresh = o && (Date.now() - o.t) < 4000; }
+        } catch (e) { /* ignore */ }
+
+        if (fresh) {
+            document.getElementById('magicContinue').classList.add('hidden');
+            document.getElementById('magicReturn').classList.remove('hidden');
+            if (window.lucide) { lucide.createIcons(); }
+        } else {
+            window.location.href = target;
+        }
+    })();
+</script>
+}

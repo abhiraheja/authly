@@ -450,10 +450,32 @@ public sealed class AccountController : Controller
         var session = await _auth.StartSessionAsync(user, "magic_link", CurrentRequest(), ct);
         QueueSuspiciousLoginCheck(user.Id);
         await UserSignIn.SignInAsync(HttpContext, user.Id, user.Email, user.TenantId, session.Id, user.EmailVerified);
-        // Carry the relying-app continuation (e.g. /connect/authorize) so the user lands back on the
-        // app that started the sign-in; re-validated as a safe local URL (defense-in-depth).
+
+        // Plain magic login (no relying-app continuation) → the hosted portal works in any tab.
         var safe = SafeReturnUrl(returnUrl);
-        return safe is not null ? Redirect(safe) : Portal();
+        if (safe is null) return Portal();
+
+        // OIDC continuation (e.g. /connect/authorize): the email link usually opens in a NEW tab that
+        // lacks the SPA's PKCE/state, so finishing the flow there would fail. The session cookie is now
+        // set (shared across tabs), so the ORIGINAL tab — which still holds that state — can finish on
+        // its own. The completion page decides client-side: if a live originating tab is detected it
+        // defers to it ("return to your tab"); otherwise (same-tab open) it continues here.
+        ViewData["ReturnUrl"] = safe;
+        ViewData["Title"] = "You're signed in";
+        return View("MagicComplete");
+    }
+
+    /// <summary>Lightweight poll for the "check your email" page. Email links typically open in a NEW
+    /// browser tab, which lacks the SPA's per-tab PKCE/state, so completing the OIDC continuation there
+    /// fails. Instead the ORIGINAL tab (which holds that state) polls this and, once the link has been
+    /// opened in the same browser (shared cookie), finishes the flow itself. Reflects only the caller's
+    /// own end-user cookie — no user data — so it is safe to call anonymously.</summary>
+    [HttpGet("auth-status")]
+    public async Task<IActionResult> AuthStatus()
+    {
+        var result = await HttpContext.AuthenticateAsync(AuthSchemes.User);
+        Response.Headers.CacheControl = "no-store";
+        return Json(new { authenticated = result.Succeeded });
     }
 
     // --- Phone sign-in (WhatsApp OTP or password) ---

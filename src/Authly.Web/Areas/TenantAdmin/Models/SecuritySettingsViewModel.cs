@@ -21,6 +21,23 @@ public sealed class SecuritySettingsViewModel
     /// only effective (and only enabled in the UI) when this is true.</summary>
     public bool WhatsAppOtpReady { get; set; }
 
+    // --- Sign-in methods (which login options the hosted login page offers) ---
+    [Display(Name = "Email & password")]
+    public bool AllowPasswordLogin { get; set; } = true;
+
+    [Display(Name = "Email sign-in link")]
+    public bool AllowMagicLinkLogin { get; set; } = true;
+
+    [Display(Name = "Passkey")]
+    public bool AllowPasskeyLogin { get; set; } = true;
+
+    [Display(Name = "Social sign-in")]
+    public bool AllowSocialLogin { get; set; } = true;
+
+    /// <summary>Read-only: whether at least one social provider is active. The social sign-in toggle
+    /// is only effective (and only enabled in the UI) when this is true.</summary>
+    public bool HasSocialProvider { get; set; }
+
     [Display(Name = "Lock accounts after repeated failures")]
     public bool LockoutEnabled { get; set; } = true;
 

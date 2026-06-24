@@ -19,12 +19,15 @@ public sealed class SocialController : Controller
     private readonly ISocialLoginService _social;
     private readonly ITenantContext _tenant;
     private readonly SocialStateProtector _state;
+    private readonly Authly.Modules.Security.ISecuritySettingsService _securitySettings;
 
-    public SocialController(ISocialLoginService social, ITenantContext tenant, SocialStateProtector state)
+    public SocialController(ISocialLoginService social, ITenantContext tenant, SocialStateProtector state,
+        Authly.Modules.Security.ISecuritySettingsService securitySettings)
     {
         _social = social;
         _tenant = tenant;
         _state = state;
+        _securitySettings = securitySettings;
     }
 
     [HttpGet("{provider}")]
@@ -33,6 +36,8 @@ public sealed class SocialController : Controller
         if (!_tenant.HasTenant) return RedirectToLogin();
 
         var tenantId = _tenant.TenantId!.Value;
+        if (!(await _securitySettings.GetAsync(tenantId, ct)).AllowSocialLogin)
+            return RedirectToLogin("That sign-in option isn't available.");
         var redirectUri = Url.Action(nameof(Callback), "Social", new { provider }, Request.Scheme)!;
         var safeReturn = !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : null;
         var state = _state.Protect(new SocialState(tenantId, provider, redirectUri, safeReturn));

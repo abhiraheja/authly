@@ -12,6 +12,41 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div class="space-y-4">
+            <div class="card" id="signinMethods">
+                <div class="card-header"><h2 class="card-title">Sign-in methods</h2></div>
+                <div class="card-body space-y-4">
+                    <p class="-mt-1 text-xs text-muted-foreground">Choose which sign-in options the hosted login page offers. At least one working method must stay enabled.</p>
+                    <div class="flex items-center gap-3">
+                        <label class="switch"><input asp-for="AllowPasswordLogin" type="checkbox" data-signin-method /><span class="track"></span></label>
+                        <label class="label !mb-0" asp-for="AllowPasswordLogin"></label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <label class="switch"><input asp-for="AllowMagicLinkLogin" type="checkbox" data-signin-method /><span class="track"></span></label>
+                        <label class="label !mb-0" asp-for="AllowMagicLinkLogin"></label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <label class="switch"><input asp-for="AllowPasskeyLogin" type="checkbox" data-signin-method /><span class="track"></span></label>
+                        <label class="label !mb-0" asp-for="AllowPasskeyLogin"></label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <label class="switch"><input asp-for="AllowSocialLogin" type="checkbox" data-signin-method disabled="@(!Model.HasSocialProvider ? "disabled" : null)" /><span class="track"></span></label>
+                        <label class="label !mb-0" asp-for="AllowSocialLogin"></label>
+                    </div>
+                    @if (!Model.HasSocialProvider)
+                    {
+                        <p class="-mt-2 text-xs text-muted-foreground">Add a <a class="text-primary underline" asp-area="TenantAdmin" asp-controller="SocialProviders" asp-action="Index">social provider</a> to enable social sign-in.</p>
+                    }
+                    <div class="flex items-center gap-3">
+                        <label class="switch"><input asp-for="AllowPhoneLogin" type="checkbox" data-signin-method disabled="@(!Model.WhatsAppOtpReady ? "disabled" : null)" /><span class="track"></span></label>
+                        <label class="label !mb-0" asp-for="AllowPhoneLogin"></label>
+                    </div>
+                    @if (!Model.WhatsAppOtpReady)
+                    {
+                        <p class="-mt-2 text-xs text-muted-foreground"><a class="text-primary underline" asp-area="TenantAdmin" asp-controller="WhatsApp" asp-action="Index">Configure WhatsApp + link the OTP template</a> to enable phone sign-in.</p>
+                    }
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-header"><h2 class="card-title">Sign-up policy</h2></div>
                 <div class="card-body space-y-4">
@@ -36,20 +71,16 @@
                         <div class="rounded bg-muted p-2 text-xs flex items-start gap-1">
                             <i data-lucide="info" class="size-3.5 mt-0.5 shrink-0"></i>
                             <span>
-                                To enable phone sign-up / sign-in, first
+                                To enable phone sign-up, first
                                 <a class="text-primary underline" asp-area="TenantAdmin" asp-controller="WhatsApp" asp-action="Index">configure WhatsApp and link the OTP template</a>.
                             </span>
                         </div>
                     }
                     <div class="flex items-center gap-3">
-                        <label class="switch"><input asp-for="AllowPhoneLogin" type="checkbox" disabled="@(!Model.WhatsAppOtpReady ? "disabled" : null)" /><span class="track"></span></label>
-                        <label class="label !mb-0" asp-for="AllowPhoneLogin"></label>
-                    </div>
-                    <div class="flex items-center gap-3">
                         <label class="switch"><input asp-for="AllowPhoneSignup" type="checkbox" disabled="@(!Model.WhatsAppOtpReady ? "disabled" : null)" /><span class="track"></span></label>
                         <label class="label !mb-0" asp-for="AllowPhoneSignup"></label>
                     </div>
-                    <p class="-mt-2 text-xs text-muted-foreground">Users sign in / sign up with a mobile number; the verification code is delivered via your linked WhatsApp OTP template.</p>
+                    <p class="-mt-2 text-xs text-muted-foreground">Users sign up with a mobile number; the verification code is delivered via your linked WhatsApp OTP template. (Phone sign-in is enabled under <a class="text-primary underline" href="#signinMethods">Sign-in methods</a>.)</p>
                 </div>
             </div>
 
@@ -152,3 +183,22 @@
 
     <button type="submit" class="btn btn-primary mt-4">Save security settings</button>
 </form>
+
+@section Scripts {
+<script>
+    // Client-side guard: don't let the admin turn off the last enabled sign-in method (the server
+    // enforces this too). Only enabled, non-disabled switches count.
+    (function () {
+        var methods = Array.prototype.slice.call(document.querySelectorAll('[data-signin-method]'));
+        function effective() { return methods.filter(function (m) { return !m.disabled && m.checked; }); }
+        methods.forEach(function (m) {
+            m.addEventListener('change', function () {
+                if (!m.checked && effective().length === 0) {
+                    m.checked = true;
+                    alert('At least one sign-in method must remain enabled.');
+                }
+            });
+        });
+    })();
+</script>
+}

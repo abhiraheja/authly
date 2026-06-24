@@ -56,8 +56,15 @@
                 @if (isLinked) { <span class="badge badge-success">linked</span> } else { <span class="badge badge-neutral">not linked</span> }
             </div>
 
+            @if (vset.Key == "otp")
+            {
+                <p class="text-xs text-muted-foreground mt-2 mb-0">
+                    <i data-lucide="info" class="size-3 inline"></i>
+                    Easiest: use the <strong>Authentication</strong> "Copy code" template WhatsApp auto-creates — its code maps to <code>{{otp}}</code> automatically. Or author a Utility template with the named variables below.
+                </p>
+            }
             <div class="mt-3">
-                <div class="text-xs font-medium text-muted-foreground mb-1">Allowed variables</div>
+                <div class="text-xs font-medium text-muted-foreground mb-1">Allowed variables (Utility template)</div>
                 <div class="flex flex-wrap gap-1">
                     @foreach (var v in vset.Allowed)
                     {

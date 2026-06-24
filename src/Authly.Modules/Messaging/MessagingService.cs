@@ -136,15 +136,15 @@ public sealed class MessagingService : IMessagingService
         if (ov is not null && !string.IsNullOrWhiteSpace(ov.ProviderTemplateName))
         {
             templateName = ov.ProviderTemplateName;
-            var names = DeserializeVariableNames(ov.ProviderVariables);
-            if (names is { Count: > 0 })
+            var map = DeserializeVariableMap(ov.ProviderVariables);
+            if (map is { Count: > 0 })
             {
                 var vset = WhatsAppAllowedVariables.Find(request.TemplateKey);
                 language = string.IsNullOrWhiteSpace(ov.ProviderLanguage) ? vset?.Language ?? "en" : ov.ProviderLanguage;
-                // The stored name is the provider's raw parameter id (e.g. "body_otp"); echo it back as
-                // parameter_name, but resolve the value via the normalized Authly variable ("otp").
-                namedParameters = names
-                    .Select(n => new WhatsAppNamedParam(n, vars.TryGetValue(NormalizeVariableName(n), out var v) ? v : string.Empty))
+                // Each entry is providerComponentKey (e.g. "body_1"/"body_otp") → Authly variable; the
+                // key is sent as the component id, the value comes from the resolved variable.
+                namedParameters = map
+                    .Select(kv => new WhatsAppNamedParam(kv.Key, vars.TryGetValue(kv.Value, out var v) ? v : string.Empty))
                     .ToList();
             }
             else
@@ -372,7 +372,7 @@ public sealed class MessagingService : IMessagingService
             var parsed = ParseTemplateVariables(r);
             var errors = supported.ToDictionary(
                 vset => vset.Key,
-                vset => ValidateNamedBinding(vset, parsed, r.Status));
+                vset => ResolveBinding(vset, r).Error);
             return new WhatsAppSyncedTemplate(r, parsed, errors);
         }).ToList();
     }
@@ -394,16 +394,17 @@ public sealed class MessagingService : IMessagingService
             && (string.IsNullOrWhiteSpace(providerLanguage) || string.Equals(r.Language, providerLanguage.Trim(), StringComparison.OrdinalIgnoreCase)))
             ?? throw new TemplateValidationException($"No approved template named '{providerTemplateName}' was found at your provider.");
 
-        var parsed = ParseTemplateVariables(remote);
-        var error = ValidateNamedBinding(vset, parsed, remote.Status);
-        if (error is not null)
-            throw new TemplateValidationException(error);
+        var (map, error) = ResolveBinding(vset, remote);
+        if (error is not null || map is null)
+            throw new TemplateValidationException(error ?? "Template can't be linked.");
 
         var existing = await _templates.GetAsync(tenantId, key, MessageChannel.WhatsApp, locale, ct);
         var body = existing?.Body
             ?? BuiltInTemplates.Find(key, MessageChannel.WhatsApp)?.Body
             ?? vset.RecommendedBody;
-        var variablesJson = JsonSerializer.Serialize(parsed);
+        // Stored as a JSON object mapping the provider's component key (e.g. "body_1" / "body_otp")
+        // to the Authly variable that fills it (e.g. "otp"); drives the named send payload.
+        var variablesJson = JsonSerializer.Serialize(map);
         var lang = string.IsNullOrWhiteSpace(remote.Language) ? Trim(providerLanguage) : remote.Language;
 
         if (existing is null)
@@ -445,28 +446,57 @@ public sealed class MessagingService : IMessagingService
         return TemplateRenderer.Placeholders(remote.BodyText ?? string.Empty);
     }
 
-    /// <summary>Returns null if <paramref name="parsed"/> is a valid binding for <paramref name="vset"/>,
-    /// else a human-readable reason (positional placeholder, unknown variable, missing required,
-    /// or not approved). Variable names are normalized (MSG91 prefixes body params with "body_")
-    /// before matching against the allowed set.</summary>
-    private static string? ValidateNamedBinding(WhatsAppVariableSet vset, IReadOnlyList<string> parsed, string status)
+    /// <summary>
+    /// Resolves how a remote provider template binds to an Authly message key. Returns a map from the
+    /// provider's body component key (e.g. <c>body_1</c>, <c>body_otp</c>) to the Authly variable that
+    /// fills it, or an error explaining why it can't be linked. Two valid shapes:
+    /// <list type="bullet">
+    /// <item>AUTHENTICATION OTP templates (auto-created by Meta) — a fixed positional <c>{{1}}</c> body
+    /// holding the code plus a copy-code button; the single body param maps to <c>otp</c> and the
+    /// button is ignored (it's template metadata, not a send param).</item>
+    /// <item>UTILITY/named templates — every body param (normalized, MSG91 prefixes with <c>body_</c>)
+    /// must be in the key's allowed set and the required variable must be present.</item>
+    /// </list>
+    /// Button/header components are excluded from the send-time value map either way.
+    /// </summary>
+    private static (IReadOnlyDictionary<string, string>? Map, string? Error) ResolveBinding(
+        WhatsAppVariableSet vset, WhatsAppRemoteTemplate remote)
     {
-        if (!string.Equals(status, "APPROVED", StringComparison.OrdinalIgnoreCase))
-            return $"Template isn't approved yet (status: {status}).";
+        if (!string.Equals(remote.Status, "APPROVED", StringComparison.OrdinalIgnoreCase))
+            return (null, $"Template isn't approved yet (status: {remote.Status}).");
 
-        foreach (var token in parsed)
+        // Body params only — buttons (copy-code) and header media are not sent as components.
+        var bodyTokens = ParseTemplateVariables(remote)
+            .Where(t => !t.StartsWith("button_", StringComparison.OrdinalIgnoreCase)
+                     && !t.StartsWith("header_", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var isAuth = string.Equals(remote.Category, "AUTHENTICATION", StringComparison.OrdinalIgnoreCase);
+
+        // Meta authentication templates are positional and carry exactly the verification code; accept
+        // them for the OTP key and route every body param to {{otp}}.
+        if (isAuth && vset.Key == MessageTemplateKeys.Otp)
+        {
+            if (bodyTokens.Count == 0)
+                return (null, "Authentication template has no body parameter for the code.");
+            return (bodyTokens.ToDictionary(t => t, _ => "otp"), null);
+        }
+
+        var map = new Dictionary<string, string>();
+        foreach (var token in bodyTokens)
         {
             var name = NormalizeVariableName(token);
             if (name.All(char.IsDigit))
-                return $"Template uses positional placeholder {{{{{token}}}}}. Use named variables like {{{{{vset.Required}}}}} instead.";
+                return (null, $"Template uses positional placeholder {{{{{token}}}}}. Use named variables like {{{{{vset.Required}}}}} instead.");
             if (!vset.Allowed.Contains(name))
-                return $"Template uses unknown variable '{name}'. Allowed: {string.Join(", ", vset.Allowed)}.";
+                return (null, $"Template uses unknown variable '{name}'. Allowed: {string.Join(", ", vset.Allowed)}.");
+            map[token] = name;
         }
 
-        if (!parsed.Any(t => NormalizeVariableName(t) == vset.Required))
-            return $"Template must include the required {{{{{vset.Required}}}}} variable.";
+        if (!map.Values.Contains(vset.Required))
+            return (null, $"Template must include the required {{{{{vset.Required}}}}} variable.");
 
-        return null;
+        return (map, null);
     }
 
     /// <summary>Maps a provider-reported parameter name to the Authly variable name. MSG91 returns
@@ -475,10 +505,21 @@ public sealed class MessagingService : IMessagingService
     private static string NormalizeVariableName(string raw)
         => raw.StartsWith("body_", StringComparison.OrdinalIgnoreCase) ? raw["body_".Length..] : raw;
 
-    private static IReadOnlyList<string>? DeserializeVariableNames(string? json)
+    /// <summary>Deserializes a stored binding map (providerKey → Authly variable). Tolerates the
+    /// older array form (<c>["body_otp",…]</c>) by mapping each entry through normalization.</summary>
+    private static IReadOnlyDictionary<string, string>? DeserializeVariableMap(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return null;
-        try { return JsonSerializer.Deserialize<List<string>>(json); }
+        var trimmed = json.TrimStart();
+        try
+        {
+            if (trimmed.StartsWith('['))
+            {
+                var list = JsonSerializer.Deserialize<List<string>>(json);
+                return list?.ToDictionary(k => k, NormalizeVariableName);
+            }
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+        }
         catch (JsonException) { return null; }
     }
 

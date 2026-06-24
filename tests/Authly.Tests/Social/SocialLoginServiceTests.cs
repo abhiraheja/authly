@@ -248,6 +248,8 @@ public class SocialLoginServiceTests
             => Task.FromResult(Items.FirstOrDefault(u => u.TenantId == t && u.Email == email));
         public Task<User?> GetByVerifiedPhoneAsync(Guid t, string normalizedPhone, CancellationToken ct = default)
             => Task.FromResult(Items.FirstOrDefault(u => u.TenantId == t && u.PhoneVerified && u.Phone == normalizedPhone));
+        public Task<User?> GetByPhoneAsync(Guid t, string normalizedPhone, CancellationToken ct = default)
+            => Task.FromResult(Items.FirstOrDefault(u => u.TenantId == t && u.Phone == normalizedPhone));
         public Task<bool> EmailExistsAsync(Guid t, string email, CancellationToken ct = default)
             => Task.FromResult(Items.Any(u => u.TenantId == t && u.Email == email));
         public Task<IReadOnlyList<User>> ListByTenantAsync(Guid t, CancellationToken ct = default)

@@ -13,9 +13,14 @@ public interface IUserRepository
     Task<User?> GetByIdAsync(Guid tenantId, Guid id, CancellationToken ct = default);
     Task<User?> GetByEmailAsync(Guid tenantId, string email, CancellationToken ct = default);
 
-    /// <summary>Resolves the user whose VERIFIED phone matches (normalized form), for phone login.
-    /// Only verified phones are matchable so an unverified number can't be used to sign in.</summary>
+    /// <summary>Resolves the user whose VERIFIED phone matches (normalized form), for phone+password
+    /// login. Only verified phones are matchable so an unverified number can't be used to sign in.</summary>
     Task<User?> GetByVerifiedPhoneAsync(Guid tenantId, string normalizedPhone, CancellationToken ct = default);
+
+    /// <summary>Resolves the user holding this phone (normalized), regardless of verification — used by
+    /// the OTP login path, where a successful code both proves ownership and verifies the number.
+    /// Phone is unique per tenant, so this returns at most one user.</summary>
+    Task<User?> GetByPhoneAsync(Guid tenantId, string normalizedPhone, CancellationToken ct = default);
 
     /// <summary>All users in a tenant (newest first), for tenant-admin management screens.</summary>
     Task<IReadOnlyList<User>> ListByTenantAsync(Guid tenantId, CancellationToken ct = default);

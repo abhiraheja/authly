@@ -1,5 +1,6 @@
 @{
     Layout = "_AuthLayout";
+    var returnUrl = ViewData["ReturnUrl"] as string;
 }
 
 <div class="text-center">
@@ -9,5 +10,50 @@
         If an account exists for @(ViewData["Email"] is string e ? e : "that address"),
         we've sent a sign-in link. It expires in 15 minutes and can be used once.
     </p>
-    <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@(ViewData["ReturnUrl"] as string)" class="btn btn-outline w-full">Back to sign in</a>
+
+    <p id="magicWaiting" class="hidden text-sm text-muted-foreground mb-6">
+        <span class="inline-flex items-center gap-2">
+            <i data-lucide="loader-2" class="size-4 animate-spin"></i>
+            Keep this tab open — once you open the link, we'll continue here automatically.
+        </span>
+    </p>
+
+    <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@returnUrl" class="btn btn-outline w-full">Back to sign in</a>
 </div>
+
+@section Scripts {
+<script>
+    // The email link usually opens in a NEW tab, which doesn't hold this app's PKCE/state. So THIS
+    // tab — the one that started sign-in and still holds that state — (1) advertises itself as a live
+    // "waiting" tab via localStorage so the link's tab can defer to it, and (2) watches for the link
+    // being opened in the same browser (shared cookie) and then completes the flow itself.
+    (function () {
+        var target = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(returnUrl));
+        var statusUrl = '@Url.Action("AuthStatus", "Account")';
+        var WAIT_KEY = 'authly_magic_wait';
+        var waiting = document.getElementById('magicWaiting');
+        if (waiting) waiting.classList.remove('hidden');
+
+        function beat() { try { localStorage.setItem(WAIT_KEY, JSON.stringify({ t: Date.now() })); } catch (e) {} }
+        function clearBeat() { try { localStorage.removeItem(WAIT_KEY); } catch (e) {} }
+
+        beat();
+        var heartbeat = setInterval(beat, 1000);
+        window.addEventListener('pagehide', clearBeat);
+
+        var poll = setInterval(function () {
+            fetch(statusUrl, { credentials: 'same-origin', cache: 'no-store' })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (d && d.authenticated) {
+                        clearInterval(poll);
+                        clearInterval(heartbeat);
+                        clearBeat();
+                        window.location.href = target || '/portal';
+                    }
+                })
+                .catch(function () { /* keep polling */ });
+        }, 2500);
+    })();
+</script>
+}

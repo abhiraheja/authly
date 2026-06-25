@@ -58,7 +58,10 @@ public sealed class UserAdminService : IUserAdminService
         };
         await _users.AddAsync(user, ct);
 
-        await _audit.LogAsync("user.created", actor, tenantId, "user", user.Id, metadata: new { email }, ct: ct);
+        // Non-sensitive user fields ride along so webhook subscribers can provision without a callback.
+        await _audit.LogAsync("user.created", actor, tenantId, "user", user.Id,
+            metadata: new { email, firstName = user.FirstName, lastName = user.LastName, phone = user.Phone, avatarUrl = user.AvatarUrl },
+            ct: ct);
         return user;
     }
 

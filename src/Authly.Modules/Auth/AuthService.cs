@@ -78,8 +78,12 @@ public sealed class AuthService : IAuthService
         await _users.AddAsync(user, ct);
 
         await IssueVerificationEmailAsync(user, ct);
+        // Non-sensitive user fields ride along on the event so webhook subscribers can provision
+        // downstream records without a callback. Never include secrets/credentials here.
         await _audit.LogAsync("user.registered", Actor(user.Id, info), tenantId,
-            resourceType: "user", resourceId: user.Id, ct: ct);
+            resourceType: "user", resourceId: user.Id,
+            metadata: new { email = user.Email, firstName = user.FirstName, lastName = user.LastName, phone = user.Phone, avatarUrl = user.AvatarUrl },
+            ct: ct);
 
         return user;
     }

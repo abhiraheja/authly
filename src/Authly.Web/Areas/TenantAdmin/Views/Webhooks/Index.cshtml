@@ -80,6 +80,19 @@
                             <td>@(d.ResponseCode?.ToString() ?? "—")</td>
                             <td class="text-sm text-muted-foreground">@d.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
                             <td class="text-right">
+                                <details class="inline-block text-left align-middle">
+                                    <summary class="btn btn-sm btn-secondary cursor-pointer select-none">View</summary>
+                                    <div class="mt-2 rounded-md border border-border bg-muted/40 p-3 text-xs text-left space-y-1" style="min-width:18rem;max-width:32rem;">
+                                        <div><span class="font-semibold">Delivery:</span> <span class="font-mono">@d.Id</span></div>
+                                        <div><span class="font-semibold">HTTP:</span> @(d.ResponseCode?.ToString() ?? "—")</div>
+                                        <div><span class="font-semibold">Error:</span> @(string.IsNullOrEmpty(d.LastError) ? "—" : d.LastError)</div>
+                                        <div><span class="font-semibold">Next retry:</span> @(d.NextRetryAt?.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") ?? "—")</div>
+                                        <details class="mt-1">
+                                            <summary class="cursor-pointer text-primary">Payload</summary>
+                                            <pre class="mt-1 overflow-x-auto whitespace-pre-wrap break-all">@d.Payload</pre>
+                                        </details>
+                                    </div>
+                                </details>
                                 @if (d.Status != WebhookDeliveryStatus.Success)
                                 {
                                     <form class="inline" asp-area="TenantAdmin" asp-controller="Webhooks" asp-action="Retry" asp-route-deliveryId="@d.Id" method="post">

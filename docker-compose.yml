@@ -45,6 +45,7 @@ services:
       # --- Observability -----------------------------------------------------
       # Env fallback OTLP endpoint; the in-app Observability page can override at runtime.
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+      - Authly__Tokens__DisableAccessTokenEncryption=true
     ports:
       - "${APP_PORT:-8080}:8080"
     depends_on:

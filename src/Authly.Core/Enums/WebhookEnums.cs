@@ -55,5 +55,12 @@ public enum ClaimSourceType
     Metadata,
 
     /// <summary>A value fetched by POSTing to the URL in <c>source</c> (signed, timeout-bounded).</summary>
-    Webhook
+    Webhook,
+
+    /// <summary>
+    /// A claim already produced by the <see cref="PipelineStage.PreToken"/> pipeline hook, declared
+    /// here only to control its token destination (e.g. also emit it to the id_token). The value is
+    /// taken from the hook output, so <c>source</c> is unused.
+    /// </summary>
+    Hook
 }

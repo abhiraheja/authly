@@ -978,6 +978,7 @@ public class AppDbContext : DbContext
         "static" => ClaimSourceType.Static,
         "metadata" => ClaimSourceType.Metadata,
         "webhook" => ClaimSourceType.Webhook,
+        "hook" => ClaimSourceType.Hook,
         _ => throw new InvalidOperationException($"Unknown claim source type '{v}'.")
     };
 

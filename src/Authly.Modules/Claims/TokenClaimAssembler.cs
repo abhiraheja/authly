@@ -39,6 +39,12 @@ public sealed class TokenClaimAssembler : ITokenClaimAssembler
                     if (ResolveMetadata(path, userMeta?.RootElement, appMeta?.RootElement) is { } resolved)
                         claims[config.ClaimName] = resolved;
                     break;
+                case ClaimSourceType.Hook
+                    when request.HookClaims is { } hookClaims && hookClaims.TryGetValue(config.ClaimName, out var hookValue):
+                    // The pre-token hook produced this claim on the other pass; emit it to this token
+                    // type too (e.g. surface company_id in the id_token).
+                    claims[config.ClaimName] = hookValue;
+                    break;
             }
         }
 

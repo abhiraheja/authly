@@ -302,8 +302,11 @@ public sealed class AuthorizationController : Controller
         if (access.Blocked)
             return (true, access.BlockReason, idClaimNames);
 
+        // The id pass doesn't re-run the hook; pass the access pass's claims so a `Hook`-typed id
+        // claim config can surface a hook value (e.g. company_id) in the id_token too.
         var id = await _claims.AssembleAsync(new ClaimAssemblyRequest(
-            tenantId, applicationId, ClaimTokenType.Id, userMetadataJson, appMetadataJson, payload, RunPreTokenHooks: false), ct);
+            tenantId, applicationId, ClaimTokenType.Id, userMetadataJson, appMetadataJson, payload,
+            RunPreTokenHooks: false, HookClaims: access.Claims), ct);
 
         foreach (var (name, value) in access.Claims)
             if (!ReservedClaimNames.Contains(name)) identity.SetClaim(name, value);

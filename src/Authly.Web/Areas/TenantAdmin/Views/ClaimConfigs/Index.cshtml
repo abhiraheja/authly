@@ -13,8 +13,10 @@
         <p class="text-muted-foreground text-sm mb-4">
             Add claims to issued tokens (§5.6). <strong>Static</strong> emits a fixed value;
             <strong>metadata</strong> maps a dotted path from the user's <code>user_metadata</code>/<code>app_metadata</code>
-            (prefix with <code>app_metadata.</code> to target app metadata). For webhook-sourced claims, add a
-            <a asp-area="TenantAdmin" asp-controller="PipelineHooks" asp-action="Index">pre-token pipeline hook</a>.
+            (prefix with <code>app_metadata.</code> to target app metadata). <strong>Hook</strong> re-emits a claim
+            produced by your <a asp-area="TenantAdmin" asp-controller="PipelineHooks" asp-action="Index">pre-token pipeline hook</a>
+            to the chosen token (e.g. surface a hook claim in the <code>id</code> token — it's already in the access token);
+            leave Value/path empty. For other webhook-sourced claim values, configure the pipeline hook.
         </p>
         <form asp-area="TenantAdmin" asp-controller="ClaimConfigs" asp-action="Add" method="post" class="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
             <div class="md:col-span-3">
@@ -26,6 +28,7 @@
                 <select class="select select-sm" asp-for="Type">
                     <option value="@ClaimSourceType.Static">static</option>
                     <option value="@ClaimSourceType.Metadata">metadata</option>
+                    <option value="@ClaimSourceType.Hook">hook</option>
                 </select>
             </div>
             <div class="md:col-span-3">

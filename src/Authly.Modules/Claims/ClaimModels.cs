@@ -29,6 +29,11 @@ public sealed class ClaimConfigInput
 /// Whether to invoke pre-token pipeline hooks (§5.6 step 4). Issuers assembling both token types in
 /// one pass should run hooks for one type only so the hooks fire exactly once per token request.
 /// </param>
+/// <param name="HookClaims">
+/// Claims produced by the pre-token hook on the other pass. Lets a <see cref="ClaimSourceType.Hook"/>
+/// config emit a hook claim to this token type without re-running the hook (e.g. routing a hook
+/// claim into the id_token while the hook fires only on the access pass).
+/// </param>
 public sealed record ClaimAssemblyRequest(
     Guid TenantId,
     Guid? ApplicationId,
@@ -36,7 +41,8 @@ public sealed record ClaimAssemblyRequest(
     string? UserMetadataJson,
     string? AppMetadataJson,
     object HookPayload,
-    bool RunPreTokenHooks = true);
+    bool RunPreTokenHooks = true,
+    IReadOnlyDictionary<string, string>? HookClaims = null);
 
 /// <summary>Outcome of claim assembly.</summary>
 /// <param name="Claims">Custom claims to add to the token.</param>

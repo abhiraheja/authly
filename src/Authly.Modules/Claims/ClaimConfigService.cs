@@ -36,12 +36,14 @@ public sealed class ClaimConfigService : IClaimConfigService
         if (Reserved.Contains(name))
             throw new ClaimConfigInvalidException($"'{name}' is a reserved claim and cannot be overridden.");
 
-        // Webhook-sourced claims are delivered through the signed pre-token pipeline hook (§5.6 step 4),
-        // not via an unsigned per-claim URL. Static + metadata are configured here.
+        // Per-claim Webhook URLs aren't supported here — webhook claim VALUES come from the signed
+        // pre-token pipeline hook (§5.6 step 4). A `Hook` config doesn't fetch a value; it only
+        // declares that a pipeline-hook claim is also written to the chosen token (e.g. the id_token),
+        // so it needs no Source.
         if (input.Type == ClaimSourceType.Webhook)
             throw new ClaimConfigInvalidException("Use a pre-token pipeline hook for webhook-sourced claims.");
 
-        if (string.IsNullOrWhiteSpace(input.Source))
+        if (input.Type != ClaimSourceType.Hook && string.IsNullOrWhiteSpace(input.Source))
             throw new ClaimConfigInvalidException(input.Type == ClaimSourceType.Static
                 ? "Enter the static value." : "Enter the metadata path.");
 
@@ -52,7 +54,7 @@ public sealed class ClaimConfigService : IClaimConfigService
             TokenType = input.TokenType,
             Type = input.Type,
             ClaimName = name,
-            Source = input.Source!.Trim(),
+            Source = input.Type == ClaimSourceType.Hook ? null : input.Source!.Trim(),
             CreatedAt = DateTimeOffset.UtcNow
         }, ct);
 

@@ -148,6 +148,18 @@ public sealed class SocialLoginService : ISocialLoginService
         await _audit.LogAsync("user.social_login", new AuditContext(user.Id, "user", info.IpAddress, info.UserAgent),
             tenantId, "user", user.Id, metadata: new { provider, isNew, linked }, ct: ct);
 
+        // A social sign-up is also a registration — emit the canonical new-user event (same shape as
+        // password registration) so webhook subscribers provision new users uniformly, regardless of
+        // the channel they signed up through. Non-sensitive fields only.
+        if (isNew)
+        {
+            await _audit.LogAsync("user.registered",
+                new AuditContext(user.Id, "user", info.IpAddress, info.UserAgent),
+                tenantId, resourceType: "user", resourceId: user.Id,
+                metadata: new { email = user.Email, firstName = user.FirstName, lastName = user.LastName, phone = user.Phone, avatarUrl = user.AvatarUrl },
+                ct: ct);
+        }
+
         return new SocialLoginResult(user, session, isNew, linked);
     }
 

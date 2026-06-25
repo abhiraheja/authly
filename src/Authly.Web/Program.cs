@@ -87,7 +87,7 @@ builder.Services.AddScoped<Authly.Core.Events.IWebhookQueue, Authly.Web.Infrastr
 builder.Services.AddScoped<Authly.Web.Infrastructure.Webhooks.WebhookDispatchJob>();
 
 // OAuth 2.0 / OIDC server (OpenIddict) — endpoints, flows, dev signing keys.
-builder.Services.AddAuthlyOpenIddict(builder.Environment.IsDevelopment());
+builder.Services.AddAuthlyOpenIddict(builder.Environment.IsDevelopment(), builder.Configuration);
 builder.Services.AddScoped<IOAuthClientStore, OpenIddictClientStore>();
 
 // Isolated cookie schemes for tenant end-users and tenant administrators (console operators).

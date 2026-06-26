@@ -21,6 +21,8 @@ public static class EventCatalog
     // --- User lifecycle ---
     public const string UserCreated = "user.created";
     public const string UserUpdated = "user.updated";
+    /// <summary>A user edited their own profile via self-service (first/last name, timezone, locale).</summary>
+    public const string UserProfileUpdated = "user.profile_updated";
     public const string UserSuspended = "user.suspended";
     public const string UserReactivated = "user.reactivated";
     public const string UserDeleted = "user.deleted";
@@ -79,7 +81,7 @@ public static class EventCatalog
     {
         UserRegistered, UserLogin, UserLoginFailed, UserLogout, UserEmailVerified,
         UserPasswordResetRequested, UserPasswordReset, UserPasswordChanged,
-        UserCreated, UserUpdated, UserSuspended, UserReactivated, UserDeleted,
+        UserCreated, UserUpdated, UserProfileUpdated, UserSuspended, UserReactivated, UserDeleted,
         UserForcePasswordReset, UserRoleAssigned, UserRoleRemoved,
         MfaEnrolled, MfaEnabled, MfaDisabled, MfaChallengeSucceeded, MfaChallengeFailed,
         MfaBackupCodesGenerated, MfaBackupCodeUsed, MfaPolicyUpdated,

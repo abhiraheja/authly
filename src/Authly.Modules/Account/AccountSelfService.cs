@@ -39,8 +39,11 @@ public sealed class AccountSelfService : IAccountSelfService
         user.UpdatedAt = DateTimeOffset.UtcNow;
         await _users.UpdateAsync(user, ct);
 
+        // Non-sensitive profile fields ride along so webhook subscribers can sync without a callback.
         await _audit.LogAsync("user.profile_updated", actor, tenantId: tenantId,
-            resourceType: "user", resourceId: userId, ct: ct);
+            resourceType: "user", resourceId: userId,
+            metadata: new { firstName = user.FirstName, lastName = user.LastName, phone = user.Phone },
+            ct: ct);
         return true;
     }
 

@@ -77,7 +77,10 @@ public sealed class UserAdminService : IUserAdminService
         user.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _users.UpdateAsync(user, ct);
-        await _audit.LogAsync("user.updated", actor, tenantId, "user", user.Id, ct: ct);
+        // Non-sensitive profile fields ride along so webhook subscribers can sync without a callback.
+        await _audit.LogAsync("user.updated", actor, tenantId, "user", user.Id,
+            metadata: new { firstName = user.FirstName, lastName = user.LastName, phone = user.Phone },
+            ct: ct);
         return user;
     }
 

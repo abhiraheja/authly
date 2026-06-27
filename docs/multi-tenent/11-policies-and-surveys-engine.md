@@ -496,6 +496,22 @@ Question-level: `Order, IsMandatory`. Versioning + conditional logic = advanced 
 
 ---
 
+## 6.5 Runtime verification — ✅ DONE (curl end-to-end against Docker, 2026-06-27)
+
+Full flow exercised live (fresh org `flowtest-inc` via `/signup`):
+- **Boot + migrations:** app boots; `AddPoliciesEngine` + `AddSurveysEngine` + `FixSurveyEnforcementDefaults` applied; all 9 tables present.
+- **Admin:** console pages render (Policies & Surveys nav OK); created + published a **Mandatory** policy → DB `enforcement_mode='Mandatory'`, `policy_versions` v1.
+- **Policy gate:** end-user login → `GET /portal/profile` → **302 → /account/policies**; consent page renders the policy + Accept; POST accept → `policy_decisions` Accepted v1 → `/portal/profile` now **200**; portal history shows it.
+- **Survey gate:** published **Mandatory** survey + SingleChoice question → `/portal/profile` → **302 → /account/survey/{id}**; runner renders; submit → `survey_responses` Completed + 1 answer → gate cleared; admin report renders; **CSV export** returns `response_id,submitted_at,How was onboarding?` + `…,Great` (option label resolved).
+- **Phase 3 preview:** `preview-audience` → `{count:1, sample:[…]}` for all; `{count:null, note:…}` for application targeting.
+
+> **Bug found & fixed during runtime test:** `Survey.EnforcementMode` (DB default `Optional`) and
+> `Survey.ShowProgressBar` (DB default `true`) collided with the CLR type default, so EF would
+> override an explicit `Mandatory` / `false`. Removed the store defaults (the service always sets
+> them) + migration `FixSurveyEnforcementDefaults`. Verified Mandatory now persists correctly.
+
+---
+
 ## 7. Verification (Phase 1)
 
 1. **Build + tests** — `dotnet build Authly.slnx` & `dotnet test Authly.slnx` (existing green

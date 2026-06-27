@@ -59,6 +59,11 @@ public class AppDbContext : DbContext
     public DbSet<PolicyVersion> PolicyVersions => Set<PolicyVersion>();
     public DbSet<PolicyAsset> PolicyAssets => Set<PolicyAsset>();
     public DbSet<PolicyDecision> PolicyDecisions => Set<PolicyDecision>();
+    public DbSet<Survey> Surveys => Set<Survey>();
+    public DbSet<SurveyQuestion> SurveyQuestions => Set<SurveyQuestion>();
+    public DbSet<SurveyQuestionOption> SurveyQuestionOptions => Set<SurveyQuestionOption>();
+    public DbSet<SurveyResponse> SurveyResponses => Set<SurveyResponse>();
+    public DbSet<SurveyAnswer> SurveyAnswers => Set<SurveyAnswer>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -785,6 +790,110 @@ public class AppDbContext : DbContext
 
             e.HasOne<Policy>().WithMany().HasForeignKey(x => x.PolicyId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // --- Surveys engine (tenant-scoped; shares the policies engine's lifecycle/targeting) ---
+
+        b.Entity<Survey>(e =>
+        {
+            e.ToTable("surveys");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Title).HasColumnName("title").IsRequired();
+            e.Property(x => x.Description).HasColumnName("description");
+            e.Property(x => x.Status).HasColumnName("status").HasConversion<string>()
+                .HasDefaultValue(PolicyStatus.Draft).IsRequired();
+            e.Property(x => x.EnforcementMode).HasColumnName("enforcement_mode").HasConversion<string>()
+                .HasDefaultValue(PolicyEnforcementMode.Optional).IsRequired();
+            e.Property(x => x.SkipDeadline).HasColumnName("skip_deadline");
+            e.Property(x => x.StartsAt).HasColumnName("starts_at");
+            e.Property(x => x.CloseDate).HasColumnName("close_date");
+            e.Property(x => x.Targeting).HasColumnName("targeting").HasColumnType("jsonb").HasDefaultValueSql("'{}'");
+            e.Property(x => x.RandomizeQuestions).HasColumnName("randomize_questions").HasDefaultValue(false);
+            e.Property(x => x.Anonymous).HasColumnName("anonymous").HasDefaultValue(false);
+            e.Property(x => x.ShowProgressBar).HasColumnName("show_progress_bar").HasDefaultValue(true);
+            e.Property(x => x.ThankYouMessage).HasColumnName("thank_you_message");
+            e.Property(x => x.PublishedAt).HasColumnName("published_at");
+            e.Property(x => x.ConsentResetAt).HasColumnName("consent_reset_at");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.Status }).HasDatabaseName("idx_surveys_tenant_status");
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<SurveyQuestion>(e =>
+        {
+            e.ToTable("survey_questions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.SurveyId).HasColumnName("survey_id").IsRequired();
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Order).HasColumnName("order").IsRequired();
+            e.Property(x => x.Type).HasColumnName("type").HasConversion<string>().IsRequired();
+            e.Property(x => x.Title).HasColumnName("title").IsRequired();
+            e.Property(x => x.HelpText).HasColumnName("help_text");
+            e.Property(x => x.Required).HasColumnName("required").HasDefaultValue(false);
+            e.Property(x => x.MediaUrl).HasColumnName("media_url");
+            e.Property(x => x.ScaleMin).HasColumnName("scale_min");
+            e.Property(x => x.ScaleMax).HasColumnName("scale_max");
+            e.Property(x => x.RandomizeOptions).HasColumnName("randomize_options").HasDefaultValue(false);
+            e.Property(x => x.Placeholder).HasColumnName("placeholder");
+
+            e.HasIndex(x => x.SurveyId).HasDatabaseName("idx_survey_questions_survey");
+            e.HasOne<Survey>().WithMany().HasForeignKey(x => x.SurveyId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<SurveyQuestionOption>(e =>
+        {
+            e.ToTable("survey_question_options");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.QuestionId).HasColumnName("question_id").IsRequired();
+            e.Property(x => x.SurveyId).HasColumnName("survey_id").IsRequired();
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Order).HasColumnName("order").IsRequired();
+            e.Property(x => x.Label).HasColumnName("label").IsRequired();
+            e.Property(x => x.Value).HasColumnName("value");
+            e.Property(x => x.ImageUrl).HasColumnName("image_url");
+
+            e.HasIndex(x => x.QuestionId).HasDatabaseName("idx_survey_options_question");
+            e.HasOne<SurveyQuestion>().WithMany().HasForeignKey(x => x.QuestionId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<SurveyResponse>(e =>
+        {
+            e.ToTable("survey_responses");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.SurveyId).HasColumnName("survey_id").IsRequired();
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.SessionId).HasColumnName("session_id");
+            e.Property(x => x.Status).HasColumnName("status").HasConversion<string>().IsRequired();
+            e.Property(x => x.StartedAt).HasColumnName("started_at").HasDefaultValueSql("NOW()");
+            e.Property(x => x.SubmittedAt).HasColumnName("submitted_at");
+
+            e.HasIndex(x => new { x.TenantId, x.SurveyId, x.UserId }).HasDatabaseName("idx_survey_responses_user");
+            e.HasOne<Survey>().WithMany().HasForeignKey(x => x.SurveyId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<SurveyAnswer>(e =>
+        {
+            e.ToTable("survey_answers");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.ResponseId).HasColumnName("response_id").IsRequired();
+            e.Property(x => x.QuestionId).HasColumnName("question_id").IsRequired();
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.TextValue).HasColumnName("text_value");
+            e.Property(x => x.NumberValue).HasColumnName("number_value");
+            e.Property(x => x.OptionIds).HasColumnName("option_ids").HasColumnType("jsonb");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => x.ResponseId).HasDatabaseName("idx_survey_answers_response");
+            e.HasOne<SurveyResponse>().WithMany().HasForeignKey(x => x.ResponseId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // Platform-level key/value control-plane state (log-stream cursor, etc). NOT tenant-scoped — no RLS.

@@ -86,19 +86,18 @@ public sealed class UserPromptService : IUserPromptService
 
         string? authCategory = null;
         if (targetings.Values.Any(t => t.Audience == Audiences.AuthMethods))
-            authCategory = AuthMethodCategories.Normalize(await LatestLoginMethodAsync(tenantId, userId, ct));
+            authCategory = await TargetingEvaluator.AuthCategoryAsync(_loginHistory, tenantId, userId, ct);
 
         HashSet<string>? linkedProviders = null;
         if (targetings.Values.Any(t => t.Audience == Audiences.Providers))
-            linkedProviders = (await _socialIdentities.ListByUserAsync(tenantId, userId, ct))
-                .Select(s => s.Provider.ToLowerInvariant()).ToHashSet();
+            linkedProviders = await TargetingEvaluator.LinkedProvidersAsync(_socialIdentities, tenantId, userId, ct);
 
         var decisions = await _policies.ListDecisionsForUserAsync(tenantId, userId, ct);
 
         var prompts = new List<PendingPrompt>();
         foreach (var policy in active)
         {
-            if (!Matches(targetings[policy.Id], currentApplicationId, authCategory, linkedProviders))
+            if (!TargetingEvaluator.Matches(targetings[policy.Id], currentApplicationId, authCategory, linkedProviders))
                 continue;
 
             // Decisions that still count: for the live version, made after any consent-reset cutoff.
@@ -151,22 +150,4 @@ public sealed class UserPromptService : IUserPromptService
             _ => (true, false, false)
         };
 
-    private static bool Matches(PolicyTargeting t, Guid? appId, string? authCategory, HashSet<string>? linkedProviders) => t.Audience switch
-    {
-        Audiences.All => true,
-        Audiences.Applications => appId is { } id && t.ApplicationIds.Contains(id),
-        Audiences.AuthMethods => authCategory is { Length: > 0 } && t.AuthMethods.Contains(authCategory),
-        Audiences.Providers => linkedProviders is not null && t.Providers.Any(p => linkedProviders.Contains(p.ToLowerInvariant())),
-        _ => false
-    };
-
-    private async Task<string?> LatestLoginMethodAsync(Guid tenantId, Guid userId, CancellationToken ct)
-    {
-        var history = await _loginHistory.ListForUserAsync(tenantId, userId, limit: 10, ct);
-        return history
-            .Where(h => string.Equals(h.Result, "success", StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(h => h.CreatedAt)
-            .Select(h => h.Method)
-            .FirstOrDefault();
-    }
 }

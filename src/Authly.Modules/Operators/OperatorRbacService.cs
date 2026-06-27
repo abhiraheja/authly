@@ -87,6 +87,19 @@ public sealed class OperatorRbacService : IOperatorRbacService
                 .ToList();
             await _roles.SetRolePermissionsAsync(role.Id, desired, ct);
         }
+
+        // 3) Owner is the protected superuser role ("everything, cannot be reduced"). Reconcile it to the
+        //    FULL catalogue so permissions added in later releases become reachable in existing orgs
+        //    without manual setup. Additive (union) — never strips an existing grant. Other system roles
+        //    keep their (possibly admin-customized) sets untouched.
+        var owner = await _roles.GetRoleByNameAsync(organizationId, OperatorRbac.OrgOwner, ct);
+        if (owner is not null)
+        {
+            var allPermIds = existingPerms.Values.Select(p => p.Id).ToHashSet();
+            var ownerCurrent = (await _roles.ListPermissionIdsForRoleAsync(owner.Id, ct)).ToHashSet();
+            if (!allPermIds.SetEquals(ownerCurrent))
+                await _roles.SetRolePermissionsAsync(owner.Id, allPermIds.Union(ownerCurrent).ToList(), ct);
+        }
     }
 
     public async Task AssignSystemRoleAsync(Guid organizationId, Guid membershipId, string roleName, Guid? grantedByAccountId, CancellationToken ct = default)

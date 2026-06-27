@@ -1,0 +1,38 @@
+@model IReadOnlyList<SurveyHistoryRow>
+@{
+    string Badge(SurveyResponseStatus s) => s switch
+    {
+        SurveyResponseStatus.Completed => "badge-success",
+        SurveyResponseStatus.Declined => "badge-danger",
+        SurveyResponseStatus.Missed => "badge-info",
+        _ => "badge-warning"
+    };
+}
+
+<div>
+    <h1 class="font-display text-xl font-bold">Surveys</h1>
+    <p class="text-sm text-muted-foreground mt-1">Surveys you've responded to.</p>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header"><span class="card-title">Your responses</span></div>
+    <div class="overflow-x-auto scroll-thin">
+        <table class="table">
+            <thead><tr><th>Survey</th><th>Status</th><th class="text-right">Date</th></tr></thead>
+            <tbody>
+                @foreach (var r in Model)
+                {
+                    <tr>
+                        <td class="font-medium">@r.Title</td>
+                        <td><span class="badge @Badge(r.Status)">@r.Status.ToString().ToLower()</span></td>
+                        <td class="text-right text-sm text-muted-foreground">@r.At.UtcDateTime.ToString("yyyy-MM-dd HH:mm") UTC</td>
+                    </tr>
+                }
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="3" class="text-center text-muted-foreground py-6">No survey responses yet.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

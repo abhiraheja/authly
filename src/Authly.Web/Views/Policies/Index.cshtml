@@ -1,0 +1,122 @@
+@model Authly.Modules.Policies.PendingPromptSet
+@inject Authly.Web.Infrastructure.Branding.CurrentBranding Branding
+@{
+    Layout = null;
+    var brand = await Branding.GetAsync();
+    var brandName = string.IsNullOrWhiteSpace(brand.BrandName) ? await Branding.GetDisplayNameAsync() : brand.BrandName!;
+    var primaryChannels = brand.PrimaryColorRgb.Replace(",", "");
+    var returnUrl = ViewData["ReturnUrl"] as string;
+
+    string ModeBadge(Authly.Core.Enums.PolicyEnforcementMode m) => m switch
+    {
+        Authly.Core.Enums.PolicyEnforcementMode.Mandatory => "badge-danger",
+        Authly.Core.Enums.PolicyEnforcementMode.SkippableUntil => "badge-warning",
+        _ => "badge-info"
+    };
+}
+<!DOCTYPE html>
+<html lang="en" class="@(brand.DarkMode ? "dark" : "")">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · @brandName</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="~/css/saarvix.css" asp-append-version="true" />
+    <style>
+        :root, .dark { --primary: @primaryChannels; --ring: @primaryChannels; }
+        body { font-family: @Html.Raw(brand.FontFamily); }
+        .policy-frame { width: 100%; border: 1px solid rgb(var(--border)); border-radius: 6px; background: #fff; }
+    </style>
+</head>
+<body class="min-h-screen bg-background">
+<div class="mx-auto max-w-2xl px-4 sm:px-6 py-10 space-y-5">
+    <div class="flex items-center gap-2.5">
+        @if (brand.LogoUrl is not null)
+        {
+            <img src="@brand.LogoUrl" alt="@brandName" class="max-h-9" />
+        }
+        else
+        {
+            <span class="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground"><i data-lucide="shield-check" class="size-5"></i></span>
+            <span class="font-display font-bold">@brandName</span>
+        }
+    </div>
+
+    <div>
+        <h1 class="font-display text-xl font-bold">Before you continue</h1>
+        <p class="text-sm text-muted-foreground mt-1">
+            Please review the following @(Model.Prompts.Count == 1 ? "policy" : "policies") to continue to your account.
+        </p>
+    </div>
+
+    @foreach (var p in Model.Prompts)
+    {
+        <div class="card">
+            <div class="card-header flex items-center justify-between gap-3">
+                <span class="card-title">@p.Title</span>
+                <span class="badge @ModeBadge(p.Mode)">
+                    @(p.Mode == Authly.Core.Enums.PolicyEnforcementMode.Mandatory ? "Required" : p.Mode == Authly.Core.Enums.PolicyEnforcementMode.SkippableUntil ? "Action needed" : "Optional")
+                </span>
+            </div>
+            <div class="card-body space-y-3">
+                @if (!string.IsNullOrEmpty(p.Description))
+                {
+                    <p class="text-sm text-muted-foreground">@p.Description</p>
+                }
+
+                @if (p.ContentType == Authly.Core.Enums.PolicyContentType.Pdf && p.AssetId is not null)
+                {
+                    <iframe class="policy-frame" style="height:480px" src="/account/policies/asset/@p.AssetId" title="@p.Title"></iframe>
+                }
+                else
+                {
+                    @* Sandboxed (no allow-scripts) so admin-authored HTML cannot execute JS. *@
+                    <iframe class="policy-frame" style="height:340px" sandbox srcdoc="@p.HtmlContent" title="@p.Title"></iframe>
+                }
+
+                <div class="flex flex-wrap items-center gap-2 pt-1">
+                    <form asp-controller="Policies" asp-action="Decide" method="post" class="m-0">
+                        <input type="hidden" name="policyId" value="@p.PolicyId" />
+                        <input type="hidden" name="decision" value="accept" />
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <button type="submit" class="btn btn-primary"><i data-lucide="check" class="size-4"></i> Accept</button>
+                    </form>
+
+                    @if (p.AllowSkip)
+                    {
+                        <form asp-controller="Policies" asp-action="Decide" method="post" class="m-0">
+                            <input type="hidden" name="policyId" value="@p.PolicyId" />
+                            <input type="hidden" name="decision" value="skip" />
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            <button type="submit" class="btn btn-ghost">Skip for now</button>
+                        </form>
+                    }
+
+                    @if (p.AllowReject)
+                    {
+                        <form asp-controller="Policies" asp-action="Decide" method="post" class="m-0">
+                            <input type="hidden" name="policyId" value="@p.PolicyId" />
+                            <input type="hidden" name="decision" value="reject" />
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            <button type="submit" class="btn btn-outline">Decline</button>
+                        </form>
+                    }
+
+                    @if (p.HardBlock)
+                    {
+                        <form asp-controller="Policies" asp-action="Decline" method="post" class="m-0 ms-auto"
+                              onsubmit="return confirm('You must accept this to use your account. Decline and sign out?');">
+                            <input type="hidden" name="policyId" value="@p.PolicyId" />
+                            <button type="submit" class="btn btn-ghost text-danger">Decline &amp; sign out</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>lucide.createIcons();</script>
+</body>
+</html>

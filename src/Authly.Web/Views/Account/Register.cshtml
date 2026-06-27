@@ -52,9 +52,11 @@
     <div class="flex items-start gap-2">
         <input asp-for="AcceptTerms" type="checkbox" class="mt-1" />
         <div>
+            @* The previous /legal/* links 404'd (no such routes). The tenant's actual Terms/Privacy are
+               enforced at sign-in by the policies engine; the Privacy link points at the public page. *@
             <label asp-for="AcceptTerms" class="text-sm text-muted-foreground">
-                I agree to the <a class="text-primary hover:underline" href="/legal/terms" target="_blank" rel="noopener">Terms of Service</a>
-                and <a class="text-primary hover:underline" href="/legal/privacy" target="_blank" rel="noopener">Privacy Policy</a>.
+                I agree to the Terms of Service
+                and <a class="text-primary hover:underline" asp-controller="Home" asp-action="Privacy" target="_blank" rel="noopener">Privacy Policy</a>.
             </label>
             <span asp-validation-for="AcceptTerms" class="text-danger text-xs block"></span>
         </div>

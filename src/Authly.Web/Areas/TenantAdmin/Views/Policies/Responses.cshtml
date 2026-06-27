@@ -1,0 +1,53 @@
+@model PolicyResponsesViewModel
+@{
+    string DecisionBadge(PolicyDecisionType d) => d switch
+    {
+        PolicyDecisionType.Accepted => "badge-success",
+        PolicyDecisionType.Rejected => "badge-danger",
+        _ => "badge-warning"
+    };
+}
+
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">@Model.Policy.Title — responses</h1>
+        <p class="text-sm text-muted-foreground mt-1">Latest decision per user.</p>
+    </div>
+    <a asp-action="Edit" asp-route-id="@Model.Policy.Id" class="btn btn-ghost btn-sm">Back to policy</a>
+</div>
+
+<div class="grid grid-cols-3 gap-3 mt-4">
+    <div class="card card-body text-center">
+        <p class="text-2xl font-bold text-success">@Model.Accepted</p><p class="text-xs text-muted-foreground">Accepted</p>
+    </div>
+    <div class="card card-body text-center">
+        <p class="text-2xl font-bold text-warning">@Model.Skipped</p><p class="text-xs text-muted-foreground">Skipped</p>
+    </div>
+    <div class="card card-body text-center">
+        <p class="text-2xl font-bold text-danger">@Model.Rejected</p><p class="text-xs text-muted-foreground">Declined</p>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header"><span class="card-title">Recent activity</span></div>
+    <div class="overflow-x-auto scroll-thin">
+        <table class="table">
+            <thead><tr><th>User</th><th>Decision</th><th>Version</th><th class="text-right">When</th></tr></thead>
+            <tbody>
+                @foreach (var d in Model.Recent)
+                {
+                    <tr>
+                        <td class="text-sm font-mono">@d.UserId</td>
+                        <td><span class="badge @DecisionBadge(d.Decision)">@d.Decision.ToString().ToLower()</span></td>
+                        <td class="text-sm text-muted-foreground">v@(d.Version)</td>
+                        <td class="text-right text-sm text-muted-foreground">@d.DecidedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm") UTC</td>
+                    </tr>
+                }
+                @if (Model.Recent.Count == 0)
+                {
+                    <tr><td colspan="4" class="text-center text-muted-foreground py-6">No responses yet.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -15,6 +15,31 @@
     <div>Replace every <code>&lt;placeholder&gt;</code> below with your own values: <code>&lt;base-path&gt;</code> (host directory for persistent data), <code>&lt;your-network&gt;</code> / <code>&lt;*-ip&gt;</code> (Docker network + static IPs), <code>&lt;your-domain&gt;</code> and <code>&lt;your-subnet&gt;</code>.</div>
 </div>
 
+@* ----------------------------------------------------------------- 0 *@
+<h2 class="font-display text-xl font-bold mt-8 mb-2">Prerequisites</h2>
+<p class="text-sm text-muted-foreground mb-3">Have all of the following ready <em>before</em> you start — the Compose files below assume the reverse proxy and network already exist and will not create them for you.</p>
+<div class="card overflow-hidden">
+    <div class="overflow-x-auto scroll-thin">
+        <table class="table">
+            <thead><tr><th>What</th><th>Why it's needed</th></tr></thead>
+            <tbody>
+                <tr><td class="font-medium w-56">Linux host</td><td class="text-muted-foreground">A VM or server with <strong>Docker Engine 24+</strong> and the <strong>Compose v2</strong> plugin. Verify with <code>docker compose version</code>.</td></tr>
+                <tr><td class="font-medium">~6&nbsp;GB RAM, 2+ vCPU</td><td class="text-muted-foreground">Postgres alone is tuned for a 4&nbsp;GB limit (section 5); leave headroom for Redis and the app. Add more if you run the observability stack too.</td></tr>
+                <tr><td class="font-medium">Domain + DNS</td><td class="text-muted-foreground">An <code>A</code> record for <code>&lt;your-domain&gt;</code> pointing at the host's public IP, so Traefik can issue a Let's Encrypt certificate.</td></tr>
+                <tr><td class="font-medium">Traefik reverse proxy <span class="badge badge-warning">you provide</span></td><td class="text-muted-foreground">Authly's Compose only emits <code>traefik.*</code> labels — it does <strong>not</strong> ship Traefik. You need a running Traefik with a <code>websecure</code> entrypoint, a <code>le</code> ACME cert resolver, and a <code>secure-headers@@file</code> middleware.</td></tr>
+                <tr><td class="font-medium">External Docker network <span class="badge badge-warning">you provide</span></td><td class="text-muted-foreground">The services attach to <code>&lt;your-network&gt;</code> with static IPs but don't define it. Create it first, shared with Traefik: <code>docker network create --subnet &lt;your-subnet&gt;/24 &lt;your-network&gt;</code>.</td></tr>
+                <tr><td class="font-medium">Data services</td><td class="text-muted-foreground"><strong>PostgreSQL 17</strong> and <strong>Redis 7</strong> — the bundled containers below, or your own managed instances (then just point <code>DATABASE_URL</code> / <code>REDIS_URL</code> at them and drop the bundled service blocks + <code>depends_on</code>).</td></tr>
+                <tr><td class="font-medium">Secrets</td><td class="text-muted-foreground"><code>ENCRYPTION_KEY</code> (32-byte base64, <code>openssl rand -base64 32</code>), a strong <code>POSTGRES_PASSWORD</code> and <code>REDIS_PASSWORD</code> — see section 2.</td></tr>
+                <tr><td class="font-medium">Outbound HTTPS (443)</td><td class="text-muted-foreground">To Docker Hub (image pulls) and Let's Encrypt (ACME), plus <code>api.pwnedpasswords.com</code> if the HIBP breached-password check is enabled.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="mt-3 card card-body !py-3 flex items-start gap-3 border-l-4 border-l-amber-500 text-sm">
+    <i data-lucide="route" class="size-4 text-amber-500 mt-0.5 shrink-0"></i>
+    <div><strong>No Traefik yet?</strong> If you don't already run one, either stand up a Traefik service on the shared network first, or swap the <code>traefik.*</code> labels in section 4 for a published port (e.g. <code>ports: ["443:8080"]</code>) behind your own nginx/Caddy. Without a proxy the app is reachable only on its container IP.</div>
+</div>
+
 @* ----------------------------------------------------------------- 1 *@
 <h2 class="font-display text-xl font-bold mt-8 mb-2">1. Directory structure</h2>
 <p class="text-sm text-muted-foreground mb-3">Postgres data and config live on the host so they survive container recreation and image upgrades.</p>
@@ -24,7 +49,10 @@
 │       ├── pg_hba.conf          <span class="tok-com"># Client authentication rules</span>
 │       └── postgresql.conf      <span class="tok-com"># Auto-generated (managed by Postgres)</span>
 ├── postgresql.conf              <span class="tok-com"># Custom config (mounted into container)</span>
-└── initdb/                      <span class="tok-com"># *.sql scripts run on first init only</span></code></div>
+└── initdb/                      <span class="tok-com"># *.sql scripts run on first init only</span>
+
+&lt;base-path&gt;/redis/
+└── data/                        <span class="tok-com"># Redis AOF persistence (bind mount)</span></code></div>
 
 @* ----------------------------------------------------------------- 2 *@
 <h2 class="font-display text-xl font-bold mt-8 mb-2">2. Environment variables</h2>
@@ -33,6 +61,9 @@
 POSTGRES_USER=&lt;username&gt;
 POSTGRES_PASSWORD=&lt;password&gt;
 POSTGRES_DB=&lt;database-name&gt;
+
+<span class="tok-com">#============= REDIS ==================</span>
+REDIS_PASSWORD=&lt;redis-password&gt;
 
 <span class="tok-com">#============= AUTHLY ==================</span>
 ASPNETCORE_ENVIRONMENT=Production
@@ -63,8 +94,14 @@ AUTHLY_DOMAIN_PORT=8080</code></div>
 <div class="code-surface px-4 py-3 text-sm"><code>services:
   postgres:
     image: postgres:17
+  redis:
+    image: redis:7
   authly:
     image: abhiraheja/authly:${AUTHLY_VERSION}</code></div>
+<div class="mt-3 card card-body !py-3 flex items-start gap-3 border-l-4 border-l-primary text-sm">
+    <i data-lucide="database-zap" class="size-4 text-primary mt-0.5 shrink-0"></i>
+    <div><strong>Why Redis?</strong> Authly keeps shared, short-lived state in Redis so it works correctly across multiple app instances: the distributed cache/session store, login <strong>rate limiting</strong> (429 + <code>Retry-After</code>), and failed-login <strong>lockout</strong> counters. Behind a load balancer, a single Postgres-only node would let an attacker dodge limits by hopping instances — Redis is what keeps these checks global.</div>
+</div>
 
 @* ----------------------------------------------------------------- 4 *@
 <h2 class="font-display text-xl font-bold mt-8 mb-2">4. docker-compose.override.yml</h2>
@@ -105,6 +142,30 @@ AUTHLY_DOMAIN_PORT=8080</code></div>
       &lt;your-network&gt;:
         ipv4_address: &lt;postgres-ip&gt;
 
+  redis:
+    container_name: redis
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
+    volumes:
+      - &lt;base-path&gt;/redis/data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      &lt;your-network&gt;:
+        ipv4_address: &lt;redis-ip&gt;
+
   authly:
     container_name: authly
     pull_policy: always
@@ -127,7 +188,7 @@ AUTHLY_DOMAIN_PORT=8080</code></div>
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.authly.rule=Host(`${AUTHLY_DOMAIN}`)"
@@ -214,7 +275,7 @@ docker exec postgres psql -U &lt;username&gt; -d postgres -c "SELECT pg_reload_c
 @* ----------------------------------------------------------------- 8 *@
 <h2 class="font-display text-xl font-bold mt-8 mb-2">8. First-time setup</h2>
 <div class="code-surface px-4 py-3 text-sm"><code><span class="tok-com"># 1. Create directories</span>
-mkdir -p &lt;base-path&gt;/postgres/data &lt;base-path&gt;/postgres/initdb
+mkdir -p &lt;base-path&gt;/postgres/data &lt;base-path&gt;/postgres/initdb &lt;base-path&gt;/redis/data
 
 <span class="tok-com"># 2. Write postgresql.conf (copy content from section 5)</span>
 nano &lt;base-path&gt;/postgres/postgresql.conf
@@ -265,6 +326,9 @@ docker ps --filter name=postgres --format "table {{.Names}}\t{{.Status}}"
 
 <span class="tok-com"># Connect to Postgres</span>
 docker exec -it postgres psql -U &lt;username&gt; -d postgres
+
+<span class="tok-com"># Check Redis responds (expects PONG)</span>
+docker exec -it redis redis-cli -a &lt;redis-password&gt; ping
 
 <span class="tok-com"># Verify custom config loaded</span>
 docker exec -it postgres psql -U &lt;username&gt; -d postgres -c "SHOW shared_buffers;"

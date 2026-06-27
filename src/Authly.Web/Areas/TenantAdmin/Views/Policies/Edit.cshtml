@@ -1,0 +1,205 @@
+@model PolicyEditViewModel
+@{
+    var authMethods = ViewData["AuthMethodOptions"] as string[] ?? Array.Empty<string>();
+    var isExisting = Model.Id is not null;
+    var isPublished = string.Equals(Model.Status, "Published", StringComparison.OrdinalIgnoreCase);
+}
+
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">@(isExisting ? "Edit policy" : "New policy")</h1>
+        @if (isExisting)
+        {
+            <p class="text-sm text-muted-foreground mt-1">Status: <span class="capitalize">@Model.Status</span></p>
+        }
+    </div>
+    <a asp-action="Index" class="btn btn-ghost btn-sm">Back to policies</a>
+</div>
+
+<form asp-action="Save" method="post" class="mt-4 space-y-4">
+    <input type="hidden" asp-for="Id" />
+
+    <div class="card">
+        <div class="card-header"><span class="card-title">Details</span></div>
+        <div class="card-body space-y-3">
+            <div>
+                <label asp-for="Title" class="label">Title</label>
+                <input asp-for="Title" class="input" placeholder="Terms &amp; Conditions" />
+                <span asp-validation-for="Title" class="text-danger text-xs"></span>
+            </div>
+            <div>
+                <label asp-for="Description" class="label">Description <span class="text-muted-foreground">(optional)</span></label>
+                <input asp-for="Description" class="input" placeholder="Shown above the document" />
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><span class="card-title">Content</span></div>
+        <div class="card-body space-y-3">
+            <div class="flex gap-4 text-sm">
+                <label class="flex items-center gap-2"><input type="radio" asp-for="ContentType" value="Html" data-content-toggle /> HTML</label>
+                <label class="flex items-center gap-2"><input type="radio" asp-for="ContentType" value="Pdf" data-content-toggle /> PDF upload</label>
+            </div>
+
+            <div data-content="Html">
+                <label asp-for="HtmlContent" class="label">HTML content</label>
+                <textarea asp-for="HtmlContent" class="input font-mono text-xs" rows="12"
+                          placeholder="&lt;h2&gt;Terms&lt;/h2&gt;&lt;p&gt;…&lt;/p&gt;"></textarea>
+                <p class="text-xs text-muted-foreground mt-1">Scripts are stripped and the content is rendered sandboxed.</p>
+            </div>
+
+            <div data-content="Pdf" class="space-y-2">
+                @if (Model.HasDraftPdf && Model.DraftPdfAssetId is not null)
+                {
+                    <p class="text-sm">Current PDF:
+                        <a class="text-primary hover:underline" target="_blank" href="/account/policies/asset/@Model.DraftPdfAssetId">view</a>
+                    </p>
+                }
+                @if (isExisting)
+                {
+                    <p class="text-xs text-muted-foreground">Upload replaces the draft document. Publish to make it live.</p>
+                }
+                else
+                {
+                    <p class="text-xs text-muted-foreground">Save the draft first, then upload a PDF.</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><span class="card-title">Enforcement</span></div>
+        <div class="card-body space-y-3">
+            <div class="space-y-2 text-sm">
+                <label class="flex items-start gap-2"><input type="radio" asp-for="EnforcementMode" value="Mandatory" class="mt-1" />
+                    <span><strong>Mandatory</strong> — must accept to sign in (no skip, no reject).</span></label>
+                <label class="flex items-start gap-2"><input type="radio" asp-for="EnforcementMode" value="SkippableUntil" class="mt-1" />
+                    <span><strong>Skippable until a date</strong> — asked every sign-in; after the deadline, acceptance is required.</span></label>
+                <label class="flex items-start gap-2"><input type="radio" asp-for="EnforcementMode" value="Optional" class="mt-1" />
+                    <span><strong>Optional</strong> — never blocks; just records accept/reject (opinion).</span></label>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                    <label class="label">Skip deadline (UTC)</label>
+                    <input type="datetime-local" name="SkipDeadline" value="@(Model.SkipDeadline?.ToString("yyyy-MM-ddTHH:mm"))" class="input" />
+                </div>
+                <div>
+                    <label class="label">Show from (UTC)</label>
+                    <input type="datetime-local" name="StartsAt" value="@(Model.StartsAt?.ToString("yyyy-MM-ddTHH:mm"))" class="input" />
+                </div>
+                <div>
+                    <label class="label">Close date (UTC)</label>
+                    <input type="datetime-local" name="CloseDate" value="@(Model.CloseDate?.ToString("yyyy-MM-ddTHH:mm"))" class="input" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><span class="card-title">Who sees it</span></div>
+        <div class="card-body space-y-3">
+            <div class="space-y-2 text-sm">
+                <label class="flex items-center gap-2"><input type="radio" asp-for="Audience" value="all" data-audience-toggle /> All users</label>
+                <label class="flex items-center gap-2"><input type="radio" asp-for="Audience" value="applications" data-audience-toggle /> Specific applications</label>
+                <label class="flex items-center gap-2"><input type="radio" asp-for="Audience" value="authMethods" data-audience-toggle /> By sign-in method</label>
+                <label class="flex items-center gap-2"><input type="radio" asp-for="Audience" value="providers" data-audience-toggle /> By social provider</label>
+            </div>
+
+            <div data-audience="applications" class="space-y-1">
+                @if (Model.AvailableApps.Count == 0)
+                {
+                    <p class="text-xs text-muted-foreground">No applications registered yet.</p>
+                }
+                @foreach (var app in Model.AvailableApps)
+                {
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" name="ApplicationIds" value="@app.Id" @(Model.ApplicationIds.Contains(app.Id) ? "checked" : "") />
+                        @app.Name
+                    </label>
+                }
+            </div>
+
+            <div data-audience="authMethods" class="flex flex-wrap gap-3">
+                @foreach (var m in authMethods)
+                {
+                    <label class="flex items-center gap-2 text-sm capitalize">
+                        <input type="checkbox" name="AuthMethods" value="@m" @(Model.AuthMethods.Contains(m) ? "checked" : "") />
+                        @m.Replace('_', ' ')
+                    </label>
+                }
+            </div>
+
+            <div data-audience="providers" class="flex flex-wrap gap-3">
+                @if (Model.AvailableProviders.Count == 0)
+                {
+                    <p class="text-xs text-muted-foreground">No social providers configured.</p>
+                }
+                @foreach (var pr in Model.AvailableProviders)
+                {
+                    <label class="flex items-center gap-2 text-sm capitalize">
+                        <input type="checkbox" name="Providers" value="@pr" @(Model.Providers.Contains(pr) ? "checked" : "") />
+                        @pr
+                    </label>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a asp-action="Index" class="btn btn-ghost">Cancel</a>
+    </div>
+</form>
+
+@if (isExisting)
+{
+    <div class="card mt-4">
+        <div class="card-header"><span class="card-title">Publish &amp; lifecycle</span></div>
+        <div class="card-body flex flex-wrap items-center gap-2">
+            @if (Model.ContentType == "Pdf")
+            {
+                <form asp-action="UploadPdf" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data" class="flex items-center gap-2 m-0">
+                    <input type="file" name="file" accept="application/pdf" class="input" />
+                    <button type="submit" class="btn btn-outline btn-sm">Upload PDF</button>
+                </form>
+            }
+            <form asp-action="Publish" asp-route-id="@Model.Id" method="post" class="m-0">
+                <button type="submit" class="btn btn-primary btn-sm">@(isPublished ? "Publish new version" : "Publish")</button>
+            </form>
+            @if (isPublished)
+            {
+                <form asp-action="ReRequest" asp-route-id="@Model.Id" method="post" class="m-0"
+                      onsubmit="return confirm('Re-request acceptance from everyone on their next sign-in?');">
+                    <button type="submit" class="btn btn-outline btn-sm">Re-request acceptance</button>
+                </form>
+            }
+            <form asp-action="Archive" asp-route-id="@Model.Id" method="post" class="m-0 ms-auto"
+                  onsubmit="return confirm('Archive this policy? It will no longer be shown.');">
+                <button type="submit" class="btn btn-ghost btn-sm text-danger">Archive</button>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+<script>
+    (function () {
+        function sync(name, group) {
+            var checked = document.querySelector('input[name="' + name + '"]:checked');
+            var val = checked ? checked.value : null;
+            document.querySelectorAll('[data-' + group + ']').forEach(function (el) {
+                el.style.display = (el.getAttribute('data-' + group) === val) ? '' : 'none';
+            });
+        }
+        document.querySelectorAll('[data-content-toggle]').forEach(function (r) {
+            r.addEventListener('change', function () { sync('ContentType', 'content'); });
+        });
+        document.querySelectorAll('[data-audience-toggle]').forEach(function (r) {
+            r.addEventListener('change', function () { sync('Audience', 'audience'); });
+        });
+        sync('ContentType', 'content');
+        sync('Audience', 'audience');
+    })();
+</script>
+}

@@ -219,6 +219,11 @@ app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Sign-in enforcement gate: after auth, redirect end-users with unaccepted required policies to the
+// consent page. Covers every sign-in method (all land on /portal) and OIDC client logins (which pass
+// through /connect/authorize) — so a mandatory policy can't be bypassed (incl. a pre-existing social login).
+app.UseMiddleware<Authly.Web.Infrastructure.Security.RequiredPromptsGateMiddleware>();
+
 // Hangfire dashboard — open in Development, super-admin only otherwise.
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {

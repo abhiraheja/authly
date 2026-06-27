@@ -117,6 +117,7 @@ public static class DependencyInjection
         services.AddScoped<IRecoveryContactRepository, RecoveryContactRepository>();
         services.AddScoped<IPendingContactChangeRepository, PendingContactChangeRepository>();
         services.AddScoped<IConsentRecordRepository, ConsentRecordRepository>();
+        services.AddScoped<IPolicyRepository, PolicyRepository>();
         services.AddScoped<IUserDeviceRepository, UserDeviceRepository>();
         services.AddScoped<IPlatformStateStore, PlatformStateStore>();
         services.AddScoped<IObservabilityConfigRepository, ObservabilityConfigRepository>();

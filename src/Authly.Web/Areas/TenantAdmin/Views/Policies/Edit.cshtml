@@ -1,6 +1,5 @@
 @model PolicyEditViewModel
 @{
-    var authMethods = ViewData["AuthMethodOptions"] as string[] ?? Array.Empty<string>();
     var isExisting = Model.Id is not null;
     var isPublished = string.Equals(Model.Status, "Published", StringComparison.OrdinalIgnoreCase);
 }
@@ -96,55 +95,7 @@
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header"><span class="card-title">Who sees it</span></div>
-        <div class="card-body space-y-3">
-            <div class="space-y-2 text-sm">
-                <label class="flex items-center gap-2"><input type="radio" asp-for="Audience" value="all" data-audience-toggle /> All users</label>
-                <label class="flex items-center gap-2"><input type="radio" asp-for="Audience" value="applications" data-audience-toggle /> Specific applications</label>
-                <label class="flex items-center gap-2"><input type="radio" asp-for="Audience" value="authMethods" data-audience-toggle /> By sign-in method</label>
-                <label class="flex items-center gap-2"><input type="radio" asp-for="Audience" value="providers" data-audience-toggle /> By social provider</label>
-            </div>
-
-            <div data-audience="applications" class="space-y-1">
-                @if (Model.AvailableApps.Count == 0)
-                {
-                    <p class="text-xs text-muted-foreground">No applications registered yet.</p>
-                }
-                @foreach (var app in Model.AvailableApps)
-                {
-                    <label class="flex items-center gap-2 text-sm">
-                        <input type="checkbox" name="ApplicationIds" value="@app.Id" @(Model.ApplicationIds.Contains(app.Id) ? "checked" : "") />
-                        @app.Name
-                    </label>
-                }
-            </div>
-
-            <div data-audience="authMethods" class="flex flex-wrap gap-3">
-                @foreach (var m in authMethods)
-                {
-                    <label class="flex items-center gap-2 text-sm capitalize">
-                        <input type="checkbox" name="AuthMethods" value="@m" @(Model.AuthMethods.Contains(m) ? "checked" : "") />
-                        @m.Replace('_', ' ')
-                    </label>
-                }
-            </div>
-
-            <div data-audience="providers" class="flex flex-wrap gap-3">
-                @if (Model.AvailableProviders.Count == 0)
-                {
-                    <p class="text-xs text-muted-foreground">No social providers configured.</p>
-                }
-                @foreach (var pr in Model.AvailableProviders)
-                {
-                    <label class="flex items-center gap-2 text-sm capitalize">
-                        <input type="checkbox" name="Providers" value="@pr" @(Model.Providers.Contains(pr) ? "checked" : "") />
-                        @pr
-                    </label>
-                }
-            </div>
-        </div>
-    </div>
+    @await Html.PartialAsync("_TargetingEditor", Model.ToTargetingEditor(Url.Action("PreviewAudience")!))
 
     <div class="flex items-center gap-2">
         <button type="submit" class="btn btn-primary">Save</button>
@@ -185,21 +136,15 @@
 @section Scripts {
 <script>
     (function () {
-        function sync(name, group) {
-            var checked = document.querySelector('input[name="' + name + '"]:checked');
+        function sync() {
+            var checked = document.querySelector('input[name="ContentType"]:checked');
             var val = checked ? checked.value : null;
-            document.querySelectorAll('[data-' + group + ']').forEach(function (el) {
-                el.style.display = (el.getAttribute('data-' + group) === val) ? '' : 'none';
+            document.querySelectorAll('[data-content]').forEach(function (el) {
+                el.style.display = (el.getAttribute('data-content') === val) ? '' : 'none';
             });
         }
-        document.querySelectorAll('[data-content-toggle]').forEach(function (r) {
-            r.addEventListener('change', function () { sync('ContentType', 'content'); });
-        });
-        document.querySelectorAll('[data-audience-toggle]').forEach(function (r) {
-            r.addEventListener('change', function () { sync('Audience', 'audience'); });
-        });
-        sync('ContentType', 'content');
-        sync('Audience', 'audience');
+        document.querySelectorAll('[data-content-toggle]').forEach(function (r) { r.addEventListener('change', sync); });
+        sync();
     })();
 </script>
 }

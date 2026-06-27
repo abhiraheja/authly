@@ -23,6 +23,8 @@ public sealed class SurveyEditViewModel
     public List<Guid> ApplicationIds { get; set; } = new();
     public List<string> AuthMethods { get; set; } = new();
     public List<string> Providers { get; set; } = new();
+    public List<string> Roles { get; set; } = new();
+    public string Match { get; set; } = "any";
 
     public bool RandomizeQuestions { get; set; }
     public bool Anonymous { get; set; }
@@ -33,9 +35,18 @@ public sealed class SurveyEditViewModel
     public string Status { get; set; } = "Draft";
     public List<AppOption> AvailableApps { get; set; } = new();
     public List<string> AvailableProviders { get; set; } = new();
+    public List<string> AvailableRoles { get; set; } = new();
     public IReadOnlyList<QuestionWithOptions> Questions { get; set; } = Array.Empty<QuestionWithOptions>();
 
     public sealed record AppOption(Guid Id, string Name);
+
+    public TargetingEditorModel ToTargetingEditor(string previewUrl) => new()
+    {
+        Audience = Audience, ApplicationIds = ApplicationIds, AuthMethods = AuthMethods,
+        Providers = Providers, Roles = Roles, Match = Match,
+        AvailableApps = AvailableApps.Select(a => new TargetingEditorModel.AppOption(a.Id, a.Name)).ToList(),
+        AvailableProviders = AvailableProviders, AvailableRoles = AvailableRoles, PreviewUrl = previewUrl
+    };
 }
 
 /// <summary>Add-a-question form on the survey builder.</summary>

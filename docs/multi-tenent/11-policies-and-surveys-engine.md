@@ -477,11 +477,21 @@ Question-level: `Order, IsMandatory`. Versioning + conditional logic = advanced 
 - **Audience preview** — "is targeting se kitne / kaunse users match karte hain" (query over
   users + LoginHistory + SocialIdentity).
 
-### Phase 3 task checklist
-- [ ] Targeting model upgrade (rule-groups) + backward-compatible parser
-- [ ] Audience preview query + UI
-- [ ] Role/identity/new-user/has-not-responded conditions
-- [ ] Build + tests
+### Phase 3 task checklist — ✅ DONE (340 tests green, 0 build errors, no migration needed)
+- [x] `PolicyTargeting` extended: `Roles` + `Match` (any/all) + `Audiences.Roles`/`Audiences.Advanced`
+      + `Uses*` helpers — **backward compatible** (jsonb string; old single-dimension targeting still parses)
+- [x] `TargetingEvaluator` — role match + advanced combination (combine populated dimensions with any/all)
+- [x] User roles resolved lazily in `UserPromptService` + `SurveyService` (via `IUserRoleRepository.GetRoleNamesAsync`)
+- [x] `AudiencePreviewService` (count + sample emails) + DI — precise for all/roles/providers; app &
+      sign-in-method reported as "evaluated at sign-in"
+- [x] Shared `_TargetingEditor` partial (replaces the per-editor "Who sees it" card) — adds **By role**
+      + **Advanced (combine)** with any/all + **Preview audience** button (fetch → count/sample/note);
+      `PreviewAudience` POST endpoint on both Policy & Survey controllers
+- [x] 9 Phase-3 tests (role targeting, advanced all/any in `UserPromptService`; `AudiencePreviewService`
+      all/roles/providers/application-note/advanced-all-intersect/advanced-any-union)
+
+**No DB migration** — targeting lives in the `targeting` jsonb column; the new fields are additive JSON.
+**Deferred (future):** new-users-only / has-not-responded conditions, nested (not just flat) AND/OR groups.
 
 ---
 

@@ -29,14 +29,16 @@ public sealed class UserPromptService : IUserPromptService
     private readonly IPolicyRepository _policies;
     private readonly ILoginHistoryRepository _loginHistory;
     private readonly ISocialIdentityRepository _socialIdentities;
+    private readonly IUserRoleRepository _userRoles;
     private readonly IAuditLogger _audit;
 
     public UserPromptService(IPolicyRepository policies, ILoginHistoryRepository loginHistory,
-        ISocialIdentityRepository socialIdentities, IAuditLogger audit)
+        ISocialIdentityRepository socialIdentities, IUserRoleRepository userRoles, IAuditLogger audit)
     {
         _policies = policies;
         _loginHistory = loginHistory;
         _socialIdentities = socialIdentities;
+        _userRoles = userRoles;
         _audit = audit;
     }
 
@@ -85,19 +87,23 @@ public sealed class UserPromptService : IUserPromptService
         var targetings = active.ToDictionary(p => p.Id, p => PolicyTargetingJson.Parse(p.Targeting));
 
         string? authCategory = null;
-        if (targetings.Values.Any(t => t.Audience == Audiences.AuthMethods))
+        if (targetings.Values.Any(t => t.UsesAuthMethods))
             authCategory = await TargetingEvaluator.AuthCategoryAsync(_loginHistory, tenantId, userId, ct);
 
         HashSet<string>? linkedProviders = null;
-        if (targetings.Values.Any(t => t.Audience == Audiences.Providers))
+        if (targetings.Values.Any(t => t.UsesProviders))
             linkedProviders = await TargetingEvaluator.LinkedProvidersAsync(_socialIdentities, tenantId, userId, ct);
+
+        HashSet<string>? userRoles = null;
+        if (targetings.Values.Any(t => t.UsesRoles))
+            userRoles = await TargetingEvaluator.UserRolesAsync(_userRoles, tenantId, userId, ct);
 
         var decisions = await _policies.ListDecisionsForUserAsync(tenantId, userId, ct);
 
         var prompts = new List<PendingPrompt>();
         foreach (var policy in active)
         {
-            if (!TargetingEvaluator.Matches(targetings[policy.Id], currentApplicationId, authCategory, linkedProviders))
+            if (!TargetingEvaluator.Matches(targetings[policy.Id], currentApplicationId, authCategory, linkedProviders, userRoles))
                 continue;
 
             // Decisions that still count: for the live version, made after any consent-reset cutoff.

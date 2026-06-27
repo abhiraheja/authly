@@ -84,6 +84,7 @@ public static class DependencyInjection
         // Policies & consent engine: admin authoring + sign-in enforcement gate.
         services.AddScoped<Policies.IPolicyService, Policies.PolicyService>();
         services.AddScoped<Policies.IUserPromptService, Policies.UserPromptService>();
+        services.AddScoped<Policies.IAudiencePreviewService, Policies.AudiencePreviewService>();
 
         // Surveys engine (Phase 2): admin builder + sign-in delivery + reporting.
         services.AddScoped<Surveys.ISurveyService, Surveys.SurveyService>();

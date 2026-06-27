@@ -40,6 +40,8 @@ public sealed class PolicyEditViewModel
     public List<Guid> ApplicationIds { get; set; } = new();
     public List<string> AuthMethods { get; set; } = new();
     public List<string> Providers { get; set; } = new();
+    public List<string> Roles { get; set; } = new();
+    public string Match { get; set; } = "any";
 
     // --- Read-only context for the view ---
     public string Status { get; set; } = "Draft";
@@ -48,8 +50,17 @@ public sealed class PolicyEditViewModel
     public int? CurrentVersion { get; set; }
     public List<AppOption> AvailableApps { get; set; } = new();
     public List<string> AvailableProviders { get; set; } = new();
+    public List<string> AvailableRoles { get; set; } = new();
 
     public sealed record AppOption(Guid Id, string Name);
+
+    public TargetingEditorModel ToTargetingEditor(string previewUrl) => new()
+    {
+        Audience = Audience, ApplicationIds = ApplicationIds, AuthMethods = AuthMethods,
+        Providers = Providers, Roles = Roles, Match = Match,
+        AvailableApps = AvailableApps.Select(a => new TargetingEditorModel.AppOption(a.Id, a.Name)).ToList(),
+        AvailableProviders = AvailableProviders, AvailableRoles = AvailableRoles, PreviewUrl = previewUrl
+    };
 }
 
 /// <summary>Responses/report for a published policy.</summary>

@@ -55,6 +55,10 @@ public class AppDbContext : DbContext
     public DbSet<AccountInviteToken> AccountInviteTokens => Set<AccountInviteToken>();
     public DbSet<ObservabilityConfig> ObservabilityConfigs => Set<ObservabilityConfig>();
     public DbSet<BrandingAsset> BrandingAssets => Set<BrandingAsset>();
+    public DbSet<Policy> Policies => Set<Policy>();
+    public DbSet<PolicyVersion> PolicyVersions => Set<PolicyVersion>();
+    public DbSet<PolicyAsset> PolicyAssets => Set<PolicyAsset>();
+    public DbSet<PolicyDecision> PolicyDecisions => Set<PolicyDecision>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -685,6 +689,102 @@ public class AppDbContext : DbContext
             e.Property(x => x.Data).HasColumnName("data").HasColumnType("bytea").IsRequired();
             e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
             e.HasIndex(x => new { x.TenantId, x.Kind }).HasDatabaseName("idx_branding_assets_tenant_kind");
+        });
+
+        // --- Policies / consent engine (tenant-scoped) ---
+
+        b.Entity<Policy>(e =>
+        {
+            e.ToTable("policies");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Title).HasColumnName("title").IsRequired();
+            e.Property(x => x.Description).HasColumnName("description");
+            e.Property(x => x.Status).HasColumnName("status").HasConversion<string>()
+                .HasDefaultValue(PolicyStatus.Draft).IsRequired();
+            e.Property(x => x.EnforcementMode).HasColumnName("enforcement_mode").HasConversion<string>()
+                .HasDefaultValue(PolicyEnforcementMode.Mandatory).IsRequired();
+            e.Property(x => x.SkipDeadline).HasColumnName("skip_deadline");
+            e.Property(x => x.StartsAt).HasColumnName("starts_at");
+            e.Property(x => x.CloseDate).HasColumnName("close_date");
+            e.Property(x => x.Targeting).HasColumnName("targeting").HasColumnType("jsonb").HasDefaultValueSql("'{}'");
+            e.Property(x => x.DraftContentType).HasColumnName("draft_content_type").HasConversion<string>()
+                .HasDefaultValue(PolicyContentType.Html).IsRequired();
+            e.Property(x => x.DraftHtmlContent).HasColumnName("draft_html_content");
+            e.Property(x => x.DraftAssetId).HasColumnName("draft_asset_id");
+            e.Property(x => x.CurrentVersionId).HasColumnName("current_version_id");
+            e.Property(x => x.ConsentResetAt).HasColumnName("consent_reset_at");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
+            e.Property(x => x.PublishedAt).HasColumnName("published_at");
+
+            e.HasIndex(x => new { x.TenantId, x.Status }).HasDatabaseName("idx_policies_tenant_status");
+
+            e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<PolicyVersion>(e =>
+        {
+            e.ToTable("policy_versions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.PolicyId).HasColumnName("policy_id").IsRequired();
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.Version).HasColumnName("version").IsRequired();
+            e.Property(x => x.ContentType).HasColumnName("content_type").HasConversion<string>()
+                .HasDefaultValue(PolicyContentType.Html).IsRequired();
+            e.Property(x => x.HtmlContent).HasColumnName("html_content");
+            e.Property(x => x.AssetId).HasColumnName("asset_id");
+            e.Property(x => x.Notes).HasColumnName("notes");
+            e.Property(x => x.PublishedAt).HasColumnName("published_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.PolicyId, x.Version }).IsUnique().HasDatabaseName("idx_policy_versions_policy_version");
+
+            e.HasOne<Policy>().WithMany().HasForeignKey(x => x.PolicyId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Uploaded policy PDFs. Served by the consent page (authenticated), queried by unguessable Guid.
+        b.Entity<PolicyAsset>(e =>
+        {
+            e.ToTable("policy_assets");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.PolicyId).HasColumnName("policy_id").IsRequired();
+            e.Property(x => x.FileName).HasColumnName("file_name").IsRequired();
+            e.Property(x => x.ContentType).HasColumnName("content_type").IsRequired();
+            e.Property(x => x.Data).HasColumnName("data").HasColumnType("bytea").IsRequired();
+            e.Property(x => x.SizeBytes).HasColumnName("size_bytes");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => x.PolicyId).HasDatabaseName("idx_policy_assets_policy");
+
+            e.HasOne<Policy>().WithMany().HasForeignKey(x => x.PolicyId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<PolicyDecision>(e =>
+        {
+            e.ToTable("policy_decisions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TenantId).HasColumnName("tenant_id").IsRequired();
+            e.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
+            e.Property(x => x.PolicyId).HasColumnName("policy_id").IsRequired();
+            e.Property(x => x.PolicyVersionId).HasColumnName("policy_version_id").IsRequired();
+            e.Property(x => x.Version).HasColumnName("version");
+            e.Property(x => x.Decision).HasColumnName("decision").HasConversion<string>().IsRequired();
+            e.Property(x => x.SessionId).HasColumnName("session_id");
+            e.Property(x => x.ApplicationId).HasColumnName("application_id");
+            e.Property(x => x.IpAddress).HasColumnName("ip_address");
+            e.Property(x => x.UserAgent).HasColumnName("user_agent");
+            e.Property(x => x.DecidedAt).HasColumnName("decided_at").HasDefaultValueSql("NOW()");
+
+            e.HasIndex(x => new { x.TenantId, x.UserId, x.PolicyId }).HasDatabaseName("idx_policy_decisions_user_policy");
+            e.HasIndex(x => new { x.TenantId, x.PolicyId }).HasDatabaseName("idx_policy_decisions_policy");
+
+            e.HasOne<Policy>().WithMany().HasForeignKey(x => x.PolicyId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // Platform-level key/value control-plane state (log-stream cursor, etc). NOT tenant-scoped — no RLS.

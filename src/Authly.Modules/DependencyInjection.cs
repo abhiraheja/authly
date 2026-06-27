@@ -80,6 +80,10 @@ public static class DependencyInjection
 
         // Self-service tenant signup (Supabase-style: visitor provisions their own workspace).
         services.AddScoped<Signup.ITenantSignupService, Signup.TenantSignupService>();
+
+        // Policies & consent engine: admin authoring + sign-in enforcement gate.
+        services.AddScoped<Policies.IPolicyService, Policies.PolicyService>();
+        services.AddScoped<Policies.IUserPromptService, Policies.UserPromptService>();
         return services;
     }
 }

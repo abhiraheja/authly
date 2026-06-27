@@ -298,7 +298,8 @@ check karta hai. Naya login = naya `SessionId` = phir prompt (`SkippableUntil`).
 ### 3.4 Admin UI (TenantAdmin → "Policies")
 
 **`Areas/TenantAdmin/Controllers/PoliciesController.cs`** —
-`[Route("tenantadmin/policies")]`, base `TenantAdminControllerBase`,
+`[Route("tenantadmin/consent-policies")]` *(`tenantadmin/policies` is already taken by the ABAC
+AccessPolicies feature)*, base `TenantAdminControllerBase`,
 `[RequireOperatorPermission("policy.read" / "policy.manage")]`:
 - `Index` (list + status), `Create`/`Edit` (draft), `UploadPdf`
 - `Publish` (modal: enforcement mode + skip-deadline + targeting — "publish karte hi impact"
@@ -332,21 +333,28 @@ live preview), Publish modal, Responses.
 - Optional: existing `ConsentRecord` ko seeded Policies me migrate — ya backward-compat ke
   liye parallel chhod dein (naya engine source-of-truth).
 
-### 3.7 Phase 1 task checklist
-- [ ] Branch `feat/policies-engine` *(done)*
-- [ ] Entities: `Policy`, `PolicyVersion`, `PolicyAsset`, `PolicyDecision` + enums +
-      `PolicyTargeting` value object
-- [ ] DbContext DbSets + `OnModelCreating` config
-- [ ] Repository interfaces + implementations
-- [ ] `PolicyService` + `UserPromptService` + HTML sanitizer NuGet + DI
-- [ ] `policy.read` / `policy.manage` RBAC
-- [ ] EF migration `AddPoliciesEngine`
-- [ ] `RequiredPromptsGateMiddleware` + Program.cs wiring
-- [ ] `/account/policies` consent page controller + views (HTML + PDF render)
-- [ ] TenantAdmin Policies controller + views + nav + publish modal + responses + re-request
-- [ ] Portal consents history page + nav
-- [ ] Signup links fix + consent bridge
-- [ ] Build + tests + manual verification (section 6)
+### 3.7 Phase 1 task checklist — ✅ DONE (branch `feat/policies-engine`, build 0 err, 322 tests green)
+- [x] Branch `feat/policies-engine`
+- [x] Entities: `Policy`, `PolicyVersion`, `PolicyAsset`, `PolicyDecision` + enums +
+      `PolicyTargeting` value object (`Policy` also carries draft content + `ConsentResetAt`)
+- [x] DbContext DbSets + `OnModelCreating` config
+- [x] Repository interface `IPolicyRepository` + `PolicyRepository` + DI
+- [x] `PolicyService` + `UserPromptService` + `PolicyHtmlSanitizer` + DI
+      *(Ganss.Xss NuGet unavailable on the feed → in-house sanitizer + sandboxed-iframe render instead)*
+- [x] `policy.read` / `policy.manage` RBAC (catalogue + project_admin grant)
+- [x] EF migration `AddPoliciesEngine` (verified applied to live Postgres — 4 tables present)
+- [x] `RequiredPromptsGateMiddleware` + Program.cs wiring (after `UseAuthorization`)
+- [x] `/account/policies` consent page controller + view (HTML in sandboxed iframe, PDF embed)
+- [x] TenantAdmin Policies controller + Index/Edit/Responses views + nav + publish/archive/re-request
+- [x] Portal consents history page + nav
+- [x] Signup links fix (removed 404 `/legal/*`; Privacy → public page)
+- [x] `UserPromptServiceTests` (11 tests: mandatory/skippable/optional, per-session skip,
+      version + consent-reset re-prompt, close-date, auth-method + application targeting)
+
+> **Note (existing tenants):** `EnsureSystemRolesAsync` only grants new permissions on first role
+> creation, so `policy.manage` auto-applies to **new** orgs; existing orgs need a manual grant (or
+> re-seed). Fresh-DB verification uses a new org. Signup-time legacy `ConsentRecord` left as-is
+> (engine is the enforcement source of truth); a designated-"terms" policy bridge is a follow-up.
 
 ---
 

@@ -26,6 +26,7 @@ public static class OperatorRbac
     public const string ResObservability = "observability";
     public const string ResOrg = "org";
     public const string ResBilling = "billing";
+    public const string ResPolicy = "policy";
 
     /// <summary>The operator permission catalogue as <c>resource.action</c> definitions.</summary>
     public static readonly IReadOnlyList<PermissionDefinition> Permissions = BuildPermissions();
@@ -44,6 +45,7 @@ public static class OperatorRbac
             "client.read", "client.manage",
             "enduser.read", "enduser.manage",
             "role.read", "role.manage",
+            "policy.read", "policy.manage",
         },
         // Read-only across the console.
         Viewer => Permissions.Where(p => p.Action == "read").Select(p => p.Name).ToArray(),
@@ -71,6 +73,7 @@ public static class OperatorRbac
             .Concat(Defs(ResObservability, "read", "manage"))
             .Concat(Defs(ResOrg, "read", "manage"))
             .Concat(Defs(ResBilling, "read", "manage"))
+            .Concat(Defs(ResPolicy, "read", "manage"))
             .ToList();
     }
 }

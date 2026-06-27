@@ -1,0 +1,161 @@
+@using Authly.Modules.Surveys
+@using Authly.Core.Enums
+@model SurveyForRunner
+@inject Authly.Web.Infrastructure.Branding.CurrentBranding Branding
+@{
+    Layout = null;
+    var brand = await Branding.GetAsync();
+    var brandName = string.IsNullOrWhiteSpace(brand.BrandName) ? await Branding.GetDisplayNameAsync() : brand.BrandName!;
+    var primaryChannels = brand.PrimaryColorRgb.Replace(",", "");
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var s = Model.Survey;
+    var now = DateTime.UtcNow;
+
+    var hardBlock = s.EnforcementMode == PolicyEnforcementMode.Mandatory
+        || (s.EnforcementMode == PolicyEnforcementMode.SkippableUntil && s.SkipDeadline is { } dl && now >= dl.UtcDateTime);
+    var allowSkip = !hardBlock && s.EnforcementMode != PolicyEnforcementMode.Mandatory;
+    var allowDecline = s.EnforcementMode == PolicyEnforcementMode.Optional;
+}
+<!DOCTYPE html>
+<html lang="en" class="@(brand.DarkMode ? "dark" : "")">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@s.Title · @brandName</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="~/css/saarvix.css" asp-append-version="true" />
+    <style>
+        :root, .dark { --primary: @primaryChannels; --ring: @primaryChannels; }
+        body { font-family: @Html.Raw(brand.FontFamily); }
+    </style>
+</head>
+<body class="min-h-screen bg-background">
+<div class="mx-auto max-w-2xl px-4 sm:px-6 py-10 space-y-5">
+    <div class="flex items-center gap-2.5">
+        @if (brand.LogoUrl is not null)
+        {
+            <img src="@brand.LogoUrl" alt="@brandName" class="max-h-9" />
+        }
+        else
+        {
+            <span class="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground"><i data-lucide="clipboard-list" class="size-5"></i></span>
+            <span class="font-display font-bold">@brandName</span>
+        }
+    </div>
+
+    <div>
+        <h1 class="font-display text-xl font-bold">@s.Title</h1>
+        @if (!string.IsNullOrEmpty(s.Description))
+        {
+            <p class="text-sm text-muted-foreground mt-1">@s.Description</p>
+        }
+    </div>
+
+    @if (TempData["Error"] is string err)
+    {
+        <div class="card card-body !py-3 flex items-center gap-3 border-l-4 border-l-danger">
+            <i data-lucide="alert-circle" class="size-5 text-coral shrink-0"></i>
+            <span class="text-sm">@err</span>
+        </div>
+    }
+
+    <form asp-controller="Survey" asp-action="Submit" asp-route-id="@s.Id" method="post" class="space-y-4">
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+
+        @{ var qi = 0; }
+        @foreach (var qo in Model.Questions)
+        {
+            qi++;
+            var q = qo.Question;
+            var field = $"q_{q.Id}";
+            <div class="card">
+                <div class="card-body space-y-3">
+                    <div>
+                        <p class="font-medium">@qi. @q.Title @(q.Required ? Html.Raw("<span class='text-danger'>*</span>") : null)</p>
+                        @if (!string.IsNullOrEmpty(q.HelpText))
+                        {
+                            <p class="text-xs text-muted-foreground mt-0.5">@q.HelpText</p>
+                        }
+                        @if (!string.IsNullOrEmpty(q.MediaUrl))
+                        {
+                            <img src="@q.MediaUrl" alt="" class="mt-2 max-h-48 rounded-md" />
+                        }
+                    </div>
+
+                    @switch (q.Type)
+                    {
+                        case SurveyQuestionType.SingleChoice:
+                            foreach (var o in qo.Options)
+                            {
+                                <label class="flex items-center gap-2 text-sm"><input type="radio" name="@field" value="@o.Id" /> @o.Label</label>
+                            }
+                            break;
+                        case SurveyQuestionType.MultipleChoice:
+                            foreach (var o in qo.Options)
+                            {
+                                <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="@field" value="@o.Id" /> @o.Label</label>
+                            }
+                            break;
+                        case SurveyQuestionType.Dropdown:
+                            <select name="@field" class="input">
+                                <option value="">— Select —</option>
+                                @foreach (var o in qo.Options)
+                                {
+                                    <option value="@o.Id">@o.Label</option>
+                                }
+                            </select>
+                            break;
+                        case SurveyQuestionType.YesNo:
+                            <div class="flex gap-4 text-sm">
+                                <label class="flex items-center gap-2"><input type="radio" name="@field" value="yes" /> Yes</label>
+                                <label class="flex items-center gap-2"><input type="radio" name="@field" value="no" /> No</label>
+                            </div>
+                            break;
+                        case SurveyQuestionType.Rating:
+                            {
+                                var min = q.ScaleMin ?? 1;
+                                var max = q.ScaleMax ?? 5;
+                                <div class="flex flex-wrap gap-3 text-sm">
+                                    @for (var v = min; v <= max; v++)
+                                    {
+                                        <label class="flex items-center gap-1"><input type="radio" name="@field" value="@v" /> @v</label>
+                                    }
+                                </div>
+                            }
+                            break;
+                        case SurveyQuestionType.Number:
+                            <input type="number" name="@field" class="input" placeholder="@q.Placeholder" />
+                            break;
+                        case SurveyQuestionType.Date:
+                            <input type="date" name="@field" class="input" />
+                            break;
+                        case SurveyQuestionType.LongText:
+                            <textarea name="@field" rows="4" class="input" placeholder="@q.Placeholder"></textarea>
+                            break;
+                        default: // ShortText
+                            <input type="text" name="@field" class="input" placeholder="@q.Placeholder" />
+                            break;
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="flex flex-wrap items-center gap-2">
+            <button type="submit" class="btn btn-primary"><i data-lucide="send" class="size-4"></i> Submit</button>
+
+            @if (allowSkip)
+            {
+                <button type="submit" class="btn btn-ghost" formaction="/account/survey/@s.Id/skip">Skip for now</button>
+            }
+            @if (allowDecline)
+            {
+                <button type="submit" class="btn btn-outline" formaction="/account/survey/@s.Id/decline">No thanks</button>
+            }
+        </div>
+    </form>
+</div>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>lucide.createIcons();</script>
+</body>
+</html>

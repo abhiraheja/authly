@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Authly.Core.Interfaces;
 using Authly.Modules.Policies;
+using Authly.Modules.Surveys;
 using Authly.Web.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
 
@@ -21,7 +22,7 @@ public sealed class RequiredPromptsGateMiddleware
 
     public RequiredPromptsGateMiddleware(RequestDelegate next) => _next = next;
 
-    public async Task InvokeAsync(HttpContext context, IUserPromptService prompts, IApplicationRepository applications)
+    public async Task InvokeAsync(HttpContext context, IUserPromptService prompts, ISurveyService surveys, IApplicationRepository applications)
     {
         if (!ShouldEvaluate(context.Request))
         {
@@ -47,13 +48,21 @@ public sealed class RequiredPromptsGateMiddleware
         Guid.TryParse(principal.FindFirstValue(UserClaims.SessionId), out var sessionId);
         var applicationId = await ResolveApplicationIdAsync(context, applications);
 
-        var pending = await prompts.GetPendingAsync(tenantId, userId,
-            sessionId == Guid.Empty ? null : sessionId, applicationId, context.RequestAborted);
+        var session = sessionId == Guid.Empty ? (Guid?)null : sessionId;
+        var returnUrl = context.Request.Path + context.Request.QueryString;
 
-        if (pending.Any)
+        // Policies first (legal), then surveys.
+        var pendingPolicies = await prompts.GetPendingAsync(tenantId, userId, session, applicationId, context.RequestAborted);
+        if (pendingPolicies.Any)
         {
-            var returnUrl = context.Request.Path + context.Request.QueryString;
             context.Response.Redirect($"/account/policies?returnUrl={Uri.EscapeDataString(returnUrl)}");
+            return;
+        }
+
+        var pendingSurveys = await surveys.GetPendingAsync(tenantId, userId, session, applicationId, context.RequestAborted);
+        if (pendingSurveys.Count > 0)
+        {
+            context.Response.Redirect($"/account/survey/{pendingSurveys[0].SurveyId}?returnUrl={Uri.EscapeDataString(returnUrl)}");
             return;
         }
 

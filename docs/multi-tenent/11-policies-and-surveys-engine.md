@@ -391,15 +391,34 @@ survey-runner + reporting.
   completed/partial/missed, CSV export.
 - **Portal**: user apni submitted responses + pending surveys dekhe.
 
-### 4.3 Phase 2 task checklist
-- [ ] Survey entities + DbContext + migration
-- [ ] SurveyService (CRUD, publish) + reuse UserPromptService for gating
-- [ ] Survey builder UI (TenantAdmin) — question types, options, settings, preview
-- [ ] Survey runner page (`/account/survey/{id}`) + randomization + partial-save
-- [ ] Missed-marking on close-date (background job ya lazy-on-login)
-- [ ] Reporting + CSV export
-- [ ] Portal survey history
-- [ ] Build + tests + verification
+### 4.3 Phase 2 task checklist — ✅ DONE (331 tests green; 9 new survey tests)
+- [x] Survey entities (`Survey`, `SurveyQuestion`, `SurveyQuestionOption`, `SurveyResponse`,
+      `SurveyAnswer`) + enums (`SurveyQuestionType`, `SurveyResponseStatus`) + DbContext +
+      migration `AddSurveysEngine` (5 tables)
+- [x] `ISurveyRepository` + `SurveyRepository` + DI
+- [x] `SurveyService` (CRUD, question builder add/delete/reorder, publish/archive/re-request,
+      pending evaluation, runner prep w/ randomization, submit/skip/decline, report aggregation)
+- [x] Shared `TargetingEvaluator` extracted (policies + surveys both use it; UserPromptService refactored)
+- [x] Gate integration — `RequiredPromptsGateMiddleware` checks policies first, then surveys →
+      redirects to `/account/survey/{id}`
+- [x] Survey runner page `/account/survey/{id}` (`SurveyController`) — renders 9 question types,
+      submit/skip/decline, randomized order
+- [x] TenantAdmin **Surveys** (`/tenantadmin/surveys`) — list, builder (meta + enforcement +
+      targeting + settings + question add/reorder/delete), publish/archive/re-request, responses report
+- [x] `survey.read` / `survey.manage` RBAC
+- [x] Portal **Surveys** history page + nav
+- [x] 9 `SurveyServiceTests` (pending/optional/mandatory/skippable-per-session/closed, submit +
+      required validation, publish-needs-question, report option-count aggregation)
+
+**Question types shipped (9):** SingleChoice · MultipleChoice · Dropdown · ShortText · LongText ·
+Number · Rating (scale) · YesNo · Date. *(Matrix, Ranking, NPS/Star, image-choice, file-upload,
+skip/branch logic = future — the `Type` enum + jsonb answer model are extensible.)*
+
+> **"Missed" status:** modeled in `SurveyResponseStatus`; full population-wide missed-marking at
+> close (for users who never log in) is a follow-up (needs the targeted-user set / a background job).
+> Closed surveys simply stop prompting (no block) — the confirmed behavior.
+> **Anonymous:** `UserId` is still stored for enforce-once/skip dedup; the *reporting* view hides
+> identity. True unlinkable anonymity is a follow-up.
 
 ---
 

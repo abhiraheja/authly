@@ -1,0 +1,120 @@
+@model TargetingEditorModel
+@{
+    bool Aud(string a) => string.Equals(Model.Audience, a, StringComparison.OrdinalIgnoreCase);
+}
+<div class="card" id="targetingEditor" data-preview-url="@Model.PreviewUrl">
+    <div class="card-header flex items-center justify-between gap-2">
+        <span class="card-title">Who sees it</span>
+        <button type="button" class="btn btn-outline btn-sm" id="previewAudienceBtn"><i data-lucide="users" class="size-4"></i> Preview audience</button>
+    </div>
+    <div class="card-body space-y-3">
+        <div class="space-y-2 text-sm">
+            <label class="flex items-center gap-2"><input type="radio" name="Audience" value="all" @(Aud("all") ? "checked" : "") data-audience-toggle /> All users</label>
+            <label class="flex items-center gap-2"><input type="radio" name="Audience" value="applications" @(Aud("applications") ? "checked" : "") data-audience-toggle /> Specific applications</label>
+            <label class="flex items-center gap-2"><input type="radio" name="Audience" value="authMethods" @(Aud("authMethods") ? "checked" : "") data-audience-toggle /> By sign-in method</label>
+            <label class="flex items-center gap-2"><input type="radio" name="Audience" value="providers" @(Aud("providers") ? "checked" : "") data-audience-toggle /> By social provider</label>
+            <label class="flex items-center gap-2"><input type="radio" name="Audience" value="roles" @(Aud("roles") ? "checked" : "") data-audience-toggle /> By role</label>
+            <label class="flex items-center gap-2"><input type="radio" name="Audience" value="advanced" @(Aud("advanced") ? "checked" : "") data-audience-toggle /> Advanced (combine conditions)</label>
+        </div>
+
+        <div data-matchrow class="flex items-center gap-3 text-sm border-t border-border pt-3">
+            <span class="text-muted-foreground">Match</span>
+            <label class="flex items-center gap-1"><input type="radio" name="Match" value="any" @(Model.Match != "all" ? "checked" : "") /> any condition</label>
+            <label class="flex items-center gap-1"><input type="radio" name="Match" value="all" @(Model.Match == "all" ? "checked" : "") /> all conditions</label>
+        </div>
+
+        <div data-dim="applications" class="space-y-1">
+            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Applications</p>
+            @if (Model.AvailableApps.Count == 0) { <p class="text-xs text-muted-foreground">No applications registered.</p> }
+            @foreach (var app in Model.AvailableApps)
+            {
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="ApplicationIds" value="@app.Id" @(Model.ApplicationIds.Contains(app.Id) ? "checked" : "") /> @app.Name</label>
+            }
+        </div>
+
+        <div data-dim="authMethods" class="space-y-1">
+            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sign-in methods</p>
+            <div class="flex flex-wrap gap-3">
+                @foreach (var m in Model.AuthMethodOptions)
+                {
+                    <label class="flex items-center gap-2 text-sm capitalize"><input type="checkbox" name="AuthMethods" value="@m" @(Model.AuthMethods.Contains(m) ? "checked" : "") /> @m.Replace('_', ' ')</label>
+                }
+            </div>
+        </div>
+
+        <div data-dim="providers" class="space-y-1">
+            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Social providers</p>
+            @if (Model.AvailableProviders.Count == 0) { <p class="text-xs text-muted-foreground">No social providers configured.</p> }
+            <div class="flex flex-wrap gap-3">
+                @foreach (var pr in Model.AvailableProviders)
+                {
+                    <label class="flex items-center gap-2 text-sm capitalize"><input type="checkbox" name="Providers" value="@pr" @(Model.Providers.Contains(pr) ? "checked" : "") /> @pr</label>
+                }
+            </div>
+        </div>
+
+        <div data-dim="roles" class="space-y-1">
+            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Roles</p>
+            @if (Model.AvailableRoles.Count == 0) { <p class="text-xs text-muted-foreground">No end-user roles defined.</p> }
+            <div class="flex flex-wrap gap-3">
+                @foreach (var r in Model.AvailableRoles)
+                {
+                    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="Roles" value="@r" @(Model.Roles.Contains(r) ? "checked" : "") /> @r</label>
+                }
+            </div>
+        </div>
+
+        <div id="audiencePreviewResult" class="hidden rounded-md border border-border bg-muted/40 p-3 text-sm"></div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var root = document.getElementById("targetingEditor");
+        if (!root) return;
+
+        function currentAudience() {
+            var c = document.querySelector('input[name="Audience"]:checked');
+            return c ? c.value : "all";
+        }
+        function sync() {
+            var aud = currentAudience();
+            root.querySelectorAll('[data-dim]').forEach(function (el) {
+                var dim = el.getAttribute('data-dim');
+                el.style.display = (aud === dim || aud === 'advanced') ? '' : 'none';
+            });
+            var matchRow = root.querySelector('[data-matchrow]');
+            if (matchRow) matchRow.style.display = (aud === 'advanced') ? '' : 'none';
+        }
+        root.querySelectorAll('[data-audience-toggle]').forEach(function (r) { r.addEventListener('change', sync); });
+        sync();
+
+        // Preview audience via fetch.
+        var btn = document.getElementById("previewAudienceBtn");
+        var out = document.getElementById("audiencePreviewResult");
+        btn && btn.addEventListener("click", function () {
+            var fd = new FormData();
+            fd.append("Audience", currentAudience());
+            var match = document.querySelector('input[name="Match"]:checked');
+            fd.append("Match", match ? match.value : "any");
+            ['ApplicationIds', 'AuthMethods', 'Providers', 'Roles'].forEach(function (name) {
+                root.querySelectorAll('input[name="' + name + '"]:checked').forEach(function (cb) { fd.append(name, cb.value); });
+            });
+            var token = document.querySelector('input[name="__RequestVerificationToken"]');
+            if (token) fd.append("__RequestVerificationToken", token.value);
+
+            out.classList.remove("hidden");
+            out.textContent = "Estimating…";
+            fetch(root.getAttribute("data-preview-url"), { method: "POST", body: fd })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    var lines = [];
+                    if (d.count !== null && d.count !== undefined) lines.push("≈ " + d.count + " user(s) currently match.");
+                    if (d.sample && d.sample.length) lines.push("e.g. " + d.sample.slice(0, 5).join(", "));
+                    if (d.note) lines.push(d.note);
+                    out.textContent = lines.join("  ");
+                })
+                .catch(function () { out.textContent = "Couldn't estimate the audience."; });
+        });
+    })();
+</script>

@@ -45,14 +45,16 @@ public sealed class SurveyService : ISurveyService
     private readonly ISurveyRepository _surveys;
     private readonly ILoginHistoryRepository _logins;
     private readonly ISocialIdentityRepository _social;
+    private readonly IUserRoleRepository _userRoles;
     private readonly IAuditLogger _audit;
 
     public SurveyService(ISurveyRepository surveys, ILoginHistoryRepository logins,
-        ISocialIdentityRepository social, IAuditLogger audit)
+        ISocialIdentityRepository social, IUserRoleRepository userRoles, IAuditLogger audit)
     {
         _surveys = surveys;
         _logins = logins;
         _social = social;
+        _userRoles = userRoles;
         _audit = audit;
     }
 
@@ -224,16 +226,19 @@ public sealed class SurveyService : ISurveyService
 
         var targetings = active.ToDictionary(s => s.Id, s => PolicyTargetingJson.Parse(s.Targeting));
         string? authCategory = null;
-        if (targetings.Values.Any(t => t.Audience == Audiences.AuthMethods))
+        if (targetings.Values.Any(t => t.UsesAuthMethods))
             authCategory = await TargetingEvaluator.AuthCategoryAsync(_logins, tenantId, userId, ct);
         HashSet<string>? providers = null;
-        if (targetings.Values.Any(t => t.Audience == Audiences.Providers))
+        if (targetings.Values.Any(t => t.UsesProviders))
             providers = await TargetingEvaluator.LinkedProvidersAsync(_social, tenantId, userId, ct);
+        HashSet<string>? roles = null;
+        if (targetings.Values.Any(t => t.UsesRoles))
+            roles = await TargetingEvaluator.UserRolesAsync(_userRoles, tenantId, userId, ct);
 
         var pending = new List<PendingSurvey>();
         foreach (var survey in active)
         {
-            if (!TargetingEvaluator.Matches(targetings[survey.Id], applicationId, authCategory, providers)) continue;
+            if (!TargetingEvaluator.Matches(targetings[survey.Id], applicationId, authCategory, providers, roles)) continue;
 
             var cutoff = Max(survey.PublishedAt, survey.ConsentResetAt);
             var responses = (await _surveys.ListUserResponsesForSurveyAsync(tenantId, survey.Id, userId, ct))

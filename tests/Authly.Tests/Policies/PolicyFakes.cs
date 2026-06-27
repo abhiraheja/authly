@@ -69,9 +69,31 @@ internal sealed class FakeSocialIdentityRepo : ISocialIdentityRepository
     public Task<IReadOnlyList<SocialIdentity>> ListByUserAsync(Guid tenantId, Guid userId, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<SocialIdentity>>(Items.Where(s => s.TenantId == tenantId && s.UserId == userId).ToList());
     public Task<IReadOnlyDictionary<Guid, IReadOnlyList<string>>> ListProvidersByTenantAsync(Guid tenantId, CancellationToken ct = default)
-        => Task.FromResult<IReadOnlyDictionary<Guid, IReadOnlyList<string>>>(new Dictionary<Guid, IReadOnlyList<string>>());
+        => Task.FromResult<IReadOnlyDictionary<Guid, IReadOnlyList<string>>>(
+            Items.Where(s => s.TenantId == tenantId)
+                .GroupBy(s => s.UserId)
+                .ToDictionary(g => g.Key, g => (IReadOnlyList<string>)g.Select(s => s.Provider).ToList()));
     public Task AddAsync(SocialIdentity identity, CancellationToken ct = default) { Items.Add(identity); return Task.CompletedTask; }
     public Task UpdateAsync(SocialIdentity identity, CancellationToken ct = default) => Task.CompletedTask;
+}
+
+internal sealed class FakeUserRoleRepo : IUserRoleRepository
+{
+    /// <summary>tenant+user → role names.</summary>
+    public readonly Dictionary<(Guid, Guid), List<string>> RolesByUser = new();
+    /// <summary>tenant+roleId → user ids.</summary>
+    public readonly Dictionary<(Guid, Guid), List<Guid>> UsersByRole = new();
+
+    public Task AssignAsync(UserRole assignment, CancellationToken ct = default) => Task.CompletedTask;
+    public Task RemoveAsync(Guid tenantId, Guid userId, Guid roleId, CancellationToken ct = default) => Task.CompletedTask;
+    public Task<IReadOnlyList<Role>> ListRolesForUserAsync(Guid tenantId, Guid userId, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<Role>>(Array.Empty<Role>());
+    public Task<IReadOnlyList<Guid>> ListUserIdsForRoleAsync(Guid tenantId, Guid roleId, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<Guid>>(UsersByRole.TryGetValue((tenantId, roleId), out var v) ? v : new List<Guid>());
+    public Task<IReadOnlyList<string>> GetRoleNamesAsync(Guid tenantId, Guid userId, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<string>>(RolesByUser.TryGetValue((tenantId, userId), out var v) ? v : new List<string>());
+    public Task<IReadOnlyList<string>> GetPermissionNamesAsync(Guid tenantId, Guid userId, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
 }
 
 internal sealed class NoopAudit : IAuditLogger

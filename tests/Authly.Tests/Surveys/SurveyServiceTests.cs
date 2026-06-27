@@ -18,7 +18,7 @@ public sealed class SurveyServiceTests
     private readonly SurveyService _sut;
 
     public SurveyServiceTests()
-        => _sut = new SurveyService(_repo, new FakeLoginHistoryRepo(), new FakeSocialIdentityRepo(), new NoopAudit());
+        => _sut = new SurveyService(_repo, new FakeLoginHistoryRepo(), new FakeSocialIdentityRepo(), new FakeUserRoleRepo(), new NoopAudit());
 
     private Survey Publish(PolicyEnforcementMode mode, DateTimeOffset? skipDeadline = null, DateTimeOffset? closeDate = null)
     {

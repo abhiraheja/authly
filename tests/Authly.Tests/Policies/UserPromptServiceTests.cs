@@ -14,8 +14,9 @@ public sealed class UserPromptServiceTests
     private readonly FakePolicyRepo _policies = new();
     private readonly FakeLoginHistoryRepo _logins = new();
     private readonly FakeSocialIdentityRepo _social = new();
+    private readonly FakeUserRoleRepo _userRoles = new();
 
-    private UserPromptService Sut() => new(_policies, _logins, _social, new NoopAudit());
+    private UserPromptService Sut() => new(_policies, _logins, _social, _userRoles, new NoopAudit());
 
     /// <summary>Creates a published policy + its live version, returns the policy.</summary>
     private Policy Publish(PolicyEnforcementMode mode, PolicyTargeting? targeting = null,
@@ -159,6 +160,47 @@ public sealed class UserPromptServiceTests
 
         // Latest login was via Google → normalizes to "social" → matches.
         _logins.Items.Add(new LoginHistory { TenantId = Tenant, UserId = User, Result = "success", Method = "google", CreatedAt = DateTimeOffset.UtcNow });
+        Assert.True((await Sut().GetPendingAsync(Tenant, User, Guid.NewGuid(), null)).Any);
+    }
+
+    [Fact]
+    public async Task Role_targeting_matches_users_with_the_role()
+    {
+        Publish(PolicyEnforcementMode.Mandatory, new PolicyTargeting { Audience = Audiences.Roles, Roles = new() { "staff" } });
+
+        Assert.False((await Sut().GetPendingAsync(Tenant, User, Guid.NewGuid(), null)).Any);  // no roles → no match
+        _userRoles.RolesByUser[(Tenant, User)] = new() { "staff" };
+        Assert.True((await Sut().GetPendingAsync(Tenant, User, Guid.NewGuid(), null)).Any);    // has role → match
+    }
+
+    [Fact]
+    public async Task Advanced_all_requires_every_condition()
+    {
+        Publish(PolicyEnforcementMode.Mandatory, new PolicyTargeting
+        {
+            Audience = Audiences.Advanced, Match = "all",
+            AuthMethods = new() { AuthMethodCategories.Social }, Roles = new() { "staff" }
+        });
+
+        // Only the role matches → "all" fails.
+        _userRoles.RolesByUser[(Tenant, User)] = new() { "staff" };
+        Assert.False((await Sut().GetPendingAsync(Tenant, User, Guid.NewGuid(), null)).Any);
+
+        // Now also logged in via Google → both match → pending.
+        _logins.Items.Add(new LoginHistory { TenantId = Tenant, UserId = User, Result = "success", Method = "google", CreatedAt = DateTimeOffset.UtcNow });
+        Assert.True((await Sut().GetPendingAsync(Tenant, User, Guid.NewGuid(), null)).Any);
+    }
+
+    [Fact]
+    public async Task Advanced_any_matches_on_a_single_condition()
+    {
+        Publish(PolicyEnforcementMode.Mandatory, new PolicyTargeting
+        {
+            Audience = Audiences.Advanced, Match = "any",
+            AuthMethods = new() { AuthMethodCategories.Social }, Roles = new() { "staff" }
+        });
+
+        _userRoles.RolesByUser[(Tenant, User)] = new() { "staff" }; // role alone satisfies "any"
         Assert.True((await Sut().GetPendingAsync(Tenant, User, Guid.NewGuid(), null)).Any);
     }
 

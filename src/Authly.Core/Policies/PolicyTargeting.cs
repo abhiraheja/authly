@@ -22,7 +22,19 @@ public sealed class PolicyTargeting
     /// <summary>Social provider keys the policy targets, e.g. "google" (when Audience = providers).</summary>
     public List<string> Providers { get; set; } = new();
 
+    /// <summary>End-user role names the policy targets (when Audience = roles, or in advanced mode).</summary>
+    public List<string> Roles { get; set; } = new();
+
+    /// <summary>For <see cref="Audiences.Advanced"/>: how the populated dimensions combine — "any" (OR) or "all" (AND).</summary>
+    public string Match { get; set; } = "any";
+
     public static PolicyTargeting All() => new() { Audience = Audiences.All };
+
+    /// <summary>True if this targeting (in its current audience) makes use of the application dimension.</summary>
+    public bool UsesApplications => Audience == Audiences.Applications || (Audience == Audiences.Advanced && ApplicationIds.Count > 0);
+    public bool UsesAuthMethods => Audience == Audiences.AuthMethods || (Audience == Audiences.Advanced && AuthMethods.Count > 0);
+    public bool UsesProviders => Audience == Audiences.Providers || (Audience == Audiences.Advanced && Providers.Count > 0);
+    public bool UsesRoles => Audience == Audiences.Roles || (Audience == Audiences.Advanced && Roles.Count > 0);
 }
 
 /// <summary>The supported audience kinds for <see cref="PolicyTargeting.Audience"/>.</summary>
@@ -32,6 +44,9 @@ public static class Audiences
     public const string Applications = "applications";
     public const string AuthMethods = "authMethods";
     public const string Providers = "providers";
+    public const string Roles = "roles";
+    /// <summary>Combine multiple dimensions (apps/auth-methods/providers/roles) with an any/all match.</summary>
+    public const string Advanced = "advanced";
 }
 
 /// <summary>Parse/serialize helpers for the <c>policies.targeting</c> jsonb column.</summary>

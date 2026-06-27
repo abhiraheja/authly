@@ -22,13 +22,18 @@ public sealed class SurveysController : TenantAdminControllerBase
     private readonly ISurveyService _surveys;
     private readonly IApplicationRepository _applications;
     private readonly ISocialProviderRepository _socialProviders;
+    private readonly IRoleRepository _roles;
+    private readonly IAudiencePreviewService _audience;
 
     public SurveysController(ISurveyService surveys, IApplicationRepository applications,
-        ISocialProviderRepository socialProviders, ITenantContext tenant) : base(tenant)
+        ISocialProviderRepository socialProviders, IRoleRepository roles, IAudiencePreviewService audience,
+        ITenantContext tenant) : base(tenant)
     {
         _surveys = surveys;
         _applications = applications;
         _socialProviders = socialProviders;
+        _roles = roles;
+        _audience = audience;
     }
 
     [RequireOperatorPermission("survey.read")]
@@ -64,6 +69,8 @@ public sealed class SurveysController : TenantAdminControllerBase
                 ApplicationIds = t.ApplicationIds,
                 AuthMethods = t.AuthMethods,
                 Providers = t.Providers,
+                Roles = t.Roles,
+                Match = t.Match,
                 RandomizeQuestions = survey.RandomizeQuestions,
                 Anonymous = survey.Anonymous,
                 ShowProgressBar = survey.ShowProgressBar,
@@ -194,14 +201,12 @@ public sealed class SurveysController : TenantAdminControllerBase
         Enum.TryParse<PolicyEnforcementMode>(vm.EnforcementMode, out var mode);
         var targeting = new PolicyTargeting
         {
-            Audience = vm.Audience switch
-            {
-                Audiences.Applications or Audiences.AuthMethods or Audiences.Providers => vm.Audience,
-                _ => Audiences.All
-            },
+            Audience = NormalizeAudience(vm.Audience),
             ApplicationIds = vm.ApplicationIds ?? new(),
             AuthMethods = vm.AuthMethods ?? new(),
-            Providers = vm.Providers ?? new()
+            Providers = vm.Providers ?? new(),
+            Roles = vm.Roles ?? new(),
+            Match = vm.Match == "all" ? "all" : "any"
         };
         return new SurveyEditInput
         {
@@ -222,12 +227,38 @@ public sealed class SurveysController : TenantAdminControllerBase
     private static DateTimeOffset? ToUtc(DateTime? dt)
         => dt is { } d ? new DateTimeOffset(DateTime.SpecifyKind(d, DateTimeKind.Utc)) : null;
 
+    private static string NormalizeAudience(string a) => a switch
+    {
+        Audiences.Applications or Audiences.AuthMethods or Audiences.Providers
+            or Audiences.Roles or Audiences.Advanced => a,
+        _ => Audiences.All
+    };
+
+    [RequireOperatorPermission("survey.read")]
+    [HttpPost("preview-audience")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PreviewAudience(AudiencePreviewForm form, CancellationToken ct)
+    {
+        var targeting = new PolicyTargeting
+        {
+            Audience = NormalizeAudience(form.Audience),
+            ApplicationIds = form.ApplicationIds ?? new(),
+            AuthMethods = form.AuthMethods ?? new(),
+            Providers = form.Providers ?? new(),
+            Roles = form.Roles ?? new(),
+            Match = form.Match == "all" ? "all" : "any"
+        };
+        var preview = await _audience.PreviewAsync(TenantId, targeting, ct);
+        return Json(new { count = preview.Count, sample = preview.SampleEmails, note = preview.Note });
+    }
+
     private async Task PopulateOptionsAsync(SurveyEditViewModel vm, CancellationToken ct)
     {
         var apps = await _applications.ListByTenantAsync(TenantId, ct);
         vm.AvailableApps = apps.Select(a => new SurveyEditViewModel.AppOption(a.Id, a.Name)).ToList();
         var providers = await _socialProviders.ListByTenantAsync(TenantId, ct);
         vm.AvailableProviders = providers.Select(p => p.Provider).Distinct().ToList();
+        vm.AvailableRoles = (await _roles.ListRolesAsync(TenantId, ct)).Select(r => r.Name).ToList();
         ViewData["AuthMethodOptions"] = AuthMethodOptions;
     }
 }

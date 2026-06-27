@@ -17,15 +17,18 @@ public sealed class AccountController : Controller
     private readonly IAccountService _accounts;
     private readonly IOrganizationMembershipRepository _memberships;
     private readonly ITenantRepository _tenants;
+    private readonly Authly.Modules.Operators.IOperatorRbacService _operatorRbac;
 
     public AccountController(
         IAccountService accounts,
         IOrganizationMembershipRepository memberships,
-        ITenantRepository tenants)
+        ITenantRepository tenants,
+        Authly.Modules.Operators.IOperatorRbacService operatorRbac)
     {
         _accounts = accounts;
         _memberships = memberships;
         _tenants = tenants;
+        _operatorRbac = operatorRbac;
     }
 
     [HttpGet("login")]
@@ -70,6 +73,10 @@ public sealed class AccountController : Controller
         }
 
         await _accounts.RecordLoginAsync(account.Id, ct);
+
+        // Self-heal: ensure this org's system roles carry any permissions added in later releases
+        // (e.g. policy.*/survey.*), so the owner can reach new console features without manual setup.
+        await _operatorRbac.EnsureSystemRolesAsync(active.OrganizationId, ct);
 
         var claims = new List<Claim>
         {

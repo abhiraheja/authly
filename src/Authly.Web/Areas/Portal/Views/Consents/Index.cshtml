@@ -1,0 +1,40 @@
+@model IReadOnlyList<ConsentHistoryRow>
+@{
+    string DecisionBadge(PolicyDecisionType d) => d switch
+    {
+        PolicyDecisionType.Accepted => "badge-success",
+        PolicyDecisionType.Rejected => "badge-danger",
+        _ => "badge-warning"
+    };
+}
+
+<div>
+    <h1 class="font-display text-xl font-bold">Policies &amp; consents</h1>
+    <p class="text-sm text-muted-foreground mt-1">
+        A record of the policies you've reviewed and your decisions.
+    </p>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header"><span class="card-title">Your decisions</span></div>
+    <div class="overflow-x-auto scroll-thin">
+        <table class="table">
+            <thead><tr><th>Policy</th><th>Decision</th><th>Version</th><th class="text-right">Date</th></tr></thead>
+            <tbody>
+                @foreach (var r in Model)
+                {
+                    <tr>
+                        <td class="font-medium">@r.Title</td>
+                        <td><span class="badge @DecisionBadge(r.Decision)">@r.Decision.ToString().ToLower()</span></td>
+                        <td class="text-sm text-muted-foreground">v@(r.Version)</td>
+                        <td class="text-right text-sm text-muted-foreground">@r.DecidedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm") UTC</td>
+                    </tr>
+                }
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="4" class="text-center text-muted-foreground py-6">You haven't been asked to review any policies yet.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,145 @@
+@model SurveyEditViewModel
+@{
+    var isExisting = Model.Id is not null;
+    var isPublished = string.Equals(Model.Status, "Published", StringComparison.OrdinalIgnoreCase);
+    var questionTypes = new[] { "SingleChoice", "MultipleChoice", "Dropdown", "ShortText", "LongText", "Number", "Rating", "YesNo", "Date" };
+}
+
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">@(isExisting ? "Edit survey" : "New survey")</h1>
+        @if (isExisting) { <p class="text-sm text-muted-foreground mt-1">Status: <span class="capitalize">@Model.Status</span></p> }
+    </div>
+    <a asp-action="Index" class="btn btn-ghost btn-sm">Back to surveys</a>
+</div>
+
+<form asp-action="Save" method="post" class="mt-4 space-y-4">
+    <input type="hidden" asp-for="Id" />
+
+    <div class="card">
+        <div class="card-header"><span class="card-title">Details</span></div>
+        <div class="card-body space-y-3">
+            <div>
+                <label asp-for="Title" class="label">Title</label>
+                <input asp-for="Title" class="input" placeholder="Employee feedback" />
+                <span asp-validation-for="Title" class="text-danger text-xs"></span>
+            </div>
+            <div>
+                <label asp-for="Description" class="label">Description <span class="text-muted-foreground">(optional)</span></label>
+                <input asp-for="Description" class="input" />
+            </div>
+            <div>
+                <label asp-for="ThankYouMessage" class="label">Thank-you message <span class="text-muted-foreground">(optional)</span></label>
+                <input asp-for="ThankYouMessage" class="input" />
+            </div>
+            <div class="flex flex-wrap gap-4 text-sm">
+                <label class="flex items-center gap-2"><input type="checkbox" asp-for="RandomizeQuestions" /> Randomize question order</label>
+                <label class="flex items-center gap-2"><input type="checkbox" asp-for="Anonymous" /> Anonymous responses</label>
+                <label class="flex items-center gap-2"><input type="checkbox" asp-for="ShowProgressBar" /> Show progress bar</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><span class="card-title">Enforcement</span></div>
+        <div class="card-body space-y-3">
+            <div class="space-y-2 text-sm">
+                <label class="flex items-start gap-2"><input type="radio" asp-for="EnforcementMode" value="Optional" class="mt-1" />
+                    <span><strong>Optional</strong> — never blocks sign-in (recommended for surveys).</span></label>
+                <label class="flex items-start gap-2"><input type="radio" asp-for="EnforcementMode" value="SkippableUntil" class="mt-1" />
+                    <span><strong>Skippable until a date</strong> — asked every sign-in; after the deadline, completion is required.</span></label>
+                <label class="flex items-start gap-2"><input type="radio" asp-for="EnforcementMode" value="Mandatory" class="mt-1" />
+                    <span><strong>Mandatory</strong> — must complete to sign in.</span></label>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div><label class="label">Skip deadline (UTC)</label><input type="datetime-local" name="SkipDeadline" value="@(Model.SkipDeadline?.ToString("yyyy-MM-ddTHH:mm"))" class="input" /></div>
+                <div><label class="label">Show from (UTC)</label><input type="datetime-local" name="StartsAt" value="@(Model.StartsAt?.ToString("yyyy-MM-ddTHH:mm"))" class="input" /></div>
+                <div><label class="label">Close date (UTC)</label><input type="datetime-local" name="CloseDate" value="@(Model.CloseDate?.ToString("yyyy-MM-ddTHH:mm"))" class="input" /></div>
+            </div>
+        </div>
+    </div>
+
+    @await Html.PartialAsync("_TargetingEditor", Model.ToTargetingEditor(Url.Action("PreviewAudience")!))
+
+    <div class="flex items-center gap-2">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a asp-action="Index" class="btn btn-ghost">Cancel</a>
+    </div>
+</form>
+
+@if (isExisting)
+{
+    <div class="card mt-4">
+        <div class="card-header"><span class="card-title">Questions (@Model.Questions.Count)</span></div>
+        <div class="card-body space-y-3">
+            @if (Model.Questions.Count == 0)
+            {
+                <p class="text-sm text-muted-foreground">No questions yet — add your first below.</p>
+            }
+            @foreach (var qo in Model.Questions)
+            {
+                <div class="flex items-start justify-between gap-3 border-b border-border pb-3">
+                    <div>
+                        <p class="text-sm font-medium">@qo.Question.Title
+                            <span class="badge badge-info ml-1">@qo.Question.Type</span>
+                            @if (qo.Question.Required) { <span class="badge badge-warning ml-1">required</span> }
+                        </p>
+                        @if (qo.Options.Count > 0)
+                        {
+                            <p class="text-xs text-muted-foreground mt-1">@string.Join(" · ", qo.Options.Select(o => o.Label))</p>
+                        }
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <form asp-action="MoveQuestion" asp-route-id="@Model.Id" asp-route-questionId="@qo.Question.Id" asp-route-delta="-1" method="post" class="m-0"><button class="btn btn-ghost btn-icon btn-sm" title="Move up"><i data-lucide="chevron-up" class="size-4"></i></button></form>
+                        <form asp-action="MoveQuestion" asp-route-id="@Model.Id" asp-route-questionId="@qo.Question.Id" asp-route-delta="1" method="post" class="m-0"><button class="btn btn-ghost btn-icon btn-sm" title="Move down"><i data-lucide="chevron-down" class="size-4"></i></button></form>
+                        <form asp-action="DeleteQuestion" asp-route-id="@Model.Id" asp-route-questionId="@qo.Question.Id" method="post" class="m-0" onsubmit="return confirm('Delete this question?');"><button class="btn btn-ghost btn-icon btn-sm text-danger" title="Delete"><i data-lucide="trash-2" class="size-4"></i></button></form>
+                    </div>
+                </div>
+            }
+
+            <form asp-action="AddQuestion" asp-route-id="@Model.Id" method="post" class="space-y-3 pt-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="label">Type</label>
+                        <select name="Type" class="input">
+                            @foreach (var t in questionTypes) { <option value="@t">@t</option> }
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label">Question title</label>
+                        <input name="Title" class="input" placeholder="How satisfied are you?" />
+                    </div>
+                </div>
+                <div>
+                    <label class="label">Help text <span class="text-muted-foreground">(optional)</span></label>
+                    <input name="HelpText" class="input" />
+                </div>
+                <div>
+                    <label class="label">Options <span class="text-muted-foreground">(one per line — for choice/dropdown types)</span></label>
+                    <textarea name="Options" rows="3" class="input" placeholder="Very satisfied&#10;Neutral&#10;Unsatisfied"></textarea>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div><label class="label">Scale min</label><input type="number" name="ScaleMin" class="input" placeholder="1" /></div>
+                    <div><label class="label">Scale max</label><input type="number" name="ScaleMax" class="input" placeholder="5" /></div>
+                    <div class="sm:col-span-2"><label class="label">Placeholder</label><input name="Placeholder" class="input" /></div>
+                </div>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="Required" value="true" /> Required</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="RandomizeOptions" value="true" /> Randomize options</label>
+                <button type="submit" class="btn btn-outline btn-sm"><i data-lucide="plus" class="size-4"></i> Add question</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header"><span class="card-title">Publish &amp; lifecycle</span></div>
+        <div class="card-body flex flex-wrap items-center gap-2">
+            <form asp-action="Publish" asp-route-id="@Model.Id" method="post" class="m-0"><button class="btn btn-primary btn-sm">@(isPublished ? "Re-publish" : "Publish")</button></form>
+            @if (isPublished)
+            {
+                <form asp-action="ReRequest" asp-route-id="@Model.Id" method="post" class="m-0" onsubmit="return confirm('Ask targeted users again on next sign-in?');"><button class="btn btn-outline btn-sm">Re-request responses</button></form>
+            }
+            <form asp-action="Archive" asp-route-id="@Model.Id" method="post" class="m-0 ms-auto" onsubmit="return confirm('Archive this survey?');"><button class="btn btn-ghost btn-sm text-danger">Archive</button></form>
+        </div>
+    </div>
+}
+

@@ -1,0 +1,53 @@
+@model IReadOnlyList<Survey>
+@{
+    string StatusBadge(PolicyStatus s) => s switch
+    {
+        PolicyStatus.Published => "badge-success",
+        PolicyStatus.Archived => "badge-info",
+        _ => "badge-warning"
+    };
+    string ModeLabel(PolicyEnforcementMode m) => m switch
+    {
+        PolicyEnforcementMode.Mandatory => "Mandatory",
+        PolicyEnforcementMode.SkippableUntil => "Skippable",
+        _ => "Optional"
+    };
+}
+
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">Surveys</h1>
+        <p class="text-sm text-muted-foreground mt-1">Collect feedback and opinions from your users at sign-in.</p>
+    </div>
+    <a asp-action="Edit" class="btn btn-primary"><i data-lucide="plus" class="size-4"></i> New survey</a>
+</div>
+
+<div class="card mt-4">
+    <div class="overflow-x-auto scroll-thin">
+        <table class="table">
+            <thead><tr><th>Title</th><th>Status</th><th>Enforcement</th><th class="text-right">Updated</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var s in Model)
+                {
+                    <tr>
+                        <td class="font-medium">@s.Title</td>
+                        <td><span class="badge @StatusBadge(s.Status)">@s.Status.ToString().ToLower()</span></td>
+                        <td class="text-sm">@ModeLabel(s.EnforcementMode)</td>
+                        <td class="text-right text-sm text-muted-foreground">@s.UpdatedAt.UtcDateTime.ToString("yyyy-MM-dd")</td>
+                        <td class="text-right whitespace-nowrap">
+                            <a asp-action="Edit" asp-route-id="@s.Id" class="btn btn-ghost btn-sm">Edit</a>
+                            @if (s.Status == PolicyStatus.Published)
+                            {
+                                <a asp-action="Responses" asp-route-id="@s.Id" class="btn btn-ghost btn-sm">Responses</a>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="5" class="text-center text-muted-foreground py-6">No surveys yet.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

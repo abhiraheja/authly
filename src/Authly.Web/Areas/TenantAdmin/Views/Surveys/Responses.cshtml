@@ -1,0 +1,60 @@
+@model SurveyReportViewModel
+@{
+    var r = Model.Report;
+}
+
+<div class="flex items-center justify-between gap-3">
+    <div>
+        <h1 class="font-display text-xl font-bold">@r.Survey.Title — responses</h1>
+        <p class="text-sm text-muted-foreground mt-1">@(r.Survey.Anonymous ? "Anonymous survey — responses aren't linked to users." : "Aggregated results.")</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <a asp-action="ExportResponses" asp-route-id="@r.Survey.Id" class="btn btn-outline btn-sm"><i data-lucide="download" class="size-4"></i> Export CSV</a>
+        <a asp-action="Edit" asp-route-id="@r.Survey.Id" class="btn btn-ghost btn-sm">Back to survey</a>
+    </div>
+</div>
+
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+    <div class="card card-body text-center"><p class="text-2xl font-bold text-success">@r.Completed</p><p class="text-xs text-muted-foreground">Completed</p></div>
+    <div class="card card-body text-center"><p class="text-2xl font-bold text-warning">@r.Skipped</p><p class="text-xs text-muted-foreground">Skipped</p></div>
+    <div class="card card-body text-center"><p class="text-2xl font-bold text-danger">@r.Declined</p><p class="text-xs text-muted-foreground">Declined</p></div>
+    <div class="card card-body text-center"><p class="text-2xl font-bold">@r.InProgress</p><p class="text-xs text-muted-foreground">In progress</p></div>
+</div>
+
+@foreach (var q in r.Questions)
+{
+    <div class="card mt-4">
+        <div class="card-header flex items-center justify-between gap-2">
+            <span class="card-title">@q.Question.Title</span>
+            <span class="text-xs text-muted-foreground">@q.AnswerCount answer(s)</span>
+        </div>
+        <div class="card-body space-y-2">
+            @if (q.OptionCounts.Count > 0)
+            {
+                var total = q.OptionCounts.Sum(o => o.Count);
+                foreach (var (label, count) in q.OptionCounts)
+                {
+                    var pct = total == 0 ? 0 : (int)Math.Round(100.0 * count / total);
+                    <div>
+                        <div class="flex items-center justify-between text-sm"><span>@label</span><span class="text-muted-foreground">@count (@pct%)</span></div>
+                        <div class="h-2 rounded bg-muted mt-1"><div class="h-2 rounded bg-primary" style="width:@(pct)%"></div></div>
+                    </div>
+                }
+            }
+            else if (q.Average is not null)
+            {
+                <p class="text-sm">Average: <strong>@q.Average.Value.ToString("0.00")</strong></p>
+            }
+            else if (q.TextSamples.Count > 0)
+            {
+                <ul class="list-disc ms-5 space-y-1 text-sm text-muted-foreground">
+                    @foreach (var s in q.TextSamples) { <li>@s</li> }
+                </ul>
+            }
+            else
+            {
+                <p class="text-sm text-muted-foreground">No answers yet.</p>
+            }
+        </div>
+    </div>
+}

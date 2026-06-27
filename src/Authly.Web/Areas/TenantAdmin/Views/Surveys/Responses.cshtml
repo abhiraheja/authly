@@ -8,7 +8,10 @@
         <h1 class="font-display text-xl font-bold">@r.Survey.Title — responses</h1>
         <p class="text-sm text-muted-foreground mt-1">@(r.Survey.Anonymous ? "Anonymous survey — responses aren't linked to users." : "Aggregated results.")</p>
     </div>
-    <a asp-action="Edit" asp-route-id="@r.Survey.Id" class="btn btn-ghost btn-sm">Back to survey</a>
+    <div class="flex items-center gap-2">
+        <a asp-action="ExportResponses" asp-route-id="@r.Survey.Id" class="btn btn-outline btn-sm"><i data-lucide="download" class="size-4"></i> Export CSV</a>
+        <a asp-action="Edit" asp-route-id="@r.Survey.Id" class="btn btn-ghost btn-sm">Back to survey</a>
+    </div>
 </div>
 
 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">

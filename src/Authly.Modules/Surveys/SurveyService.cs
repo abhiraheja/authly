@@ -36,6 +36,8 @@ public interface ISurveyService
 
     // Reporting + portal
     Task<SurveyReport> GetReportAsync(Guid tenantId, Guid surveyId, CancellationToken ct = default);
+    /// <summary>One row per completed response, one column per question. Identity is omitted (anonymity-safe).</summary>
+    Task<string> ExportResponsesCsvAsync(Guid tenantId, Guid surveyId, CancellationToken ct = default);
     Task<IReadOnlyList<SurveyResponse>> ListUserResponsesAsync(Guid tenantId, Guid userId, CancellationToken ct = default);
 }
 
@@ -398,6 +400,42 @@ public sealed class SurveyService : ISurveyService
         };
     }
 
+    public async Task<string> ExportResponsesCsvAsync(Guid tenantId, Guid surveyId, CancellationToken ct = default)
+    {
+        await Require(tenantId, surveyId, ct);
+        var questions = await ListQuestionsAsync(tenantId, surveyId, ct);
+        var labelById = questions.SelectMany(qo => qo.Options).ToDictionary(o => o.Id.ToString(), o => o.Label);
+        var completed = (await _surveys.ListResponsesForSurveyAsync(tenantId, surveyId, ct))
+            .Where(r => r.Status == SurveyResponseStatus.Completed)
+            .OrderBy(r => r.SubmittedAt ?? r.StartedAt).ToList();
+        var answersByResponse = (await _surveys.ListAnswersForSurveyAsync(tenantId, surveyId, ct))
+            .GroupBy(a => a.ResponseId)
+            .ToDictionary(g => g.Key, g => g.ToDictionary(a => a.QuestionId));
+
+        var sb = new System.Text.StringBuilder();
+        // Header.
+        sb.Append("response_id,submitted_at");
+        foreach (var qo in questions) { sb.Append(','); sb.Append(Csv(qo.Question.Title)); }
+        sb.Append('\n');
+
+        // Rows.
+        foreach (var r in completed)
+        {
+            sb.Append(Csv(r.Id.ToString()));
+            sb.Append(',');
+            sb.Append(Csv((r.SubmittedAt ?? r.StartedAt).UtcDateTime.ToString("u")));
+            answersByResponse.TryGetValue(r.Id, out var byQ);
+            foreach (var qo in questions)
+            {
+                sb.Append(',');
+                if (byQ is not null && byQ.TryGetValue(qo.Question.Id, out var a))
+                    sb.Append(Csv(RenderAnswer(a, labelById)));
+            }
+            sb.Append('\n');
+        }
+        return sb.ToString();
+    }
+
     public Task<IReadOnlyList<SurveyResponse>> ListUserResponsesAsync(Guid tenantId, Guid userId, CancellationToken ct = default)
         => _surveys.ListUserResponsesAsync(tenantId, userId, ct);
 
@@ -427,6 +465,22 @@ public sealed class SurveyService : ISurveyService
 
     private static bool RequiresOptions(SurveyQuestionType type)
         => type is SurveyQuestionType.SingleChoice or SurveyQuestionType.MultipleChoice or SurveyQuestionType.Dropdown;
+
+    /// <summary>Renders a single answer to a flat string for CSV.</summary>
+    private static string RenderAnswer(SurveyAnswer a, IReadOnlyDictionary<string, string> labelById)
+    {
+        if (!string.IsNullOrEmpty(a.OptionIds))
+            return string.Join("; ", DeserializeOptionIds(a.OptionIds).Select(id => labelById.TryGetValue(id, out var l) ? l : id));
+        if (a.NumberValue is { } n) return n.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return a.TextValue ?? "";
+    }
+
+    /// <summary>Quotes a CSV field if it contains a comma, quote or newline.</summary>
+    private static string Csv(string value)
+    {
+        if (value.IndexOfAny(new[] { ',', '"', '\n', '\r' }) < 0) return value;
+        return "\"" + value.Replace("\"", "\"\"") + "\"";
+    }
 
     private static IEnumerable<string> DeserializeOptionIds(string? json)
     {

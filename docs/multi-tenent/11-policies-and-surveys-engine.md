@@ -405,6 +405,7 @@ survey-runner + reporting.
       submit/skip/decline, randomized order
 - [x] TenantAdmin **Surveys** (`/tenantadmin/surveys`) — list, builder (meta + enforcement +
       targeting + settings + question add/reorder/delete), publish/archive/re-request, responses report
+      + **CSV export** (`/responses/export` — one row per completed response, anonymity-safe)
 - [x] `survey.read` / `survey.manage` RBAC
 - [x] Portal **Surveys** history page + nav
 - [x] 9 `SurveyServiceTests` (pending/optional/mandatory/skippable-per-session/closed, submit +

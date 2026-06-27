@@ -804,15 +804,17 @@ public class AppDbContext : DbContext
             e.Property(x => x.Description).HasColumnName("description");
             e.Property(x => x.Status).HasColumnName("status").HasConversion<string>()
                 .HasDefaultValue(PolicyStatus.Draft).IsRequired();
-            e.Property(x => x.EnforcementMode).HasColumnName("enforcement_mode").HasConversion<string>()
-                .HasDefaultValue(PolicyEnforcementMode.Optional).IsRequired();
+            // No store default: the enum's CLR default (Mandatory) differs from a would-be DB default,
+            // which makes EF treat an explicit Mandatory as "unset". The service always sets this.
+            e.Property(x => x.EnforcementMode).HasColumnName("enforcement_mode").HasConversion<string>().IsRequired();
             e.Property(x => x.SkipDeadline).HasColumnName("skip_deadline");
             e.Property(x => x.StartsAt).HasColumnName("starts_at");
             e.Property(x => x.CloseDate).HasColumnName("close_date");
             e.Property(x => x.Targeting).HasColumnName("targeting").HasColumnType("jsonb").HasDefaultValueSql("'{}'");
             e.Property(x => x.RandomizeQuestions).HasColumnName("randomize_questions").HasDefaultValue(false);
             e.Property(x => x.Anonymous).HasColumnName("anonymous").HasDefaultValue(false);
-            e.Property(x => x.ShowProgressBar).HasColumnName("show_progress_bar").HasDefaultValue(true);
+            // No store default (true) — it would override an explicit "false" (CLR default). App sets it.
+            e.Property(x => x.ShowProgressBar).HasColumnName("show_progress_bar");
             e.Property(x => x.ThankYouMessage).HasColumnName("thank_you_message");
             e.Property(x => x.PublishedAt).HasColumnName("published_at");
             e.Property(x => x.ConsentResetAt).HasColumnName("consent_reset_at");

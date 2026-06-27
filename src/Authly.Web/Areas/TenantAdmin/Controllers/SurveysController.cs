@@ -194,6 +194,17 @@ public sealed class SurveysController : TenantAdminControllerBase
         return View(new SurveyReportViewModel { Report = await _surveys.GetReportAsync(TenantId, id, ct) });
     }
 
+    [RequireOperatorPermission("survey.read")]
+    [HttpGet("{id:guid}/responses/export")]
+    public async Task<IActionResult> ExportResponses(Guid id, CancellationToken ct)
+    {
+        var survey = await _surveys.GetAsync(TenantId, id, ct);
+        if (survey is null) return NotFound();
+        var csv = await _surveys.ExportResponsesCsvAsync(TenantId, id, ct);
+        var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
+        return File(bytes, "text/csv", $"survey-{id}-responses.csv");
+    }
+
     // --- helpers ---
 
     private SurveyEditInput ToInput(SurveyEditViewModel vm)

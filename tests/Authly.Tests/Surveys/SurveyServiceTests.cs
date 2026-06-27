@@ -116,6 +116,22 @@ public sealed class SurveyServiceTests
     }
 
     [Fact]
+    public async Task ExportCsv_has_header_and_one_row_per_completed_response()
+    {
+        var s = Publish(PolicyEnforcementMode.Optional);
+        var q = _repo.Questions.First(x => x.SurveyId == s.Id);
+        await _sut.SubmitAsync(Tenant, s.Id, User, Guid.NewGuid(),
+            new[] { new SurveyAnswerInput { QuestionId = q.Id, Text = "Great, thanks" } }, Actor);
+
+        var csv = await _sut.ExportResponsesCsvAsync(Tenant, s.Id);
+        var lines = csv.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.StartsWith("response_id,submitted_at,", lines[0]);
+        Assert.Contains("Q1", lines[0]);
+        Assert.Equal(2, lines.Length);          // header + 1 response
+        Assert.Contains("Great, thanks", lines[1]);
+    }
+
+    [Fact]
     public async Task Report_aggregates_choice_option_counts()
     {
         var survey = new Survey { Id = Guid.NewGuid(), TenantId = Tenant, Title = "Poll", Status = PolicyStatus.Published, PublishedAt = DateTimeOffset.UtcNow };

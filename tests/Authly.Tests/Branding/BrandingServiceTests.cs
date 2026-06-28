@@ -260,7 +260,7 @@ public class BrandingServiceTests
     {
         public readonly List<string> Events = new();
         public Task LogAsync(string @event, AuditContext actor, Guid? tenantId = null, string? resourceType = null,
-            Guid? resourceId = null, string result = "success", object? metadata = null, CancellationToken ct = default)
+            Guid? resourceId = null, string result = "success", object? metadata = null, bool publishEvent = true, CancellationToken ct = default)
         { Events.Add(@event); return Task.CompletedTask; }
     }
 }

@@ -59,9 +59,10 @@ public sealed class UserAdminService : IUserAdminService
         await _users.AddAsync(user, ct);
 
         // Non-sensitive user fields ride along so webhook subscribers can provision without a callback.
+        // Imports/migrations may suppress the webhook (they provision downstream state themselves).
         await _audit.LogAsync("user.created", actor, tenantId, "user", user.Id,
             metadata: new { email, firstName = user.FirstName, lastName = user.LastName, phone = user.Phone, avatarUrl = user.AvatarUrl },
-            ct: ct);
+            publishEvent: !request.SuppressEvents, ct: ct);
         return user;
     }
 

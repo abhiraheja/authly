@@ -26,6 +26,7 @@ public sealed class AuditLogger : IAuditLogger
         Guid? resourceId = null,
         string result = "success",
         object? metadata = null,
+        bool publishEvent = true,
         CancellationToken ct = default)
     {
         var now = DateTimeOffset.UtcNow;
@@ -48,7 +49,8 @@ public sealed class AuditLogger : IAuditLogger
 
         // Fan the audited event out to subscribed webhook endpoints (§4.12). Tenant-scoped only;
         // platform/super-admin events (no tenant) are not delivered. Best-effort — never throws.
-        if (tenantId is { } tid)
+        // Callers may suppress delivery (publishEvent=false) for bulk imports/migrations.
+        if (publishEvent && tenantId is { } tid)
         {
             await _events.PublishAsync(new EventEnvelope(
                 @event, tid, now, actor.ActorId, actor.ActorType, resourceType, resourceId, result, metadata), ct);

@@ -44,7 +44,7 @@ public sealed class UsersController : ApiControllerBase
     {
         if (!ModelState.IsValid) return ValidationProblemEnvelope();
         var user = await _users.CreateAsync(TenantId,
-            new CreateUserRequest(dto.Email, dto.Password, dto.FirstName, dto.LastName, dto.EmailVerified), ApiAudit(), ct);
+            new CreateUserRequest(dto.Email, dto.Password, dto.FirstName, dto.LastName, dto.EmailVerified, dto.SuppressEvents), ApiAudit(), ct);
         return CreatedAtAction(nameof(Get), new { id = user.Id }, UserResponse.From(user));
     }
 

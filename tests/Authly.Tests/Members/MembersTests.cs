@@ -319,6 +319,6 @@ internal sealed class FakeUrlBuilder : IAuthUrlBuilder
 internal sealed class NoopMembersAudit : IAuditLogger
 {
     public Task LogAsync(string @event, AuditContext actor, Guid? tenantId = null, string? resourceType = null,
-        Guid? resourceId = null, string result = "success", object? metadata = null, CancellationToken ct = default)
+        Guid? resourceId = null, string result = "success", object? metadata = null, bool publishEvent = true, CancellationToken ct = default)
         => Task.CompletedTask;
 }

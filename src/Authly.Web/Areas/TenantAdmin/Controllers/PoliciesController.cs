@@ -26,16 +26,18 @@ public sealed class PoliciesController : TenantAdminControllerBase
     private readonly ISocialProviderRepository _socialProviders;
     private readonly IRoleRepository _roles;
     private readonly IAudiencePreviewService _audience;
+    private readonly IUserRepository _users;
 
     public PoliciesController(IPolicyService policies, IApplicationRepository applications,
         ISocialProviderRepository socialProviders, IRoleRepository roles, IAudiencePreviewService audience,
-        ITenantContext tenant) : base(tenant)
+        IUserRepository users, ITenantContext tenant) : base(tenant)
     {
         _policies = policies;
         _applications = applications;
         _socialProviders = socialProviders;
         _roles = roles;
         _audience = audience;
+        _users = users;
     }
 
     [RequireOperatorPermission("policy.read")]
@@ -187,13 +189,16 @@ public sealed class PoliciesController : TenantAdminControllerBase
             .Select(g => g.OrderByDescending(d => d.DecidedAt).First())
             .ToList();
 
+        var userLabels = (await _users.ListByTenantAsync(TenantId, ct)).ToDictionary(u => u.Id, u => u.Email);
+
         return View(new PolicyResponsesViewModel
         {
             Policy = policy,
             Accepted = latestPerUser.Count(d => d.Decision == PolicyDecisionType.Accepted),
             Rejected = latestPerUser.Count(d => d.Decision == PolicyDecisionType.Rejected),
             Skipped = latestPerUser.Count(d => d.Decision == PolicyDecisionType.Skipped),
-            Recent = decisions.Take(100).ToList()
+            Recent = decisions.Take(100).ToList(),
+            UserLabels = userLabels
         });
     }
 

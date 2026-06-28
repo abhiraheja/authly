@@ -37,7 +37,7 @@
                 @foreach (var d in Model.Recent)
                 {
                     <tr>
-                        <td class="text-sm font-mono">@d.UserId</td>
+                        <td class="text-sm">@(Model.UserLabels.TryGetValue(d.UserId, out var email) ? email : d.UserId.ToString())</td>
                         <td><span class="badge @DecisionBadge(d.Decision)">@d.Decision.ToString().ToLower()</span></td>
                         <td class="text-sm text-muted-foreground">v@(d.Version)</td>
                         <td class="text-right text-sm text-muted-foreground">@d.DecidedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm") UTC</td>

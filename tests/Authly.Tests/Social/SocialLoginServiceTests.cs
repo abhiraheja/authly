@@ -265,6 +265,6 @@ public class SocialLoginServiceTests
     {
         public Task LogAsync(string @event, AuditContext actor, Guid? tenantId = null,
             string? resourceType = null, Guid? resourceId = null, string result = "success",
-            object? metadata = null, CancellationToken ct = default) => Task.CompletedTask;
+            object? metadata = null, bool publishEvent = true, CancellationToken ct = default) => Task.CompletedTask;
     }
 }

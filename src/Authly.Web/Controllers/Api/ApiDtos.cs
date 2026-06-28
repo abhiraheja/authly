@@ -59,6 +59,10 @@ public sealed class CreateUserDto
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
     public bool EmailVerified { get; set; }
+
+    /// <summary>When true, suppress the <c>user.created</c> webhook (bulk import/migration that
+    /// provisions downstream state itself). The audit row is still written.</summary>
+    public bool SuppressEvents { get; set; }
 }
 
 public sealed class UpdateUserDto

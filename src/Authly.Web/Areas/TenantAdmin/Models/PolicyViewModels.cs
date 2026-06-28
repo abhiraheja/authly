@@ -71,4 +71,6 @@ public sealed class PolicyResponsesViewModel
     public int Rejected { get; init; }
     public int Skipped { get; init; }
     public required IReadOnlyList<PolicyDecision> Recent { get; init; }
+    /// <summary>userId → display label (email), for showing who decided.</summary>
+    public IReadOnlyDictionary<Guid, string> UserLabels { get; init; } = new Dictionary<Guid, string>();
 }

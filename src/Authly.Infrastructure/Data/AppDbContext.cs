@@ -410,6 +410,7 @@ public class AppDbContext : DbContext
                 .HasDefaultValueSql("'{}'");
             e.Property(x => x.TokenLifetime).HasColumnName("token_lifetime").HasDefaultValue(3600);
             e.Property(x => x.IsFirstParty).HasColumnName("is_first_party").HasDefaultValue(false);
+            e.Property(x => x.AllowSignup).HasColumnName("allow_signup").HasDefaultValue(true);
             e.Property(x => x.Settings).HasColumnName("settings").HasColumnType("jsonb").HasDefaultValueSql("'{}'");
             e.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");

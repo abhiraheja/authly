@@ -50,7 +50,7 @@ public sealed class ApplicationsController : TenantAdminControllerBase
             .ToList();
 
         var result = await _apps.CreateAsync(TenantId,
-            new CreateApplicationRequest(model.Name, model.Type, redirectUris, scopes, postLogoutUris),
+            new CreateApplicationRequest(model.Name, model.Type, redirectUris, scopes, postLogoutUris, model.AllowSignup),
             CurrentAudit(), ct);
 
         // Surface the client id and (one-time) secret on the details page.
@@ -87,7 +87,9 @@ public sealed class ApplicationsController : TenantAdminControllerBase
             Name = app.Name,
             RedirectUris = string.Join('\n', app.RedirectUris),
             PostLogoutRedirectUris = string.Join('\n', app.PostLogoutRedirectUris),
-            Scopes = string.Join(' ', app.AllowedScopes)
+            Scopes = string.Join(' ', app.AllowedScopes),
+            AllowSignup = app.AllowSignup,
+            Type = app.Type
         });
     }
 
@@ -116,7 +118,7 @@ public sealed class ApplicationsController : TenantAdminControllerBase
         try
         {
             await _apps.UpdateAsync(TenantId, id,
-                new UpdateApplicationRequest(model.Name, redirectUris, scopes, postLogoutUris),
+                new UpdateApplicationRequest(model.Name, redirectUris, scopes, postLogoutUris, model.AllowSignup),
                 CurrentAudit(), ct);
             TempData["Success"] = "Application updated.";
         }

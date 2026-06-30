@@ -62,6 +62,8 @@ public sealed class ApplicationService : IApplicationService
             RedirectUris = request.RedirectUris.ToList(),
             PostLogoutRedirectUris = request.PostLogoutRedirectUris.ToList(),
             AllowedScopes = scopes.ToList(),
+            // Machine clients have no interactive sign-up; force false so the stored flag is meaningful.
+            AllowSignup = request.Type is not ApplicationType.Machine && request.AllowSignup,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -104,6 +106,7 @@ public sealed class ApplicationService : IApplicationService
         app.RedirectUris = request.RedirectUris.ToList();
         app.PostLogoutRedirectUris = request.PostLogoutRedirectUris.ToList();
         app.AllowedScopes = scopes.ToList();
+        app.AllowSignup = app.Type is not ApplicationType.Machine && request.AllowSignup;
         app.UpdatedAt = DateTimeOffset.UtcNow;
         await _repo.UpdateAsync(app, ct);
 

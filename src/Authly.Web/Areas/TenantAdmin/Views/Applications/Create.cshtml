@@ -42,6 +42,14 @@
                 <p class="mt-1 text-xs text-muted-foreground"><code>openid</code> and <code>offline_access</code> are added automatically for interactive clients.</p>
             </div>
 
+            <div id="signupToggle">
+                <label class="flex items-center gap-2">
+                    <input asp-for="AllowSignup" type="checkbox" class="checkbox" />
+                    <span class="label mb-0">Allow self-service sign-up</span>
+                </label>
+                <p class="mt-1 text-xs text-muted-foreground">When off, users can't self-register through this application (admins can still provision accounts). The tenant-level sign-up switch must also be on. Not applicable to Machine clients.</p>
+            </div>
+
             <div class="flex gap-2 pt-1">
                 <button type="submit" class="btn btn-primary">Create application</button>
                 <a class="btn btn-outline" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index">Cancel</a>
@@ -49,3 +57,18 @@
         </form>
     </div>
 </div>
+
+@* Sign-up is only meaningful for interactive clients — hide the toggle when Machine is selected. *@
+<script>
+    (function () {
+        var typeSel = document.querySelector('[name="Type"]');
+        var toggle = document.getElementById('signupToggle');
+        if (!typeSel || !toggle) return;
+        function sync() {
+            var text = typeSel.options[typeSel.selectedIndex].text;
+            toggle.style.display = (text === 'Machine') ? 'none' : '';
+        }
+        typeSel.addEventListener('change', sync);
+        sync();
+    })();
+</script>

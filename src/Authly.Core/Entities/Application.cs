@@ -38,6 +38,14 @@ public class Application
     /// <summary>First-party clients owned by the tenant itself (e.g. the hosted login) skip consent.</summary>
     public bool IsFirstParty { get; set; }
 
+    /// <summary>
+    /// Whether end-users may self-register (password sign-up) through this application. Only meaningful
+    /// for interactive clients (Web/Spa/Native) — Machine clients have no sign-up. The tenant-level
+    /// <c>AllowPasswordSignup</c> is the master switch; this narrows it per-application, so sign-up is
+    /// open only when BOTH the tenant and this flag allow it. Defaults to true.
+    /// </summary>
+    public bool AllowSignup { get; set; } = true;
+
     /// <summary>Arbitrary client configuration (JSONB).</summary>
     public string Settings { get; set; } = "{}";
 

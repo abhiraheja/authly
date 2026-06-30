@@ -39,6 +39,18 @@
                 <p class="mt-1 text-xs text-muted-foreground"><code>openid</code> and <code>offline_access</code> are added automatically for interactive clients.</p>
             </div>
 
+            <input type="hidden" asp-for="Type" />
+            @if (Model.Type != ApplicationType.Machine)
+            {
+                <div>
+                    <label class="flex items-center gap-2">
+                        <input asp-for="AllowSignup" type="checkbox" class="checkbox" />
+                        <span class="label mb-0">Allow self-service sign-up</span>
+                    </label>
+                    <p class="mt-1 text-xs text-muted-foreground">When off, users can't self-register through this application (admins can still provision accounts). The tenant-level sign-up switch must also be on.</p>
+                </div>
+            }
+
             <div class="flex gap-2 pt-1">
                 <button type="submit" class="btn btn-primary">Save changes</button>
                 <a class="btn btn-outline" asp-area="TenantAdmin" asp-controller="Applications" asp-action="Details" asp-route-id="@appId">Cancel</a>

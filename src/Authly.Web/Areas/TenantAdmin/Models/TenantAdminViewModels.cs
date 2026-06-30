@@ -32,6 +32,9 @@ public sealed class CreateApplicationViewModel
 
     [Display(Name = "Scopes (space-separated)")]
     public string Scopes { get; set; } = "openid profile email";
+
+    [Display(Name = "Allow self-service sign-up")]
+    public bool AllowSignup { get; set; } = true;
 }
 
 /// <summary>Edit-application form. Type and credentials are fixed; only these fields are editable.</summary>
@@ -48,6 +51,13 @@ public sealed class EditApplicationViewModel
 
     [Display(Name = "Scopes (space-separated)")]
     public string Scopes { get; set; } = string.Empty;
+
+    [Display(Name = "Allow self-service sign-up")]
+    public bool AllowSignup { get; set; } = true;
+
+    /// <summary>The application's (immutable) type — display-only, drives whether the sign-up toggle is shown
+    /// (Machine clients have no sign-up). Round-trips via a hidden field so a re-rendered form keeps it.</summary>
+    public ApplicationType Type { get; set; }
 }
 
 /// <summary>Create-role form.</summary>

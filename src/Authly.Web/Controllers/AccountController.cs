@@ -101,7 +101,7 @@ public sealed class AccountController : Controller
     public async Task<IActionResult> Register(string? returnUrl = null, CancellationToken ct = default)
     {
         if (RequireTenant() is { } noTenant) return noTenant;
-        if (!await SignupAllowedAsync(ct)) return SignupClosed(returnUrl);
+        if (!await SignupAllowedAsync(returnUrl, ct)) return SignupClosed(returnUrl);
         ViewData["Title"] = "Create your account";
         ViewData["AllowPhoneSignup"] = await PhoneAuthEnabledAsync(login: false, ct);
         await PopulateCaptchaAsync(ct);
@@ -114,7 +114,7 @@ public sealed class AccountController : Controller
     {
         if (RequireTenant() is { } noTenant) return noTenant;
         // Server-side guard: the page may have been left open or the route hit directly.
-        if (!await SignupAllowedAsync(ct)) return SignupClosed(model.ReturnUrl);
+        if (!await SignupAllowedAsync(model.ReturnUrl, ct)) return SignupClosed(model.ReturnUrl);
         ViewData["Title"] = "Create your account";
         ViewData["AllowPhoneSignup"] = await PhoneAuthEnabledAsync(login: false, ct);
         await PopulateCaptchaAsync(ct);
@@ -208,7 +208,7 @@ public sealed class AccountController : Controller
         ViewData["SocialOptions"] = methods.Social
             ? await _social.ListActiveOptionsAsync(tenantId, ct)
             : System.Array.Empty<Authly.Modules.Social.SocialLoginOption>();
-        ViewData["AllowPasswordSignup"] = await SignupAllowedAsync(ct);
+        ViewData["AllowPasswordSignup"] = await SignupAllowedAsync(returnUrl, ct);
         await PopulateCaptchaAsync(ct);
         return View(new UserLoginViewModel { ReturnUrl = returnUrl });
     }
@@ -765,9 +765,34 @@ public sealed class AccountController : Controller
     private IActionResult? RequireTenant()
         => _tenant.HasTenant ? null : View("TenantRequired");
 
-    /// <summary>Whether self-service password sign-up is open for the current tenant.</summary>
-    private async Task<bool> SignupAllowedAsync(CancellationToken ct)
-        => (await _securitySettings.GetAsync(_tenant.TenantId!.Value, ct)).AllowPasswordSignup;
+    /// <summary>
+    /// Whether self-service password sign-up is open for this registration attempt. The tenant-level
+    /// <c>AllowPasswordSignup</c> is the master kill-switch; when the sign-up was initiated from an OAuth
+    /// client (<paramref name="returnUrl"/> = <c>/connect/authorize?...&amp;client_id=…</c>) that
+    /// application's own <c>AllowSignup</c> flag must ALSO be on. Sign-up reached directly (no client
+    /// context) is governed by the tenant switch alone.
+    /// </summary>
+    private async Task<bool> SignupAllowedAsync(string? returnUrl, CancellationToken ct)
+    {
+        if (!(await _securitySettings.GetAsync(_tenant.TenantId!.Value, ct)).AllowPasswordSignup)
+            return false;
+
+        var app = await ResolveAppFromReturnUrlAsync(returnUrl, ct);
+        return app is null || app.AllowSignup;
+    }
+
+    /// <summary>Resolves the originating OAuth application from a <c>/connect/authorize</c> returnUrl by its
+    /// <c>client_id</c>, or null when there is no client context / the client is unknown.</summary>
+    private async Task<Authly.Core.Entities.Application?> ResolveAppFromReturnUrlAsync(string? returnUrl, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(returnUrl)) return null;
+        var q = returnUrl.IndexOf('?');
+        if (q < 0) return null;
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(returnUrl[q..]);
+        if (!query.TryGetValue("client_id", out var clientId) || string.IsNullOrEmpty(clientId))
+            return null;
+        return await _applications.GetByClientIdAsync(clientId.ToString(), ct);
+    }
 
     /// <summary>Whether phone login / signup is enabled by policy AND WhatsApp + the OTP template are ready.</summary>
     private async Task<bool> PhoneAuthEnabledAsync(bool login, CancellationToken ct)

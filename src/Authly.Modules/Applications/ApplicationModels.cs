@@ -9,7 +9,8 @@ public sealed record CreateApplicationRequest(
     ApplicationType Type,
     IReadOnlyList<string> RedirectUris,
     IReadOnlyList<string> Scopes,
-    IReadOnlyList<string> PostLogoutRedirectUris);
+    IReadOnlyList<string> PostLogoutRedirectUris,
+    bool AllowSignup = true);
 
 /// <summary>
 /// Editable fields of an existing OAuth client. The type, client id, grant types and secret are
@@ -20,7 +21,8 @@ public sealed record UpdateApplicationRequest(
     string Name,
     IReadOnlyList<string> RedirectUris,
     IReadOnlyList<string> Scopes,
-    IReadOnlyList<string> PostLogoutRedirectUris);
+    IReadOnlyList<string> PostLogoutRedirectUris,
+    bool AllowSignup = true);
 
 /// <summary>
 /// Result of creating/rotating credentials. <see cref="ClientSecret"/> is the raw secret and is

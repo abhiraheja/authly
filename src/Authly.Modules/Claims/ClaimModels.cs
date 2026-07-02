@@ -48,10 +48,17 @@ public sealed record ClaimAssemblyRequest(
 /// <param name="Claims">Custom claims to add to the token.</param>
 /// <param name="Blocked">A blocking pre-token hook vetoed issuance.</param>
 /// <param name="BlockReason">Why issuance was blocked, if so.</param>
+/// <param name="HookClaimNames">
+/// Which of <paramref name="Claims"/> originated from a pre-token pipeline hook (as opposed to
+/// static/metadata config). A hook is a trusted, tenant-scoped extension point, so the issuer may
+/// let it contribute authorization claims (roles/permissions) that a plain custom claim cannot.
+/// Never contains protocol/identity claims. Null/empty when no hook claims were produced.
+/// </param>
 public sealed record ClaimAssemblyResult(
     IReadOnlyDictionary<string, string> Claims,
     bool Blocked = false,
-    string? BlockReason = null);
+    string? BlockReason = null,
+    IReadOnlySet<string>? HookClaimNames = null);
 
 /// <summary>Thrown when a claim config is invalid.</summary>
 public sealed class ClaimConfigInvalidException : Exception

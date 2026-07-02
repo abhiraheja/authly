@@ -38,7 +38,7 @@ Trackly has its own `workspaces` table — this replaces any dependency on an ex
 
 ### Supported Identity Providers
 
-Each workspace configures exactly one SSO connection (like Claude's model — one active provider at a time, switchable). Additionally, email+password is always available as a fallback unless the admin disables it.
+Each workspace configures exactly one SSO connection (like Claude's model — one active provider at a time, switchable). Additionally, email+password is always available as a fallback unless the admin disables it (stored as `password_login_enabled` on the workspace — see schema).
 
 | Provider | Protocol | Notes |
 |----------|---------|-------|
@@ -71,6 +71,8 @@ Step 3 — Add required claims
          ↓
 Step 4 — Provide your OIDC / SAML configuration
          OIDC: Discovery endpoint URL, Client ID, Client Secret
+               (Client Secret is optional if the IdP supports PKCE for
+                public clients — e.g. Authly SPA clients)
          SAML: IdP metadata URL (or paste XML), SP Entity ID
          ↓
 Step 5 — Configure group → role mapping (optional)
@@ -82,7 +84,7 @@ Step 6 — Test Single Sign-On
          Trackly initiates a test auth flow and confirms claims are received
 ```
 
-**Switching providers:** Admin can switch to a different provider at any time. Existing user records and tickets are preserved — only the SSO connection changes. User identity records (`user_identities`) for the old provider are kept but marked inactive.
+**Switching providers:** Admin can switch to a different provider at any time. Existing user records and tickets are preserved — only the SSO connection changes. User identity records (`user_identities`) for the old provider are kept but marked inactive (`is_active = false`); users are re-matched by email and get a new identity record on first login via the new provider.
 
 ---
 
@@ -98,7 +100,7 @@ Admin verifies their organisation's email domain(s) at `/admin/settings/domains`
 CREATE TABLE workspace_domains (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-    domain       TEXT NOT NULL,
+    domain       TEXT NOT NULL UNIQUE,  -- globally unique: only one workspace may claim a domain
     verified     BOOLEAN DEFAULT false,
     discoverable BOOLEAN DEFAULT true,
     dns_txt_token TEXT NOT NULL,         -- token to place in DNS for verification
@@ -594,14 +596,25 @@ builder.Services.AddAuthentication("TracklySession")
 ```
 
 **OIDC handling (generic, per-workspace config):**
+
+> **Implementation caveat:** ASP.NET Core registers authentication schemes at
+> startup — you cannot call `AddOpenIdConnect` per workspace at runtime.
+> Instead, register **one** generic OIDC scheme and resolve the workspace's
+> `sso_connections` record inside the handler events (or via a custom
+> `IOptionsMonitor<OpenIdConnectOptions>` keyed by workspace). The workspace
+> is carried through the flow in the OIDC `state` parameter.
+
 ```csharp
-// Dynamically configure OIDC per workspace at runtime
-// using sso_connections record fetched by workspace slug
-services.AddOpenIdConnect(options => {
-    options.Authority    = connection.DiscoveryEndpoint;
-    options.ClientId     = connection.ClientId;
-    options.ClientSecret = connection.ClientSecret; // decrypted at runtime
+// ONE generic scheme; per-workspace config resolved at request time
+services.AddOpenIdConnect("WorkspaceOidc", options => {
     options.CallbackPath = "/auth/callback";
+    options.Events.OnRedirectToIdentityProvider = ctx => {
+        var conn = ctx.HttpContext.ResolveSsoConnection(); // by workspace slug
+        ctx.ProtocolMessage.IssuerAddress = conn.AuthorizeEndpoint;
+        ctx.ProtocolMessage.ClientId      = conn.ClientId;
+        // secret (if any) decrypted at token exchange, same pattern
+        return Task.CompletedTask;
+    };
 });
 ```
 
@@ -621,8 +634,12 @@ services.AddOpenIdConnect(options => {
 | GET    | `/api/tickets/{id}` | Session | owner or agent/admin |
 | PATCH  | `/api/tickets/{id}` | Session | agent/admin |
 | POST   | `/api/tickets/{id}/comments` | Session | owner or agent/admin |
-| POST   | `/api/tickets/guest` | None | Public — anonymous submission |
+| POST   | `/api/guest/otp/send` | None | Public — send 6-digit OTP to guest email (rate-limited) |
+| POST   | `/api/guest/otp/verify` | None | Public — verify OTP, returns short-lived submission token |
+| POST   | `/api/tickets/guest` | None | Public — anonymous submission (requires verified submission token) |
 | GET    | `/api/tickets/guest/{id}?token=` | None | Guest magic link |
+| POST   | `/api/tickets/{id}/attachments` | Session or guest token | Upload attachment |
+| GET    | `/api/attachments/{id}` | Session or guest token | Download via signed URL (visibility-checked) |
 | POST   | `/api/admin/sso` | Session | admin — save SSO connection |
 | POST   | `/api/admin/sso/test` | Session | admin — test SSO connection |
 | GET    | `/api/problems` | Session | agent, admin |
@@ -635,18 +652,19 @@ services.AddOpenIdConnect(options => {
 ```sql
 -- Workspaces (Trackly's own multi-tenancy — no dependency on external IdP)
 CREATE TABLE workspaces (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name       TEXT NOT NULL,
-    slug       TEXT NOT NULL UNIQUE,   -- e.g. "acme" → acme.trackly.com
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
+    id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name                   TEXT NOT NULL,
+    slug                   TEXT NOT NULL UNIQUE,   -- e.g. "acme" → acme.trackly.com
+    password_login_enabled BOOLEAN DEFAULT true,   -- admin can force SSO-only login
+    created_at             TIMESTAMPTZ DEFAULT now(),
+    updated_at             TIMESTAMPTZ DEFAULT now()
 );
 
 -- Verified email domains
 CREATE TABLE workspace_domains (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id  UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-    domain        TEXT NOT NULL,
+    domain        TEXT NOT NULL UNIQUE,  -- globally unique: only one workspace may claim a domain
     verified      BOOLEAN DEFAULT false,
     discoverable  BOOLEAN DEFAULT true,
     dns_txt_token TEXT NOT NULL,
@@ -707,13 +725,17 @@ CREATE TABLE user_identities (
     user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     connection_id UUID NOT NULL REFERENCES sso_connections(id) ON DELETE CASCADE,
     provider_sub  TEXT NOT NULL,   -- 'sub' claim from IdP
+    is_active     BOOLEAN DEFAULT true,  -- false when the workspace switches providers
     created_at    TIMESTAMPTZ DEFAULT now(),
     UNIQUE (connection_id, provider_sub)
 );
 
 -- Trackly sessions (issued after SSO or password login)
+-- The cookie holds a random 256-bit token; only its SHA-256 hash is stored,
+-- so a DB leak does not yield usable sessions.
 CREATE TABLE sessions (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    token_hash   TEXT NOT NULL UNIQUE,   -- SHA-256 of the session token in the cookie
     user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     ip_address   TEXT,
@@ -721,6 +743,20 @@ CREATE TABLE sessions (
     expires_at   TIMESTAMPTZ NOT NULL,
     created_at   TIMESTAMPTZ DEFAULT now()
 );
+
+-- Guest email verification OTPs (for anonymous ticket submission)
+CREATE TABLE otp_codes (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id  UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    email         TEXT NOT NULL,
+    code_hash     TEXT NOT NULL,          -- SHA-256 of the 6-digit code
+    attempts      INT DEFAULT 0,          -- verification locked after 5 failed attempts
+    expires_at    TIMESTAMPTZ NOT NULL,   -- 10 minutes
+    consumed_at   TIMESTAMPTZ,
+    created_at    TIMESTAMPTZ DEFAULT now()
+);
+-- Rate limiting: max 3 OTP sends per email per 15 minutes,
+-- plus per-IP limits on the public endpoints (email-spam protection).
 
 -- Tickets
 CREATE TABLE tickets (
@@ -755,6 +791,24 @@ CREATE TABLE comments (
     created_at       TIMESTAMPTZ DEFAULT now()
 );
 
+-- Attachments (on tickets and comments)
+CREATE TABLE attachments (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    ticket_id    UUID NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+    comment_id   UUID REFERENCES comments(id) ON DELETE CASCADE,  -- null if attached to the ticket itself
+    uploaded_by  UUID REFERENCES users(id),   -- null for guest uploads
+    file_name    TEXT NOT NULL,
+    content_type TEXT NOT NULL,
+    size_bytes   BIGINT NOT NULL,             -- enforce max size (e.g. 10 MB) at API level
+    storage_key  TEXT NOT NULL,               -- path/key in blob storage
+    created_at   TIMESTAMPTZ DEFAULT now()
+);
+-- Storage: local disk volume for self-hosted deployments, S3-compatible
+-- object storage (S3 / MinIO / Azure Blob) for cloud — behind an
+-- IFileStorage abstraction. Downloads served via short-lived signed URLs;
+-- access checked against ticket visibility rules first.
+
 -- Categories
 CREATE TABLE categories (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -779,7 +833,11 @@ Step 3 — Claims: sub, email, given_name, family_name already in Authly JWT.
           For group mapping: configure a custom claim "groups" in Authly
           using the ClaimConfig feature (webhook-sourced or metadata-mapped)
 Step 4 — Trackly: Discovery endpoint = https://auth.yourdomain.com
-                   Client ID = client_abc123 (no secret — PKCE for OIDC)
+                   Client ID = client_abc123
+                   Client Secret = optional. Since Trackly's backend performs
+                   the code exchange server-side, registering a confidential
+                   Web client with a secret is the standard setup; an Authly
+                   SPA client with PKCE (no secret) also works.
 Step 5 — Group → role mapping in Trackly:
           Authly role "support_agent" → trackly role "agent"
 Step 6 — Test
@@ -823,6 +881,9 @@ Authly is treated exactly the same as any other OIDC provider. No special code p
 - [ ] `customer` cannot access `/dashboard`; `agent` can
 - [ ] Email+password login works independently of any SSO connection
 - [ ] Anonymous guest submits ticket via OTP → magic link tracks ticket without login
+- [ ] OTP rate limiting: 4th send within 15 minutes for the same email is rejected
+- [ ] Attachment upload on ticket + comment; customer cannot download attachments on private notes
+- [ ] Disable password login for a workspace → email+password form rejected, SSO still works
 - [ ] Guest ticket linked to user on first SSO login with matching email
 - [ ] Agent responds → customer notified; customer replies via email → appears in thread
 - [ ] Suspend user in Trackly → session invalidated, access denied immediately

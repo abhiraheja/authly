@@ -558,6 +558,215 @@ CREATE TABLE widget_configs (
 
 ---
 
+## Website Structure & Wireframes
+
+Trackly has **three surfaces**, each with its own audience:
+
+| Surface | URL | Audience | Branding |
+|---------|-----|----------|----------|
+| Marketing site | `trackly.com` | Enterprises evaluating Trackly | Trackly's own brand |
+| Internal portal | `app.trackly.com` (or `acme.trackly.com`) | Workspace admins + agents | Trackly brand + workspace name |
+| Customer-facing support | `acme.trackly.com/support` (+ widget) | The enterprise's end customers | **The enterprise's brand** (logo, colors) |
+
+Layout inspiration: three-pane agent workspace (ticket list left, conversation centre, details right) — styled with Material UI and Trackly's own branding, not a pixel copy of any reference design.
+
+---
+
+### 1. Enterprise Journey — Discover → Sign Up → Live
+
+```
+Marketing site                    Onboarding wizard                      Live
+──────────────                    ─────────────────                      ────
+Landing page                      Step 1  Create admin account
+  → Features                      Step 2  Create workspace
+  → Pricing                       Step 3  Add your branding
+  → [Start free trial] ────────►  Step 4  Invite agents        ────►  /dashboard
+                                  Step 5  Set up SSO (optional,       (setup checklist
+                                          skippable — do later)        card shown)
+```
+
+The signup itself always uses **email+password or Google sign-in** — SSO can't be used yet because the workspace doesn't exist. The first user becomes the workspace `admin`.
+
+---
+
+### 2. Marketing Site — Landing Page
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ ◆ Trackly      Features   Pricing   Docs          [Sign in] [Start free →] │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│        Customer support that works with YOUR identity                │
+│   Ticketing, email threading, and a branded customer portal.         │
+│   Bring your own SSO — Okta, Google, Entra ID, Authly — or none.     │
+│                                                                      │
+│              [ Start free trial ]   [ Book a demo ]                  │
+│                                                                      │
+├──────────────────────────────────────────────────────────────────────┤
+│          ┌──────────────────────────────────────────────┐            │
+│          │  (screenshot: agent three-pane workspace)    │            │
+│          └──────────────────────────────────────────────┘            │
+├────────────────────┬────────────────────┬────────────────────────────┤
+│ 🎫 Smart Ticketing │ 🔐 Bring your own  │ ✉️ Two-way email           │
+│ Round-robin        │    SSO             │    threading               │
+│ assignment,        │ Works with the IdP │ Customers reply from        │
+│ watchers, private  │ you already have   │ their inbox — it lands      │
+│ notes, problems    │                    │ in the ticket               │
+├────────────────────┴────────────────────┴────────────────────────────┤
+│  Pricing:   Free (3 agents)  ·  Team  ·  Enterprise (SSO, SLA)       │
+├──────────────────────────────────────────────────────────────────────┤
+│  Footer: docs · security · status · contact                          │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 3. Onboarding Wizard (after "Start free trial")
+
+```
+Step 1 — Create your account            Step 2 — Create your workspace
+┌────────────────────────────┐          ┌────────────────────────────┐
+│  Create your account       │          │  Name your workspace       │
+│                            │          │                            │
+│  Work email  ____________  │          │  Company name  __________  │
+│  Password    ____________  │          │  Subdomain     [acme   ]   │
+│                            │          │                .trackly.com│
+│  ───────── or ─────────    │          │                            │
+│  [ Continue with Google ]  │          │        [ Continue → ]      │
+└────────────────────────────┘          └────────────────────────────┘
+
+Step 3 — Add your branding              Step 4 — Invite your team
+┌────────────────────────────┐          ┌────────────────────────────┐
+│  Brand your support portal │          │  Invite agents             │
+│                            │          │                            │
+│  Logo         [ Upload ]   │          │  email@…  [agent ▾]  [+]   │
+│  Brand color  [■ #2563EB]  │          │  email@…  [admin ▾]  [+]   │
+│  Portal title __________   │          │                            │
+│                            │          │  Invitees get an email     │
+│  ┌ Live preview ────────┐  │          │  with a join link          │
+│  │ [logo] Acme Support  │  │          │                            │
+│  │  Submit a ticket …   │  │          │  [ Skip ]  [ Send & → ]    │
+│  └──────────────────────┘  │          └────────────────────────────┘
+│  [ Skip ]  [ Continue → ]  │
+└────────────────────────────┘
+
+Step 5 — Single Sign-On (optional)
+┌───────────────────────────────────────┐
+│  Connect your identity provider       │
+│                                       │
+│  ○ Okta   ○ Google   ○ Entra ID       │
+│  ○ Authly ○ Custom SAML ○ Custom OIDC │
+│                                       │
+│  You can set this up any time in      │
+│  Settings → SSO.                      │
+│                                       │
+│  [ Skip for now ]  [ Configure → ]    │
+└───────────────────────────────────────┘
+        │
+        ▼
+Lands on /dashboard with a "Getting started" checklist card:
+  ☐ Verify your domain   ☐ Configure SSO   ☐ Embed the widget
+  ☑ Invite agents        ☑ Add branding
+```
+
+---
+
+### 4. Internal Portal — Agent Workspace (three-pane)
+
+The layout the design review converged on — open tickets on the left, conversation in the middle, details on the right:
+
+```
+┌────┬───────────────────┬─────────────────────────────────┬──────────────────┐
+│ ◆  │ Open Tickets   ⚙  │ #1126 · Cannot verify my code   │ Ticket details ✕ │
+│    │ [search…    ] [▾] │           status: [ Open ▾ ]    │                  │
+│ 🏠 │───────────────────│─────────────────────────────────│ Assignee         │
+│ 🎫 │ ▸ Javier O.   45s │ ┌─────────────────────────────┐ │  Viola D         │
+│ 👥 │   Verifying code… │ │ Javier: Email came through  │ │ Watchers         │
+│ 📊 │───────────────────│ │ but there is no code in it. │ │  Taylor B        │
+│ ⚙  │   S. Walker    2m │ └─────────────────────────────┘ │  Gavin B   [+Add]│
+│    │   Where is my…    │ ┌─────────────────────────────┐ │──────────────────│
+│    │───────────────────│ │ Viola (agent): Thanks — our │ │ ID       #1126   │
+│    │   Carmen S.    5m │ │ team is looking into it.    │ │ Priority High    │
+│    │   Overseas ship…  │ └─────────────────────────────┘ │ Category Technical│
+│    │───────────────────│ ┌─ 🔒 internal ──────────────┐ │ Problem  PG down │
+│    │   Brian H.    11m │ │ Viola: @Gavin can you check │ │──────────────────│
+│    │   Wholesale ord…  │ │ the OTP service logs?       │ │ Requester        │
+│    │                   │ └─────────────────────────────┘ │  Javier Ortiz    │
+│    │                   │─────────────────────────────────│  javier@ortiz.com│
+│    │                   │ [ Public reply | Private note ] │                  │
+│    │                   │ ┌─────────────────────────────┐ │                  │
+│    │                   │ │ Type your reply…            │ │                  │
+│    │                   │ └────────────────── 📎  [Send]│ │                  │
+└────┴───────────────────┴─────────────────────────────────┴──────────────────┘
+```
+
+Key behaviours:
+- Left list: searchable, filterable (status/priority/assignee), unread indicators
+- Centre: public replies and 🔒 private notes visually distinct; status dropdown at top
+- Right panel: assignee, watchers, priority, category, linked problem, requester info
+
+**Admin view** = same shell + extra nav items (Users, Settings, Announcements, Widget).
+
+---
+
+### 5. Customer-Facing Support Form (workspace-branded)
+
+Rendered entirely with the **enterprise's branding** — logo, brand colour, portal title. Trackly's brand appears only as a small "Powered by Trackly" footer (removable on paid tiers).
+
+```
+┌──────────────────────────────────────────────┐
+│  [ACME LOGO]   Acme Support        ← brand   │  ← header uses workspace
+│  ────────────────────────────────   colour   │    logo + primary_color
+│                                              │
+│        How can we help you?                  │  ← welcome_text
+│                                              │
+│  ┌────────────────────────────────────────┐  │
+│  │  Sign in with Okta →                   │  │  ← label reflects the
+│  └────────────────────────────────────────┘  │    workspace's SSO provider
+│                 ── or ──                     │
+│  Continue as guest                           │
+│  Name    ______________________________     │
+│  Email   ______________________________     │
+│  Subject ______________________________     │
+│  Category [ Billing ▾ ]                      │
+│  Message ______________________________     │
+│          ______________________________     │
+│  📎 Attach files                             │
+│                                              │
+│              [  Submit ticket  ]             │  ← button in brand colour
+│                                              │
+│  ──────────────────────────────────────────  │
+│           Powered by Trackly                 │
+└──────────────────────────────────────────────┘
+```
+
+The same branding is applied to: the customer portal (`/portal`), the embeddable widget, outbound notification emails (logo in header), and the guest magic-link ticket view.
+
+---
+
+### 6. Workspace Branding
+
+Configured at `/admin/settings/branding` (and during onboarding Step 3):
+
+```sql
+CREATE TABLE workspace_branding (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id  UUID NOT NULL UNIQUE REFERENCES workspaces(id) ON DELETE CASCADE,
+    logo_url      TEXT,                     -- stored via IFileStorage, same as attachments
+    primary_color TEXT DEFAULT '#2563EB',   -- hex; drives header, buttons, links
+    page_title    TEXT,                     -- e.g. "Acme Support"
+    welcome_text  TEXT,                     -- shown on the submit form
+    footer_text   TEXT,                     -- optional custom footer line
+    hide_powered_by BOOLEAN DEFAULT false,  -- paid-tier flag
+    updated_at    TIMESTAMPTZ DEFAULT now()
+);
+```
+
+Served to the public form/widget via an unauthenticated, cacheable endpoint:
+`GET /api/public/workspaces/{slug}/branding` → `{ logoUrl, primaryColor, pageTitle, welcomeText, ssoProviderName }`
+
+---
+
 ## Components to Build
 
 ### 1. React Frontend (Vite + TypeScript)
@@ -566,13 +775,16 @@ CREATE TABLE widget_configs (
 
 | Area | Routes | Auth required | Who sees it |
 |------|--------|--------------|-------------|
-| Public ticket form | `/submit` | No | Anyone |
+| Marketing site | `/`, `/features`, `/pricing` | No | Prospective enterprises |
+| Signup + onboarding | `/signup`, `/onboarding/*` (5-step wizard) | Signup only | New workspace admins |
+| Accept invite | `/invite/:token` | No | Invited agents/admins |
+| Public ticket form | `/submit` (workspace-branded) | No | Anyone |
 | Anonymous ticket view | `/tickets/:id?token=` | No | Guest (magic link) |
 | Login | `/login` | No | All |
 | SSO callback | `/auth/callback` | No | All |
 | Customer portal | `/portal/tickets`, `/portal/tickets/new`, `/portal/tickets/:id` | Yes | `customer` |
 | Agent dashboard | `/dashboard/tickets`, `/dashboard/tickets/:id`, `/dashboard/problems` | Yes | `agent`, `admin` |
-| Admin settings | `/admin/users`, `/admin/settings/sso`, `/admin/settings/email`, `/admin/settings/domains`, `/admin/widget`, `/admin/announcements` | Yes | `admin` |
+| Admin settings | `/admin/users`, `/admin/settings/sso`, `/admin/settings/email`, `/admin/settings/domains`, `/admin/settings/branding`, `/admin/widget`, `/admin/announcements` | Yes | `admin` |
 
 ---
 
@@ -624,6 +836,11 @@ services.AddOpenIdConnect("WorkspaceOidc", options => {
 
 | Method | Path | Auth | Role |
 |--------|------|------|------|
+| POST   | `/api/signup` | None | Create admin account + workspace (onboarding steps 1–2) |
+| POST   | `/api/invitations` | Session | admin — invite agents by email |
+| POST   | `/api/invitations/accept` | None | Accept invite via token, create account |
+| GET    | `/api/public/workspaces/{slug}/branding` | None | Public, cacheable — branding for form/widget |
+| PUT    | `/api/admin/branding` | Session | admin — update logo, colour, portal title |
 | GET    | `/api/auth/sso?workspace=` | None | Initiate SSO for workspace |
 | GET    | `/auth/callback` | None | OIDC/SAML callback |
 | POST   | `/api/auth/login` | None | Email+password login |
@@ -717,6 +934,19 @@ CREATE TABLE users (
     last_login_at TIMESTAMPTZ,
     CONSTRAINT email_or_phone CHECK (email IS NOT NULL OR phone IS NOT NULL),
     UNIQUE (workspace_id, email)
+);
+
+-- Agent/admin invitations (onboarding Step 4 and /admin/users)
+CREATE TABLE workspace_invitations (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    email        TEXT NOT NULL,
+    role         TEXT NOT NULL DEFAULT 'agent',   -- agent or admin
+    token_hash   TEXT NOT NULL UNIQUE,            -- SHA-256 of the invite link token
+    invited_by   UUID NOT NULL REFERENCES users(id),
+    expires_at   TIMESTAMPTZ NOT NULL,            -- 7 days
+    accepted_at  TIMESTAMPTZ,
+    created_at   TIMESTAMPTZ DEFAULT now()
 );
 
 -- Links Trackly users to external IdP identities (for JIT provisioning)

@@ -448,33 +448,113 @@ CREATE TABLE announcement_deliveries (
 
 ---
 
-## Email Interaction Mode
+## Email Architecture
 
-Configurable per workspace in `/admin/settings/email`:
+**Key point: Trackly never runs its own SMTP server.** Sending and receiving are separate problems, both solved with hosted services plus a couple of DNS records or mailbox credentials.
+
+### Outbound (Trackly → customer)
+
+Any SMTP relay works: SendGrid, Mailgun, Postmark, AWS SES, or the enterprise's own relay. Trackly connects as a client and sends. What matters is the headers stamped on every notification email — they enable reply threading:
+
+```
+From:        Acme Support <support@tickets.acme.com>
+Reply-To:    reply+<ticket-uuid>@tickets.acme.com
+Message-ID:  <ticket-uuid>.<comment-uuid>@trackly
+```
+
+The `reply+<ticket-uuid>@` address encodes which ticket a reply belongs to. DNS setup for deliverability: SPF + DKIM records on the sending domain (the SMTP provider gives these).
+
+### Interaction Modes (per workspace)
+
+Configurable in `/admin/settings/email`:
 
 | Mode | What it means |
 |------|--------------|
 | **Notifications only** | Emails sent, replies go nowhere. Login required to reply. |
 | **One-way** | Customer can reply via email; appears in ticket. Agent replies in Trackly. |
-| **Full two-way** | Both sides reply via email. Requires inbound email provider setup. |
+| **Two-way** | Both sides reply via email. Requires an inbound connector (below). |
 
-### Full Two-Way Threading
+### Inbound Connectors — Admin Chooses One of Two
 
-Every outbound email includes:
+To receive replies (and optionally new tickets) by email, the workspace admin picks **one** of two connector types in `/admin/settings/email`. Both feed the same internal pipeline — only the transport differs.
+
+#### Option A — Inbound Parse Webhook (MX + provider)
+
+The enterprise creates a subdomain (e.g. `tickets.acme.com`) whose **MX record** points at an inbound parse service — SendGrid Inbound Parse, Mailgun Routes, Postmark Inbound, or AWS SES Receiving. This is how Zendesk/FreshDesk work.
+
 ```
-Reply-To:   reply+<ticket-uuid>@tickets.yourdomain.com
-Message-ID: <ticket-uuid>.<comment-uuid>@trackly
+1. Agent replies in Trackly → email sent via SMTP relay
+   Reply-To: reply+<ticket-uuid>@tickets.acme.com
+
+2. Customer hits "Reply" in Gmail/Outlook
+   → their mail server looks up the MX record for tickets.acme.com
+   → MX points at the provider (e.g. mxa.mailgun.org)
+
+3. Provider receives the raw email, parses the MIME
+   (body, HTML, attachments, headers)
+   → POSTs it to Trackly's webhook: POST /api/email/inbound
+
+4. Trackly webhook handler → shared inbound pipeline (below)
 ```
 
-Inbound emails are parsed by the provider (Mailgun / SendGrid / Postmark / AWS SES), POSTed to `POST /api/email/inbound`, matched to the ticket by the UUID in the `reply+` address, and added as a comment.
+Infrastructure needed: **one MX record + one webhook endpoint**. No mail daemon, spam filtering, or port-25 TLS on our side — the provider absorbs all of it. Inbound parsing is free on SendGrid and included in Mailgun's base tier.
 
-Security: HMAC signature verification on inbound webhook + `From:` email must match a known user or guest.
+#### Option B — Mailbox Polling (IMAP / Microsoft Graph / Gmail API)
 
-```sql
-ALTER TABLE comments ADD COLUMN source TEXT DEFAULT 'web';      -- 'web' or 'email'
-ALTER TABLE comments ADD COLUMN email_message_id TEXT;
-ALTER TABLE email_configs ADD COLUMN email_mode TEXT NOT NULL DEFAULT 'notifications_only';
+The enterprise already has `support@acme.com` in Microsoft 365 or Google Workspace and wants to keep using it. Trackly connects to that mailbox and polls for new messages on an interval (default 60s):
+
 ```
+1. Customer replies (or emails support@acme.com cold)
+2. Message lands in the enterprise's existing mailbox
+3. Trackly's background worker (EmailPollingWorker, an ASP.NET Core
+   hosted service) polls via IMAP, Microsoft Graph, or Gmail API
+4. New messages → shared inbound pipeline (below)
+5. Processed messages are marked (moved to a "Processed" folder
+   or flagged) so they are never ingested twice
+```
+
+Auth: OAuth2 (Graph / Gmail API — recommended, no password stored) or IMAP username + app password (encrypted at rest). Outbound for this mode can also go through the same mailbox (SMTP submission / Graph sendMail) so replies come from the address customers already know.
+
+#### Comparison (shown to the admin in the setup UI)
+
+| | A — Parse webhook | B — Mailbox polling |
+|---|---|---|
+| Enterprise setup | Add one MX record on a subdomain | Grant OAuth access (or app password) to existing mailbox |
+| Latency | Instant (push) | Polling interval (~60s) |
+| New tickets from cold emails | Any address on the subdomain | Natural — anything sent to support@ becomes a ticket |
+| Trackly infra | Webhook endpoint | Background polling worker |
+| Best for | Cloud/SaaS deployments | Enterprises attached to their existing support mailbox |
+
+### Shared Inbound Pipeline (both connectors)
+
+Regardless of transport, every inbound email goes through the same steps:
+
+```
+a. Authenticate the source
+   Webhook: verify provider HMAC signature
+   Polling: message came from the authenticated mailbox itself
+b. Resolve the ticket
+   1st: ticket UUID from the reply+ address
+   2nd (fallback): In-Reply-To / References headers matched against
+        stored comment email_message_id (handles clients that mangle Reply-To)
+   3rd: no match at all → treat as a NEW ticket (if enabled, see below)
+c. Resolve the sender: From: must match the ticket's requester, a
+   participant, or a known user/guest — otherwise reject (prevents
+   comment injection by anyone who learns a reply address)
+d. Strip quoted history ("On Jul 4, Viola wrote: …") so only the new
+   text is kept; extract attachments → IFileStorage
+e. Insert comment (source='email'), notify assignee + watchers
+```
+
+### Email as a Ticket-Creation Channel (optional toggle)
+
+With either connector, an email that matches no existing ticket can **create a new ticket** (`new_ticket_via_email` toggle, off by default):
+
+- Sender email matched to an existing user → ticket linked to them
+- Unknown sender → guest ticket (guest_email = sender); no OTP needed since
+  the email itself proves address ownership
+- Subject → ticket subject; body → description; attachments carried over
+- Tickets created this way get `channel = 'email'`
 
 ---
 
@@ -486,6 +566,7 @@ Per workspace in `/admin/settings/email`. Admin provides their own SMTP credenti
 CREATE TABLE email_configs (
     id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id           UUID NOT NULL UNIQUE REFERENCES workspaces(id),
+    -- Outbound
     use_shared_smtp        BOOLEAN DEFAULT true,
     smtp_host              TEXT,
     smtp_port              INT,
@@ -493,10 +574,25 @@ CREATE TABLE email_configs (
     smtp_pass              TEXT,                 -- AES-256-GCM encrypted
     from_name              TEXT,
     from_email             TEXT,
+    -- Interaction mode
     email_mode             TEXT NOT NULL DEFAULT 'notifications_only',
-    inbound_provider       TEXT,
-    inbound_reply_domain   TEXT,
-    inbound_webhook_secret TEXT,                 -- AES-256-GCM encrypted
+                                                 -- notifications_only | one_way | two_way
+    new_ticket_via_email   BOOLEAN DEFAULT false,
+    -- Inbound connector: admin picks ONE
+    inbound_connector      TEXT,                 -- null | 'parse_webhook' | 'mailbox_poll'
+    -- Option A: parse webhook
+    inbound_provider       TEXT,                 -- sendgrid | mailgun | postmark | ses
+    inbound_reply_domain   TEXT,                 -- e.g. tickets.acme.com
+    inbound_webhook_secret TEXT,                 -- AES-256-GCM encrypted; verifies HMAC
+    -- Option B: mailbox polling
+    mailbox_protocol       TEXT,                 -- imap | ms_graph | gmail_api
+    mailbox_address        TEXT,                 -- e.g. support@acme.com
+    mailbox_host           TEXT,                 -- IMAP host (imap only)
+    mailbox_username       TEXT,
+    mailbox_password       TEXT,                 -- AES-256-GCM encrypted (imap app password)
+    mailbox_oauth_tokens   TEXT,                 -- AES-256-GCM encrypted JSON (graph/gmail refresh token)
+    poll_interval_seconds  INT DEFAULT 60,
+    last_polled_at         TIMESTAMPTZ,
     updated_at             TIMESTAMPTZ DEFAULT now()
 );
 ```
@@ -795,9 +891,15 @@ Served to the public form/widget via an unauthenticated, cacheable endpoint:
 src/
   Trackly.Core/           # Entities, interfaces, enums
   Trackly.Modules/        # Tickets, Comments, Auth, Users, Notifications, Announcements
-  Trackly.Infrastructure/ # EF Core, OIDC/SAML handlers, email adapter, session store
+  Trackly.Infrastructure/ # EF Core, OIDC/SAML handlers, email adapters, session store
   Trackly.Api/            # Controllers, middleware, session auth
 ```
+
+**Email components (in Trackly.Infrastructure):**
+- `IInboundEmailPipeline` — the shared resolve-ticket → resolve-sender → strip-quotes → insert-comment pipeline; both connectors feed it
+- `InboundWebhookController` — `POST /api/email/inbound` for Option A (HMAC-verified)
+- `EmailPollingWorker` — ASP.NET Core `BackgroundService` for Option B; iterates workspaces with `inbound_connector = 'mailbox_poll'`, polls each mailbox (IMAP via **MailKit**, or Microsoft Graph / Gmail API), marks messages processed
+- `IOutboundEmailSender` — SMTP relay (MailKit) or Graph/Gmail sendMail depending on config
 
 **Authentication middleware:**
 ```csharp
@@ -1003,6 +1105,7 @@ CREATE TABLE tickets (
     guest_token_hash TEXT,                            -- SHA-256 of magic link token
     assignee_id      UUID REFERENCES users(id),
     problem_id       UUID REFERENCES problems(id) ON DELETE SET NULL,
+    channel          TEXT NOT NULL DEFAULT 'web',      -- web, widget, email
     created_at       TIMESTAMPTZ DEFAULT now(),
     updated_at       TIMESTAMPTZ DEFAULT now(),
     CONSTRAINT requester_or_guest CHECK (requester_id IS NOT NULL OR guest_email IS NOT NULL)
@@ -1094,6 +1197,7 @@ Authly is treated exactly the same as any other OIDC provider. No special code p
 | Backend | ASP.NET Core Web API (.NET 9+) | Strong auth middleware ecosystem |
 | OIDC | Built-in `Microsoft.AspNetCore.Authentication.OpenIdConnect` | Generic OIDC support |
 | SAML | `ITfoxtec.Identity.Saml2` NuGet | SAML 2.0 for enterprise providers |
+| Email | `MailKit` NuGet (SMTP + IMAP) · Graph/Gmail SDKs for OAuth mailboxes | Outbound relay + Option B polling |
 | ORM | Entity Framework Core | Consistent, well-supported |
 | Database | PostgreSQL (`trackly` DB) | No external infra dependency |
 | Session | HttpOnly cookie → Trackly `sessions` table | Provider-agnostic, fully controlled |
@@ -1116,5 +1220,10 @@ Authly is treated exactly the same as any other OIDC provider. No special code p
 - [ ] Disable password login for a workspace → email+password form rejected, SSO still works
 - [ ] Guest ticket linked to user on first SSO login with matching email
 - [ ] Agent responds → customer notified; customer replies via email → appears in thread
+- [ ] Inbound Option A: reply routed via MX → parse webhook → comment added; HMAC-invalid request rejected
+- [ ] Inbound Option B: reply lands in IMAP mailbox → polling worker ingests it exactly once (no duplicates on restart)
+- [ ] Threading fallback: reply with mangled Reply-To still matched via In-Reply-To header
+- [ ] Cold email to support mailbox with `new_ticket_via_email` on → new guest ticket with channel='email'; toggle off → email ignored
+- [ ] From-address spoofing: email from a non-participant address is rejected, no comment created
 - [ ] Suspend user in Trackly → session invalidated, access denied immediately
 - [ ] Workspace B cannot see Workspace A's tickets (workspace isolation)

@@ -286,6 +286,21 @@ public sealed class AuthorizationController : Controller
         Claims.Email, Claims.EmailVerified, Claims.Name, Claims.Role, TenantClaim, PermissionsClaim
     };
 
+    // The authorization claims a pre-token hook MAY override even though they're reserved: external
+    // RBAC via hook (roles/permissions resolved by an upstream system) is a first-class, generic use
+    // case. Identity/protocol claims (sub, email, name, tenant_id, …) stay hook-proof — a hook must
+    // never be able to change who the token is for or which tenant it belongs to.
+    private static readonly HashSet<string> HookOverridableClaims = new(StringComparer.Ordinal)
+    {
+        Claims.Role, PermissionsClaim
+    };
+
+    // A custom claim may be written when it isn't reserved at all; a reserved claim may be written
+    // only when a pre-token hook produced it AND it's an authorization claim hooks are allowed to own.
+    private static bool CanWriteCustomClaim(string name, IReadOnlySet<string>? hookClaimNames)
+        => !ReservedClaimNames.Contains(name)
+           || (hookClaimNames is { } h && h.Contains(name) && HookOverridableClaims.Contains(name));
+
     /// <summary>
     /// Assembles tenant custom claims (§5.6 steps 2–4) and writes them onto the identity. Pre-token
     /// hooks run once (for the access pass); the id pass only adds static/metadata claims. Returns
@@ -309,10 +324,10 @@ public sealed class AuthorizationController : Controller
             RunPreTokenHooks: false, HookClaims: access.Claims), ct);
 
         foreach (var (name, value) in access.Claims)
-            if (!ReservedClaimNames.Contains(name)) identity.SetClaim(name, value);
+            if (CanWriteCustomClaim(name, access.HookClaimNames)) identity.SetClaim(name, value);
 
         foreach (var (name, value) in id.Claims)
-            if (!ReservedClaimNames.Contains(name)) { identity.SetClaim(name, value); idClaimNames.Add(name); }
+            if (CanWriteCustomClaim(name, id.HookClaimNames)) { identity.SetClaim(name, value); idClaimNames.Add(name); }
 
         return (false, null, idClaimNames);
     }

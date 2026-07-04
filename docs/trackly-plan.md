@@ -4,7 +4,7 @@
 
 Trackly is a standalone, multi-tenant ticket management SaaS that can be sold to **any organisation** regardless of their existing identity infrastructure. Authly is supported as one of many identity providers — not a hard dependency.
 
-This design mirrors how products like Claude for Teams, Notion, and GitHub handle enterprise SSO: each workspace configures the identity provider they already use (Okta, Google Workspace, Microsoft Entra ID, Authly, or plain email+password), and Trackly works with all of them identically.
+This design mirrors how products like Claude for Teams, Notion, and GitHub handle enterprise SSO: each workspace configures the identity provider they already use (Okta, Google Workspace, Microsoft Entra ID, Authly — or no IdP at all, using passwordless email magic links), and Trackly works with all of them identically.
 
 **Trackly owns its own identity layer.** Users, roles, and sessions are all managed in Trackly's own database. External IdPs are used only for authentication — they never dictate what a user can do inside Trackly.
 
@@ -19,7 +19,7 @@ End User (browser)
 React SPA                              ← customer portal + agent dashboard
     │  OIDC (Authorization Code + PKCE) or SAML
     ▼
-Configured IdP for this workspace      ← Authly / Okta / Entra ID / Google / Custom / Email+Password
+Configured IdP for this workspace      ← Authly / Okta / Entra ID / Google / Custom / Email magic link
     │  user identity (sub, email, name, groups)
     ▼
 Trackly ASP.NET Core Web API           ← JIT provisions user, issues Trackly session
@@ -38,7 +38,7 @@ Trackly has its own `workspaces` table — this replaces any dependency on an ex
 
 ### Supported Identity Providers
 
-Each workspace configures exactly one SSO connection (like Claude's model — one active provider at a time, switchable). Additionally, email+password is always available as a fallback unless the admin disables it (stored as `password_login_enabled` on the workspace — see schema).
+Each workspace configures exactly one SSO connection (like Claude's model — one active provider at a time, switchable). Additionally, **passwordless email login (magic link + code)** is always available as a fallback unless the admin disables it (stored as `email_login_enabled` on the workspace — see schema). Trackly stores **no passwords at all**.
 
 | Provider | Protocol | Notes |
 |----------|---------|-------|
@@ -49,7 +49,7 @@ Each workspace configures exactly one SSO connection (like Claude's model — on
 | **Auth0** | SAML or OIDC | Common in SaaS companies |
 | **Custom SAML** | SAML | Any SAML 2.0 compliant IdP |
 | **Custom OIDC** | OIDC | Any OIDC compliant IdP |
-| **Email + Password** | Native | Trackly manages credentials itself |
+| **Email magic link** | Native (passwordless) | Trackly emails a sign-in link + 6-digit code; no credentials stored |
 
 ---
 
@@ -134,11 +134,47 @@ Trackly checks: is this email domain linked to a workspace with active SSO?
     │
    NO
     ▼
-Show email + password form (native Trackly credentials)
+Passwordless email login (magic link + code)
     │
     ▼
-Trackly validates password → issues session → redirect to app
+Trackly emails a sign-in link + 6-digit code
+    → user clicks the link (or types the code)
+    → Trackly verifies the token → issues session → redirect to app
 ```
+
+---
+
+### Passwordless Email Login (magic link + code)
+
+The native fallback is passwordless — Trackly never stores passwords. It reuses the same email-token machinery as guest OTP verification.
+
+```
+1. User enters their email on /login
+2. Trackly creates a login token:
+     - a random 256-bit link token  → magic link URL
+     - a 6-digit code              → typed fallback
+   (single row, both hashes stored, 10-minute expiry, single-use)
+3. Email sent: "Sign in to Acme Support"
+     [ Sign in → https://acme.trackly.com/auth/verify?token=… ]
+     "or enter this code: 482 913"
+4a. User clicks the link → lands on a "Confirm sign-in" page →
+    clicks the button (POST consumes the token)
+4b. Or types the 6-digit code on the device where they started
+5. Trackly issues a session (30 days) → redirect to portal/dashboard
+```
+
+Design decisions:
+
+- **Link scanners:** corporate security tools (Outlook SafeLinks etc.) prefetch
+  URLs with GET requests. The verify page therefore never consumes the token on
+  GET — only the explicit button click (POST) does. The 6-digit code is the
+  second escape hatch (e.g. reading email on a phone while logging in on a laptop).
+- **Long sessions (30 days):** compensates for email round-trip friction for
+  users without SSO who sign in regularly.
+- **Signup = login:** entering an unknown email simply creates the account after
+  verification — no "account already exists" errors, no separate signup form.
+- **Rate limiting:** same as guest OTP — max 3 sends per email per 15 minutes,
+  per-IP limits, 5 failed code attempts locks the token.
 
 ---
 
@@ -196,11 +232,12 @@ Trackly owns its own user table. This is the **primary source of truth** for use
 | Field | Source |
 |-------|-------|
 | `id` | Trackly-generated UUID |
-| `email` | From IdP JWT/SAML assertion (or entered at signup for email+password) |
-| `name` | From IdP JWT/SAML assertion |
+| `email` | From IdP JWT/SAML assertion (or verified via magic link for passwordless users) |
+| `name` | From IdP JWT/SAML assertion (or asked on first magic-link login) |
 | `role` | Set in Trackly's DB (via group mapping or manual assignment by admin) |
-| `password_hash` | Only set for email+password users; null for SSO-only users |
 | `workspace_id` | Determined at login by domain lookup or workspace slug |
+
+No `password_hash` — Trackly is fully passwordless. Non-SSO users authenticate via emailed magic link + code.
 
 **Users panel in Trackly admin** (`/admin/users`):
 - View all workspace members
@@ -227,7 +264,7 @@ Roles are stored on the `users` table (`role` column) — not as JWT claims from
 
 **How roles are assigned:**
 1. **Auto via group mapping** (recommended for SSO workspaces): Admin configures `IdP group → Trackly role` mapping in the SSO wizard. On every login, Trackly re-evaluates the user's groups and updates their role if the mapping changed.
-2. **Manual assignment**: Admin goes to `/admin/users` → selects user → changes role. Works for all auth methods including email+password.
+2. **Manual assignment**: Admin goes to `/admin/users` → selects user → changes role. Works for all auth methods including magic-link users.
 
 **ABAC — Attribute-Based Access Control** (fine-grained, context-sensitive):
 
@@ -282,7 +319,7 @@ The SSO button label reflects the workspace's configured provider (e.g. "Sign in
 
 ### Linking Anonymous Tickets to an Account
 
-If a guest later signs in (SSO or email+password) with the **same email**, their anonymous tickets are automatically linked to their Trackly user record and appear in the portal.
+If a guest later signs in (SSO or magic link) with the **same email**, their anonymous tickets are automatically linked to their Trackly user record and appear in the portal.
 
 ### What This Requires
 
@@ -681,7 +718,7 @@ Landing page                      Step 1  Create admin account
                                           skippable — do later)        card shown)
 ```
 
-The signup itself always uses **email+password or Google sign-in** — SSO can't be used yet because the workspace doesn't exist. The first user becomes the workspace `admin`.
+The signup itself always uses **Google sign-in or an emailed magic link** — SSO can't be used yet because the workspace doesn't exist, and Trackly stores no passwords. The first user becomes the workspace `admin`.
 
 ---
 
@@ -724,12 +761,14 @@ Step 1 — Create your account            Step 2 — Create your workspace
 ┌────────────────────────────┐          ┌────────────────────────────┐
 │  Create your account       │          │  Name your workspace       │
 │                            │          │                            │
-│  Work email  ____________  │          │  Company name  __________  │
-│  Password    ____________  │          │  Subdomain     [acme   ]   │
-│                            │          │                .trackly.com│
-│  ───────── or ─────────    │          │                            │
-│  [ Continue with Google ]  │          │        [ Continue → ]      │
-└────────────────────────────┘          └────────────────────────────┘
+│  [ Continue with Google ]  │          │  Company name  __________  │
+│                            │          │  Subdomain     [acme   ]   │
+│  ───────── or ─────────    │          │                .trackly.com│
+│  Work email  ____________  │          │                            │
+│  [ Email me a sign-in link]│          │        [ Continue → ]      │
+│  (link + 6-digit code —    │          └────────────────────────────┘
+│   no password to create)   │
+└────────────────────────────┘
 
 Step 3 — Add your branding              Step 4 — Invite your team
 ┌────────────────────────────┐          ┌────────────────────────────┐
@@ -945,7 +984,8 @@ services.AddOpenIdConnect("WorkspaceOidc", options => {
 | PUT    | `/api/admin/branding` | Session | admin — update logo, colour, portal title |
 | GET    | `/api/auth/sso?workspace=` | None | Initiate SSO for workspace |
 | GET    | `/auth/callback` | None | OIDC/SAML callback |
-| POST   | `/api/auth/login` | None | Email+password login |
+| POST   | `/api/auth/magic-link/send` | None | Email a sign-in link + 6-digit code (rate-limited) |
+| POST   | `/api/auth/magic-link/verify` | None | Consume link token or code → issue session |
 | POST   | `/api/auth/logout` | Session | Clear session |
 | GET    | `/api/users/me` | Session | Get current user profile |
 | GET    | `/api/tickets` | Session | agent/admin: all; customer: own |
@@ -974,7 +1014,7 @@ CREATE TABLE workspaces (
     id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name                   TEXT NOT NULL,
     slug                   TEXT NOT NULL UNIQUE,   -- e.g. "acme" → acme.trackly.com
-    password_login_enabled BOOLEAN DEFAULT true,   -- admin can force SSO-only login
+    email_login_enabled    BOOLEAN DEFAULT true,   -- magic-link fallback; off = SSO-only login
     created_at             TIMESTAMPTZ DEFAULT now(),
     updated_at             TIMESTAMPTZ DEFAULT now()
 );
@@ -1029,7 +1069,7 @@ CREATE TABLE users (
     name          TEXT,
     avatar_url    TEXT,
     role          TEXT NOT NULL DEFAULT 'customer',  -- customer, agent, admin
-    password_hash TEXT,            -- Argon2id; null for SSO-only users
+    -- no password_hash: Trackly is passwordless (SSO or magic link only)
     is_active     BOOLEAN DEFAULT true,
     created_at    TIMESTAMPTZ DEFAULT now(),
     updated_at    TIMESTAMPTZ DEFAULT now(),
@@ -1076,19 +1116,25 @@ CREATE TABLE sessions (
     created_at   TIMESTAMPTZ DEFAULT now()
 );
 
--- Guest email verification OTPs (for anonymous ticket submission)
-CREATE TABLE otp_codes (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id  UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-    email         TEXT NOT NULL,
-    code_hash     TEXT NOT NULL,          -- SHA-256 of the 6-digit code
-    attempts      INT DEFAULT 0,          -- verification locked after 5 failed attempts
-    expires_at    TIMESTAMPTZ NOT NULL,   -- 10 minutes
-    consumed_at   TIMESTAMPTZ,
-    created_at    TIMESTAMPTZ DEFAULT now()
+-- Email verification tokens — shared by guest OTP AND passwordless login.
+-- Each row carries both a magic-link token and a 6-digit code for the
+-- same attempt; either one consumes the row.
+CREATE TABLE email_tokens (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id    UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    email           TEXT NOT NULL,
+    purpose         TEXT NOT NULL,          -- 'guest_verify' | 'login'
+    link_token_hash TEXT UNIQUE,            -- SHA-256 of the magic-link token (256-bit random)
+    code_hash       TEXT NOT NULL,          -- SHA-256 of the 6-digit code
+    attempts        INT DEFAULT 0,          -- locked after 5 failed code attempts
+    expires_at      TIMESTAMPTZ NOT NULL,   -- 10 minutes
+    consumed_at     TIMESTAMPTZ,            -- single-use
+    created_at      TIMESTAMPTZ DEFAULT now()
 );
--- Rate limiting: max 3 OTP sends per email per 15 minutes,
--- plus per-IP limits on the public endpoints (email-spam protection).
+-- Rate limiting: max 3 sends per email per 15 minutes, plus per-IP limits
+-- on the public endpoints (email-spam protection).
+-- Magic-link verify page never consumes the token on GET (link scanners
+-- prefetch URLs) — only the explicit "Confirm sign-in" POST does.
 
 -- Tickets
 CREATE TABLE tickets (
@@ -1213,11 +1259,13 @@ Authly is treated exactly the same as any other OIDC provider. No special code p
 - [ ] Group → role mapping: agent group maps to `agent` role, customer group maps to `customer`
 - [ ] Manual role change in `/admin/users` takes effect on next request without re-login
 - [ ] `customer` cannot access `/dashboard`; `agent` can
-- [ ] Email+password login works independently of any SSO connection
+- [ ] Magic-link login works independently of any SSO connection (link click and 6-digit code both issue a session)
+- [ ] Verify page GET does not consume the link token (scanner-prefetch safe); only the confirm POST does
+- [ ] Login email to an unknown address creates the account after verification (signup = login)
 - [ ] Anonymous guest submits ticket via OTP → magic link tracks ticket without login
 - [ ] OTP rate limiting: 4th send within 15 minutes for the same email is rejected
 - [ ] Attachment upload on ticket + comment; customer cannot download attachments on private notes
-- [ ] Disable password login for a workspace → email+password form rejected, SSO still works
+- [ ] Disable email login for a workspace → magic-link sends rejected, SSO still works
 - [ ] Guest ticket linked to user on first SSO login with matching email
 - [ ] Agent responds → customer notified; customer replies via email → appears in thread
 - [ ] Inbound Option A: reply routed via MX → parse webhook → comment added; HMAC-invalid request rejected

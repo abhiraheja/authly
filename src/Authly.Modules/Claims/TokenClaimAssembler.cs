@@ -20,6 +20,9 @@ public sealed class TokenClaimAssembler : ITokenClaimAssembler
     public async Task<ClaimAssemblyResult> AssembleAsync(ClaimAssemblyRequest request, CancellationToken ct = default)
     {
         var claims = new Dictionary<string, string>(StringComparer.Ordinal);
+        // Track which claims came from a pre-token hook so the issuer can treat them as authoritative
+        // (a hook may contribute authorization claims a static/metadata config isn't trusted to set).
+        var hookClaimNames = new HashSet<string>(StringComparer.Ordinal);
 
         var configs = (await _configs.ListForIssuanceAsync(request.TenantId, request.ApplicationId, ct))
             .Where(c => c.TokenType == request.TokenType);
@@ -44,22 +47,26 @@ public sealed class TokenClaimAssembler : ITokenClaimAssembler
                     // The pre-token hook produced this claim on the other pass; emit it to this token
                     // type too (e.g. surface company_id in the id_token).
                     claims[config.ClaimName] = hookValue;
+                    hookClaimNames.Add(config.ClaimName);
                     break;
             }
         }
 
         // Step 4 — webhook claims from pre-token pipeline hooks; respect timeout/on_failure.
         if (!request.RunPreTokenHooks)
-            return new ClaimAssemblyResult(claims);
+            return new ClaimAssemblyResult(claims, HookClaimNames: hookClaimNames);
 
         var stage = await _hooks.RunStageAsync(PipelineStage.PreToken, request.TenantId, request.HookPayload, ct);
         if (stage.Blocked)
             return new ClaimAssemblyResult(claims, Blocked: true, BlockReason: stage.BlockReason);
 
         foreach (var (key, value) in stage.MergedData)
+        {
             claims[key] = value; // hook output wins for any overlapping custom claim
+            hookClaimNames.Add(key);
+        }
 
-        return new ClaimAssemblyResult(claims);
+        return new ClaimAssemblyResult(claims, HookClaimNames: hookClaimNames);
     }
 
     private static JsonDocument? Parse(string? json)

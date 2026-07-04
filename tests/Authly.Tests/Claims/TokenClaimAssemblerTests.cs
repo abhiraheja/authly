@@ -47,6 +47,27 @@ public class TokenClaimAssemblerTests
     }
 
     [Fact]
+    public async Task Hook_produced_claims_are_reported_in_HookClaimNames()
+    {
+        // The issuer uses HookClaimNames to decide a hook may override reserved authorization claims
+        // (role/permissions) that a static/metadata claim cannot. Static claims stay off that list.
+        var h = new Harness();
+        h.Configs.Items.Add(Config(ClaimSourceType.Static, "plan", "enterprise"));
+        h.Hooks.Result = new PipelineStageResult
+        {
+            MergedData = new Dictionary<string, string> { ["permissions"] = "READ WRITE", ["role"] = "admin" }
+        };
+
+        var result = await h.Service.AssembleAsync(new ClaimAssemblyRequest(
+            Tenant, null, ClaimTokenType.Access, null, null, new { }, RunPreTokenHooks: true));
+
+        Assert.NotNull(result.HookClaimNames);
+        Assert.Contains("permissions", result.HookClaimNames!);
+        Assert.Contains("role", result.HookClaimNames!);
+        Assert.DoesNotContain("plan", result.HookClaimNames!); // static config, not hook-sourced
+    }
+
+    [Fact]
     public async Task Pre_token_hooks_are_skipped_when_not_requested()
     {
         var h = new Harness();

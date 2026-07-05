@@ -16,6 +16,15 @@ public sealed class ClaimConfigService : IClaimConfigService
         "name", "tenant_id", "roles", "role", "permissions", "scope"
     };
 
+    // Authorization claims a pre-token pipeline hook is allowed to own (mirrors the issuer's
+    // HookOverridableClaims). A `Hook` config never sources a value — it only routes an
+    // already-trusted hook claim into another token type (e.g. the id_token) — so declaring one
+    // for these names is safe even though a Static/Metadata config must not override them.
+    private static readonly HashSet<string> HookRoutable = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "role", "permissions"
+    };
+
     private readonly IClaimConfigRepository _repo;
     private readonly IAuditLogger _audit;
 
@@ -33,7 +42,7 @@ public sealed class ClaimConfigService : IClaimConfigService
         var name = input.ClaimName?.Trim() ?? "";
         if (name.Length == 0)
             throw new ClaimConfigInvalidException("Enter a claim name.");
-        if (Reserved.Contains(name))
+        if (Reserved.Contains(name) && !(input.Type == ClaimSourceType.Hook && HookRoutable.Contains(name)))
             throw new ClaimConfigInvalidException($"'{name}' is a reserved claim and cannot be overridden.");
 
         // Per-claim Webhook URLs aren't supported here — webhook claim VALUES come from the signed

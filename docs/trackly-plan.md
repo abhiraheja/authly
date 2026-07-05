@@ -4,7 +4,7 @@
 
 Trackly is a standalone, multi-tenant ticket management SaaS that can be sold to **any organisation** regardless of their existing identity infrastructure. Authly is supported as one of many identity providers — not a hard dependency.
 
-This design mirrors how products like Claude for Teams, Notion, and GitHub handle enterprise SSO: each workspace configures the identity provider they already use (Okta, Google Workspace, Microsoft Entra ID, Authly, or plain email+password), and Trackly works with all of them identically.
+This design mirrors how products like Claude for Teams, Notion, and GitHub handle enterprise SSO: each workspace configures the identity provider they already use (Okta, Google Workspace, Microsoft Entra ID, Authly — or no IdP at all, using passwordless email magic links), and Trackly works with all of them identically.
 
 **Trackly owns its own identity layer.** Users, roles, and sessions are all managed in Trackly's own database. External IdPs are used only for authentication — they never dictate what a user can do inside Trackly.
 
@@ -19,7 +19,7 @@ End User (browser)
 React SPA                              ← customer portal + agent dashboard
     │  OIDC (Authorization Code + PKCE) or SAML
     ▼
-Configured IdP for this workspace      ← Authly / Okta / Entra ID / Google / Custom / Email+Password
+Configured IdP for this workspace      ← Authly / Okta / Entra ID / Google / Custom / Email magic link
     │  user identity (sub, email, name, groups)
     ▼
 Trackly ASP.NET Core Web API           ← JIT provisions user, issues Trackly session
@@ -38,7 +38,7 @@ Trackly has its own `workspaces` table — this replaces any dependency on an ex
 
 ### Supported Identity Providers
 
-Each workspace configures exactly one SSO connection (like Claude's model — one active provider at a time, switchable). Additionally, email+password is always available as a fallback unless the admin disables it (stored as `password_login_enabled` on the workspace — see schema).
+Each workspace configures exactly one SSO connection (like Claude's model — one active provider at a time, switchable). Additionally, **passwordless email login (magic link + code)** is always available as a fallback unless the admin disables it (stored as `email_login_enabled` on the workspace — see schema). Trackly stores **no passwords at all**.
 
 | Provider | Protocol | Notes |
 |----------|---------|-------|
@@ -49,7 +49,7 @@ Each workspace configures exactly one SSO connection (like Claude's model — on
 | **Auth0** | SAML or OIDC | Common in SaaS companies |
 | **Custom SAML** | SAML | Any SAML 2.0 compliant IdP |
 | **Custom OIDC** | OIDC | Any OIDC compliant IdP |
-| **Email + Password** | Native | Trackly manages credentials itself |
+| **Email magic link** | Native (passwordless) | Trackly emails a sign-in link + 6-digit code; no credentials stored |
 
 ---
 
@@ -134,11 +134,47 @@ Trackly checks: is this email domain linked to a workspace with active SSO?
     │
    NO
     ▼
-Show email + password form (native Trackly credentials)
+Passwordless email login (magic link + code)
     │
     ▼
-Trackly validates password → issues session → redirect to app
+Trackly emails a sign-in link + 6-digit code
+    → user clicks the link (or types the code)
+    → Trackly verifies the token → issues session → redirect to app
 ```
+
+---
+
+### Passwordless Email Login (magic link + code)
+
+The native fallback is passwordless — Trackly never stores passwords. It reuses the same email-token machinery as guest OTP verification.
+
+```
+1. User enters their email on /login
+2. Trackly creates a login token:
+     - a random 256-bit link token  → magic link URL
+     - a 6-digit code              → typed fallback
+   (single row, both hashes stored, 10-minute expiry, single-use)
+3. Email sent: "Sign in to Acme Support"
+     [ Sign in → https://acme.trackly.com/auth/verify?token=… ]
+     "or enter this code: 482 913"
+4a. User clicks the link → lands on a "Confirm sign-in" page →
+    clicks the button (POST consumes the token)
+4b. Or types the 6-digit code on the device where they started
+5. Trackly issues a session (30 days) → redirect to portal/dashboard
+```
+
+Design decisions:
+
+- **Link scanners:** corporate security tools (Outlook SafeLinks etc.) prefetch
+  URLs with GET requests. The verify page therefore never consumes the token on
+  GET — only the explicit button click (POST) does. The 6-digit code is the
+  second escape hatch (e.g. reading email on a phone while logging in on a laptop).
+- **Long sessions (30 days):** compensates for email round-trip friction for
+  users without SSO who sign in regularly.
+- **Signup = login:** entering an unknown email simply creates the account after
+  verification — no "account already exists" errors, no separate signup form.
+- **Rate limiting:** same as guest OTP — max 3 sends per email per 15 minutes,
+  per-IP limits, 5 failed code attempts locks the token.
 
 ---
 
@@ -196,11 +232,12 @@ Trackly owns its own user table. This is the **primary source of truth** for use
 | Field | Source |
 |-------|-------|
 | `id` | Trackly-generated UUID |
-| `email` | From IdP JWT/SAML assertion (or entered at signup for email+password) |
-| `name` | From IdP JWT/SAML assertion |
+| `email` | From IdP JWT/SAML assertion (or verified via magic link for passwordless users) |
+| `name` | From IdP JWT/SAML assertion (or asked on first magic-link login) |
 | `role` | Set in Trackly's DB (via group mapping or manual assignment by admin) |
-| `password_hash` | Only set for email+password users; null for SSO-only users |
 | `workspace_id` | Determined at login by domain lookup or workspace slug |
+
+No `password_hash` — Trackly is fully passwordless. Non-SSO users authenticate via emailed magic link + code.
 
 **Users panel in Trackly admin** (`/admin/users`):
 - View all workspace members
@@ -227,7 +264,7 @@ Roles are stored on the `users` table (`role` column) — not as JWT claims from
 
 **How roles are assigned:**
 1. **Auto via group mapping** (recommended for SSO workspaces): Admin configures `IdP group → Trackly role` mapping in the SSO wizard. On every login, Trackly re-evaluates the user's groups and updates their role if the mapping changed.
-2. **Manual assignment**: Admin goes to `/admin/users` → selects user → changes role. Works for all auth methods including email+password.
+2. **Manual assignment**: Admin goes to `/admin/users` → selects user → changes role. Works for all auth methods including magic-link users.
 
 **ABAC — Attribute-Based Access Control** (fine-grained, context-sensitive):
 
@@ -282,7 +319,7 @@ The SSO button label reflects the workspace's configured provider (e.g. "Sign in
 
 ### Linking Anonymous Tickets to an Account
 
-If a guest later signs in (SSO or email+password) with the **same email**, their anonymous tickets are automatically linked to their Trackly user record and appear in the portal.
+If a guest later signs in (SSO or magic link) with the **same email**, their anonymous tickets are automatically linked to their Trackly user record and appear in the portal.
 
 ### What This Requires
 
@@ -448,33 +485,113 @@ CREATE TABLE announcement_deliveries (
 
 ---
 
-## Email Interaction Mode
+## Email Architecture
 
-Configurable per workspace in `/admin/settings/email`:
+**Key point: Trackly never runs its own SMTP server.** Sending and receiving are separate problems, both solved with hosted services plus a couple of DNS records or mailbox credentials.
+
+### Outbound (Trackly → customer)
+
+Any SMTP relay works: SendGrid, Mailgun, Postmark, AWS SES, or the enterprise's own relay. Trackly connects as a client and sends. What matters is the headers stamped on every notification email — they enable reply threading:
+
+```
+From:        Acme Support <support@tickets.acme.com>
+Reply-To:    reply+<ticket-uuid>@tickets.acme.com
+Message-ID:  <ticket-uuid>.<comment-uuid>@trackly
+```
+
+The `reply+<ticket-uuid>@` address encodes which ticket a reply belongs to. DNS setup for deliverability: SPF + DKIM records on the sending domain (the SMTP provider gives these).
+
+### Interaction Modes (per workspace)
+
+Configurable in `/admin/settings/email`:
 
 | Mode | What it means |
 |------|--------------|
 | **Notifications only** | Emails sent, replies go nowhere. Login required to reply. |
 | **One-way** | Customer can reply via email; appears in ticket. Agent replies in Trackly. |
-| **Full two-way** | Both sides reply via email. Requires inbound email provider setup. |
+| **Two-way** | Both sides reply via email. Requires an inbound connector (below). |
 
-### Full Two-Way Threading
+### Inbound Connectors — Admin Chooses One of Two
 
-Every outbound email includes:
+To receive replies (and optionally new tickets) by email, the workspace admin picks **one** of two connector types in `/admin/settings/email`. Both feed the same internal pipeline — only the transport differs.
+
+#### Option A — Inbound Parse Webhook (MX + provider)
+
+The enterprise creates a subdomain (e.g. `tickets.acme.com`) whose **MX record** points at an inbound parse service — SendGrid Inbound Parse, Mailgun Routes, Postmark Inbound, or AWS SES Receiving. This is how Zendesk/FreshDesk work.
+
 ```
-Reply-To:   reply+<ticket-uuid>@tickets.yourdomain.com
-Message-ID: <ticket-uuid>.<comment-uuid>@trackly
+1. Agent replies in Trackly → email sent via SMTP relay
+   Reply-To: reply+<ticket-uuid>@tickets.acme.com
+
+2. Customer hits "Reply" in Gmail/Outlook
+   → their mail server looks up the MX record for tickets.acme.com
+   → MX points at the provider (e.g. mxa.mailgun.org)
+
+3. Provider receives the raw email, parses the MIME
+   (body, HTML, attachments, headers)
+   → POSTs it to Trackly's webhook: POST /api/email/inbound
+
+4. Trackly webhook handler → shared inbound pipeline (below)
 ```
 
-Inbound emails are parsed by the provider (Mailgun / SendGrid / Postmark / AWS SES), POSTed to `POST /api/email/inbound`, matched to the ticket by the UUID in the `reply+` address, and added as a comment.
+Infrastructure needed: **one MX record + one webhook endpoint**. No mail daemon, spam filtering, or port-25 TLS on our side — the provider absorbs all of it. Inbound parsing is free on SendGrid and included in Mailgun's base tier.
 
-Security: HMAC signature verification on inbound webhook + `From:` email must match a known user or guest.
+#### Option B — Mailbox Polling (IMAP / Microsoft Graph / Gmail API)
 
-```sql
-ALTER TABLE comments ADD COLUMN source TEXT DEFAULT 'web';      -- 'web' or 'email'
-ALTER TABLE comments ADD COLUMN email_message_id TEXT;
-ALTER TABLE email_configs ADD COLUMN email_mode TEXT NOT NULL DEFAULT 'notifications_only';
+The enterprise already has `support@acme.com` in Microsoft 365 or Google Workspace and wants to keep using it. Trackly connects to that mailbox and polls for new messages on an interval (default 60s):
+
 ```
+1. Customer replies (or emails support@acme.com cold)
+2. Message lands in the enterprise's existing mailbox
+3. Trackly's background worker (EmailPollingWorker, an ASP.NET Core
+   hosted service) polls via IMAP, Microsoft Graph, or Gmail API
+4. New messages → shared inbound pipeline (below)
+5. Processed messages are marked (moved to a "Processed" folder
+   or flagged) so they are never ingested twice
+```
+
+Auth: OAuth2 (Graph / Gmail API — recommended, no password stored) or IMAP username + app password (encrypted at rest). Outbound for this mode can also go through the same mailbox (SMTP submission / Graph sendMail) so replies come from the address customers already know.
+
+#### Comparison (shown to the admin in the setup UI)
+
+| | A — Parse webhook | B — Mailbox polling |
+|---|---|---|
+| Enterprise setup | Add one MX record on a subdomain | Grant OAuth access (or app password) to existing mailbox |
+| Latency | Instant (push) | Polling interval (~60s) |
+| New tickets from cold emails | Any address on the subdomain | Natural — anything sent to support@ becomes a ticket |
+| Trackly infra | Webhook endpoint | Background polling worker |
+| Best for | Cloud/SaaS deployments | Enterprises attached to their existing support mailbox |
+
+### Shared Inbound Pipeline (both connectors)
+
+Regardless of transport, every inbound email goes through the same steps:
+
+```
+a. Authenticate the source
+   Webhook: verify provider HMAC signature
+   Polling: message came from the authenticated mailbox itself
+b. Resolve the ticket
+   1st: ticket UUID from the reply+ address
+   2nd (fallback): In-Reply-To / References headers matched against
+        stored comment email_message_id (handles clients that mangle Reply-To)
+   3rd: no match at all → treat as a NEW ticket (if enabled, see below)
+c. Resolve the sender: From: must match the ticket's requester, a
+   participant, or a known user/guest — otherwise reject (prevents
+   comment injection by anyone who learns a reply address)
+d. Strip quoted history ("On Jul 4, Viola wrote: …") so only the new
+   text is kept; extract attachments → IFileStorage
+e. Insert comment (source='email'), notify assignee + watchers
+```
+
+### Email as a Ticket-Creation Channel (optional toggle)
+
+With either connector, an email that matches no existing ticket can **create a new ticket** (`new_ticket_via_email` toggle, off by default):
+
+- Sender email matched to an existing user → ticket linked to them
+- Unknown sender → guest ticket (guest_email = sender); no OTP needed since
+  the email itself proves address ownership
+- Subject → ticket subject; body → description; attachments carried over
+- Tickets created this way get `channel = 'email'`
 
 ---
 
@@ -486,6 +603,7 @@ Per workspace in `/admin/settings/email`. Admin provides their own SMTP credenti
 CREATE TABLE email_configs (
     id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id           UUID NOT NULL UNIQUE REFERENCES workspaces(id),
+    -- Outbound
     use_shared_smtp        BOOLEAN DEFAULT true,
     smtp_host              TEXT,
     smtp_port              INT,
@@ -493,10 +611,25 @@ CREATE TABLE email_configs (
     smtp_pass              TEXT,                 -- AES-256-GCM encrypted
     from_name              TEXT,
     from_email             TEXT,
+    -- Interaction mode
     email_mode             TEXT NOT NULL DEFAULT 'notifications_only',
-    inbound_provider       TEXT,
-    inbound_reply_domain   TEXT,
-    inbound_webhook_secret TEXT,                 -- AES-256-GCM encrypted
+                                                 -- notifications_only | one_way | two_way
+    new_ticket_via_email   BOOLEAN DEFAULT false,
+    -- Inbound connector: admin picks ONE
+    inbound_connector      TEXT,                 -- null | 'parse_webhook' | 'mailbox_poll'
+    -- Option A: parse webhook
+    inbound_provider       TEXT,                 -- sendgrid | mailgun | postmark | ses
+    inbound_reply_domain   TEXT,                 -- e.g. tickets.acme.com
+    inbound_webhook_secret TEXT,                 -- AES-256-GCM encrypted; verifies HMAC
+    -- Option B: mailbox polling
+    mailbox_protocol       TEXT,                 -- imap | ms_graph | gmail_api
+    mailbox_address        TEXT,                 -- e.g. support@acme.com
+    mailbox_host           TEXT,                 -- IMAP host (imap only)
+    mailbox_username       TEXT,
+    mailbox_password       TEXT,                 -- AES-256-GCM encrypted (imap app password)
+    mailbox_oauth_tokens   TEXT,                 -- AES-256-GCM encrypted JSON (graph/gmail refresh token)
+    poll_interval_seconds  INT DEFAULT 60,
+    last_polled_at         TIMESTAMPTZ,
     updated_at             TIMESTAMPTZ DEFAULT now()
 );
 ```
@@ -585,7 +718,7 @@ Landing page                      Step 1  Create admin account
                                           skippable — do later)        card shown)
 ```
 
-The signup itself always uses **email+password or Google sign-in** — SSO can't be used yet because the workspace doesn't exist. The first user becomes the workspace `admin`.
+The signup itself always uses **Google sign-in or an emailed magic link** — SSO can't be used yet because the workspace doesn't exist, and Trackly stores no passwords. The first user becomes the workspace `admin`.
 
 ---
 
@@ -628,12 +761,14 @@ Step 1 — Create your account            Step 2 — Create your workspace
 ┌────────────────────────────┐          ┌────────────────────────────┐
 │  Create your account       │          │  Name your workspace       │
 │                            │          │                            │
-│  Work email  ____________  │          │  Company name  __________  │
-│  Password    ____________  │          │  Subdomain     [acme   ]   │
-│                            │          │                .trackly.com│
-│  ───────── or ─────────    │          │                            │
-│  [ Continue with Google ]  │          │        [ Continue → ]      │
-└────────────────────────────┘          └────────────────────────────┘
+│  [ Continue with Google ]  │          │  Company name  __________  │
+│                            │          │  Subdomain     [acme   ]   │
+│  ───────── or ─────────    │          │                .trackly.com│
+│  Work email  ____________  │          │                            │
+│  [ Email me a sign-in link]│          │        [ Continue → ]      │
+│  (link + 6-digit code —    │          └────────────────────────────┘
+│   no password to create)   │
+└────────────────────────────┘
 
 Step 3 — Add your branding              Step 4 — Invite your team
 ┌────────────────────────────┐          ┌────────────────────────────┐
@@ -795,9 +930,15 @@ Served to the public form/widget via an unauthenticated, cacheable endpoint:
 src/
   Trackly.Core/           # Entities, interfaces, enums
   Trackly.Modules/        # Tickets, Comments, Auth, Users, Notifications, Announcements
-  Trackly.Infrastructure/ # EF Core, OIDC/SAML handlers, email adapter, session store
+  Trackly.Infrastructure/ # EF Core, OIDC/SAML handlers, email adapters, session store
   Trackly.Api/            # Controllers, middleware, session auth
 ```
+
+**Email components (in Trackly.Infrastructure):**
+- `IInboundEmailPipeline` — the shared resolve-ticket → resolve-sender → strip-quotes → insert-comment pipeline; both connectors feed it
+- `InboundWebhookController` — `POST /api/email/inbound` for Option A (HMAC-verified)
+- `EmailPollingWorker` — ASP.NET Core `BackgroundService` for Option B; iterates workspaces with `inbound_connector = 'mailbox_poll'`, polls each mailbox (IMAP via **MailKit**, or Microsoft Graph / Gmail API), marks messages processed
+- `IOutboundEmailSender` — SMTP relay (MailKit) or Graph/Gmail sendMail depending on config
 
 **Authentication middleware:**
 ```csharp
@@ -843,7 +984,8 @@ services.AddOpenIdConnect("WorkspaceOidc", options => {
 | PUT    | `/api/admin/branding` | Session | admin — update logo, colour, portal title |
 | GET    | `/api/auth/sso?workspace=` | None | Initiate SSO for workspace |
 | GET    | `/auth/callback` | None | OIDC/SAML callback |
-| POST   | `/api/auth/login` | None | Email+password login |
+| POST   | `/api/auth/magic-link/send` | None | Email a sign-in link + 6-digit code (rate-limited) |
+| POST   | `/api/auth/magic-link/verify` | None | Consume link token or code → issue session |
 | POST   | `/api/auth/logout` | Session | Clear session |
 | GET    | `/api/users/me` | Session | Get current user profile |
 | GET    | `/api/tickets` | Session | agent/admin: all; customer: own |
@@ -872,7 +1014,7 @@ CREATE TABLE workspaces (
     id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name                   TEXT NOT NULL,
     slug                   TEXT NOT NULL UNIQUE,   -- e.g. "acme" → acme.trackly.com
-    password_login_enabled BOOLEAN DEFAULT true,   -- admin can force SSO-only login
+    email_login_enabled    BOOLEAN DEFAULT true,   -- magic-link fallback; off = SSO-only login
     created_at             TIMESTAMPTZ DEFAULT now(),
     updated_at             TIMESTAMPTZ DEFAULT now()
 );
@@ -927,7 +1069,7 @@ CREATE TABLE users (
     name          TEXT,
     avatar_url    TEXT,
     role          TEXT NOT NULL DEFAULT 'customer',  -- customer, agent, admin
-    password_hash TEXT,            -- Argon2id; null for SSO-only users
+    -- no password_hash: Trackly is passwordless (SSO or magic link only)
     is_active     BOOLEAN DEFAULT true,
     created_at    TIMESTAMPTZ DEFAULT now(),
     updated_at    TIMESTAMPTZ DEFAULT now(),
@@ -974,19 +1116,25 @@ CREATE TABLE sessions (
     created_at   TIMESTAMPTZ DEFAULT now()
 );
 
--- Guest email verification OTPs (for anonymous ticket submission)
-CREATE TABLE otp_codes (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id  UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-    email         TEXT NOT NULL,
-    code_hash     TEXT NOT NULL,          -- SHA-256 of the 6-digit code
-    attempts      INT DEFAULT 0,          -- verification locked after 5 failed attempts
-    expires_at    TIMESTAMPTZ NOT NULL,   -- 10 minutes
-    consumed_at   TIMESTAMPTZ,
-    created_at    TIMESTAMPTZ DEFAULT now()
+-- Email verification tokens — shared by guest OTP AND passwordless login.
+-- Each row carries both a magic-link token and a 6-digit code for the
+-- same attempt; either one consumes the row.
+CREATE TABLE email_tokens (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id    UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    email           TEXT NOT NULL,
+    purpose         TEXT NOT NULL,          -- 'guest_verify' | 'login'
+    link_token_hash TEXT UNIQUE,            -- SHA-256 of the magic-link token (256-bit random)
+    code_hash       TEXT NOT NULL,          -- SHA-256 of the 6-digit code
+    attempts        INT DEFAULT 0,          -- locked after 5 failed code attempts
+    expires_at      TIMESTAMPTZ NOT NULL,   -- 10 minutes
+    consumed_at     TIMESTAMPTZ,            -- single-use
+    created_at      TIMESTAMPTZ DEFAULT now()
 );
--- Rate limiting: max 3 OTP sends per email per 15 minutes,
--- plus per-IP limits on the public endpoints (email-spam protection).
+-- Rate limiting: max 3 sends per email per 15 minutes, plus per-IP limits
+-- on the public endpoints (email-spam protection).
+-- Magic-link verify page never consumes the token on GET (link scanners
+-- prefetch URLs) — only the explicit "Confirm sign-in" POST does.
 
 -- Tickets
 CREATE TABLE tickets (
@@ -1003,6 +1151,7 @@ CREATE TABLE tickets (
     guest_token_hash TEXT,                            -- SHA-256 of magic link token
     assignee_id      UUID REFERENCES users(id),
     problem_id       UUID REFERENCES problems(id) ON DELETE SET NULL,
+    channel          TEXT NOT NULL DEFAULT 'web',      -- web, widget, email
     created_at       TIMESTAMPTZ DEFAULT now(),
     updated_at       TIMESTAMPTZ DEFAULT now(),
     CONSTRAINT requester_or_guest CHECK (requester_id IS NOT NULL OR guest_email IS NOT NULL)
@@ -1094,6 +1243,7 @@ Authly is treated exactly the same as any other OIDC provider. No special code p
 | Backend | ASP.NET Core Web API (.NET 9+) | Strong auth middleware ecosystem |
 | OIDC | Built-in `Microsoft.AspNetCore.Authentication.OpenIdConnect` | Generic OIDC support |
 | SAML | `ITfoxtec.Identity.Saml2` NuGet | SAML 2.0 for enterprise providers |
+| Email | `MailKit` NuGet (SMTP + IMAP) · Graph/Gmail SDKs for OAuth mailboxes | Outbound relay + Option B polling |
 | ORM | Entity Framework Core | Consistent, well-supported |
 | Database | PostgreSQL (`trackly` DB) | No external infra dependency |
 | Session | HttpOnly cookie → Trackly `sessions` table | Provider-agnostic, fully controlled |
@@ -1109,12 +1259,19 @@ Authly is treated exactly the same as any other OIDC provider. No special code p
 - [ ] Group → role mapping: agent group maps to `agent` role, customer group maps to `customer`
 - [ ] Manual role change in `/admin/users` takes effect on next request without re-login
 - [ ] `customer` cannot access `/dashboard`; `agent` can
-- [ ] Email+password login works independently of any SSO connection
+- [ ] Magic-link login works independently of any SSO connection (link click and 6-digit code both issue a session)
+- [ ] Verify page GET does not consume the link token (scanner-prefetch safe); only the confirm POST does
+- [ ] Login email to an unknown address creates the account after verification (signup = login)
 - [ ] Anonymous guest submits ticket via OTP → magic link tracks ticket without login
 - [ ] OTP rate limiting: 4th send within 15 minutes for the same email is rejected
 - [ ] Attachment upload on ticket + comment; customer cannot download attachments on private notes
-- [ ] Disable password login for a workspace → email+password form rejected, SSO still works
+- [ ] Disable email login for a workspace → magic-link sends rejected, SSO still works
 - [ ] Guest ticket linked to user on first SSO login with matching email
 - [ ] Agent responds → customer notified; customer replies via email → appears in thread
+- [ ] Inbound Option A: reply routed via MX → parse webhook → comment added; HMAC-invalid request rejected
+- [ ] Inbound Option B: reply lands in IMAP mailbox → polling worker ingests it exactly once (no duplicates on restart)
+- [ ] Threading fallback: reply with mangled Reply-To still matched via In-Reply-To header
+- [ ] Cold email to support mailbox with `new_ticket_via_email` on → new guest ticket with channel='email'; toggle off → email ignored
+- [ ] From-address spoofing: email from a non-participant address is rejected, no comment created
 - [ ] Suspend user in Trackly → session invalidated, access denied immediately
 - [ ] Workspace B cannot see Workspace A's tickets (workspace isolation)

@@ -200,6 +200,11 @@ public sealed class AuthorizationController : Controller
         // Re-check the account each refresh: a suspended/deleted user must lose access immediately.
         if (Guid.TryParse(tenant, out var tenantId) && Guid.TryParse(subject, out var userId))
         {
+            // A PKCE token exchange is a cookie-less form POST, so TenantResolutionMiddleware can't
+            // resolve the tenant (it reads host/header/query/cookie, never the form body). Set it from
+            // the code's own tenant claim so the RLS backstop (app.current_tenant) lets the lookup see
+            // the row — otherwise GetByIdAsync returns null and the grant is wrongly rejected as inactive.
+            _tenant.SetTenant(tenantId);
             var user = await _users.GetByIdAsync(tenantId, userId, ct);
             if (user is null || user.Status is Core.Enums.UserStatus.Suspended or Core.Enums.UserStatus.Deleted)
             {

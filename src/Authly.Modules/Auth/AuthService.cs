@@ -206,7 +206,7 @@ public sealed class AuthService : IAuthService
             CreatedAt = DateTimeOffset.UtcNow
         }, ct);
 
-        var url = _urls.BuildPasswordResetUrl(tenantId, raw);
+        var url = await _urls.BuildPasswordResetUrl(tenantId, raw);
         _messages.Enqueue(new MessageSendRequest(tenantId, MessageTemplateKeys.ResetPassword,
             MessageChannel.Email, user.Email, new Dictionary<string, string>
             {
@@ -313,7 +313,7 @@ public sealed class AuthService : IAuthService
             CreatedAt = DateTimeOffset.UtcNow
         }, ct);
 
-        var url = _urls.BuildEmailVerificationUrl(user.TenantId, raw);
+        var url = await _urls.BuildEmailVerificationUrl(user.TenantId, raw);
         _messages.Enqueue(new MessageSendRequest(user.TenantId, MessageTemplateKeys.VerifyEmail,
             MessageChannel.Email, user.Email, new Dictionary<string, string>
             {

@@ -59,11 +59,12 @@ public sealed class MagicLinkService : IMagicLinkService
             CreatedAt = DateTimeOffset.UtcNow
         }, ct);
 
+        var url = await _urls.BuildMagicLinkUrl(tenantId, raw, returnUrl);
         _messages.Enqueue(new MessageSendRequest(tenantId, MessageTemplateKeys.MagicLink,
             MessageChannel.Email, user.Email, new Dictionary<string, string>
             {
                 ["user_name"] = NameOf(user),
-                ["action_url"] = _urls.BuildMagicLinkUrl(tenantId, raw, returnUrl),
+                ["action_url"] = url,
                 ["expiry_minutes"] = "15"
             }));
 

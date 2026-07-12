@@ -344,20 +344,20 @@ public class AuthServiceTests
     {
         public string? LastVerificationToken;
         public string? LastResetToken;
-        public string BuildEmailVerificationUrl(Guid tenantId, string rawToken)
+        public Task<string> BuildEmailVerificationUrl(Guid tenantId, string rawToken)
         {
             LastVerificationToken = rawToken;
-            return $"https://test/verify?token={rawToken}";
+            return Task.FromResult($"https://test/verify?token={rawToken}");
         }
-        public string BuildPasswordResetUrl(Guid tenantId, string rawToken)
+        public Task<string> BuildPasswordResetUrl(Guid tenantId, string rawToken)
         {
             LastResetToken = rawToken;
-            return $"https://test/reset?token={rawToken}";
+            return Task.FromResult($"https://test/reset?token={rawToken}");
         }
-        public string BuildMagicLinkUrl(Guid tenantId, string rawToken, string? returnUrl = null) => $"https://test/magic?token={rawToken}";
-        public string BuildContactChangeVerifyUrl(Guid tenantId, string rawToken) => $"https://test/change/verify?token={rawToken}";
-        public string BuildContactChangeCancelUrl(Guid tenantId, string rawToken) => $"https://test/change/cancel?token={rawToken}";
-        public string BuildRecoveryUrl(Guid tenantId, string rawToken) => $"https://test/recover?token={rawToken}";
+        public Task<string> BuildMagicLinkUrl(Guid tenantId, string rawToken, string? returnUrl = null) => Task.FromResult($"https://test/magic?token={rawToken}");
+        public Task<string> BuildContactChangeVerifyUrl(Guid tenantId, string rawToken) => Task.FromResult($"https://test/change/verify?token={rawToken}");
+        public Task<string> BuildContactChangeCancelUrl(Guid tenantId, string rawToken) => Task.FromResult($"https://test/change/cancel?token={rawToken}");
+        public Task<string> BuildRecoveryUrl(Guid tenantId, string rawToken) => Task.FromResult($"https://test/recover?token={rawToken}");
         public string BuildInviteAcceptUrl(string rawToken) => $"https://test/invite/accept?token={rawToken}";
     }
 

@@ -37,20 +37,26 @@ public sealed class EmailAlreadyExistsException : Exception
 /// Builds the absolute URLs embedded in verification / reset emails. Implemented in the web
 /// layer (which owns routing); the auth module depends only on this abstraction so it never
 /// references HTTP/MVC types.
+///
+/// Tenant-scoped links carry the tenant slug as a <c>&amp;tenant=</c> query param so they resolve
+/// on the shared platform host (e.g. <c>authly.saarvix.in</c>) regardless of which browser opens
+/// them — the host alone can't identify the tenant, and the tenant-hint cookie only exists in the
+/// browser that requested the link. Resolving the slug requires a repository lookup, hence the
+/// methods are async.
 /// </summary>
 public interface IAuthUrlBuilder
 {
-    string BuildEmailVerificationUrl(Guid tenantId, string rawToken);
-    string BuildPasswordResetUrl(Guid tenantId, string rawToken);
+    Task<string> BuildEmailVerificationUrl(Guid tenantId, string rawToken);
+    Task<string> BuildPasswordResetUrl(Guid tenantId, string rawToken);
 
     // Phase 11 — advanced auth links.
     /// <summary>Builds the magic sign-in link. When <paramref name="returnUrl"/> is supplied (e.g. the
     /// local /connect/authorize continuation), it is carried through so the user lands back on the
     /// relying app after sign-in.</summary>
-    string BuildMagicLinkUrl(Guid tenantId, string rawToken, string? returnUrl = null);
-    string BuildContactChangeVerifyUrl(Guid tenantId, string rawToken);
-    string BuildContactChangeCancelUrl(Guid tenantId, string rawToken);
-    string BuildRecoveryUrl(Guid tenantId, string rawToken);
+    Task<string> BuildMagicLinkUrl(Guid tenantId, string rawToken, string? returnUrl = null);
+    Task<string> BuildContactChangeVerifyUrl(Guid tenantId, string rawToken);
+    Task<string> BuildContactChangeCancelUrl(Guid tenantId, string rawToken);
+    Task<string> BuildRecoveryUrl(Guid tenantId, string rawToken);
 
     /// <summary>Phase 4 — the public, tenant-less operator-invite accept link.</summary>
     string BuildInviteAcceptUrl(string rawToken);

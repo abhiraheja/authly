@@ -307,12 +307,12 @@ internal sealed class FakeQueue : IMessageQueue
 // FakeUrlBuilder returns the raw token AS the url so tests can recover it for AcceptAsync.
 internal sealed class FakeUrlBuilder : IAuthUrlBuilder
 {
-    public string BuildEmailVerificationUrl(Guid tenantId, string rawToken) => rawToken;
-    public string BuildPasswordResetUrl(Guid tenantId, string rawToken) => rawToken;
-    public string BuildMagicLinkUrl(Guid tenantId, string rawToken, string? returnUrl = null) => rawToken;
-    public string BuildContactChangeVerifyUrl(Guid tenantId, string rawToken) => rawToken;
-    public string BuildContactChangeCancelUrl(Guid tenantId, string rawToken) => rawToken;
-    public string BuildRecoveryUrl(Guid tenantId, string rawToken) => rawToken;
+    public Task<string> BuildEmailVerificationUrl(Guid tenantId, string rawToken) => Task.FromResult(rawToken);
+    public Task<string> BuildPasswordResetUrl(Guid tenantId, string rawToken) => Task.FromResult(rawToken);
+    public Task<string> BuildMagicLinkUrl(Guid tenantId, string rawToken, string? returnUrl = null) => Task.FromResult(rawToken);
+    public Task<string> BuildContactChangeVerifyUrl(Guid tenantId, string rawToken) => Task.FromResult(rawToken);
+    public Task<string> BuildContactChangeCancelUrl(Guid tenantId, string rawToken) => Task.FromResult(rawToken);
+    public Task<string> BuildRecoveryUrl(Guid tenantId, string rawToken) => Task.FromResult(rawToken);
     public string BuildInviteAcceptUrl(string rawToken) => rawToken;
 }
 

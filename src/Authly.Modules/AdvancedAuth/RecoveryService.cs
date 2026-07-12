@@ -97,7 +97,7 @@ public sealed class RecoveryService : IRecoveryService
             CreatedAt = DateTimeOffset.UtcNow
         }, ct);
 
-        var url = _urls.BuildRecoveryUrl(tenantId, raw);
+        var url = await _urls.BuildRecoveryUrl(tenantId, raw);
         var name = NameOf(user);
 
         // Notify EVERY recovery channel: the account email plus all recovery contacts.

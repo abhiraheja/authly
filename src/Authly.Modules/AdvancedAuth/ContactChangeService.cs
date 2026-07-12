@@ -72,7 +72,7 @@ public sealed class ContactChangeService : IContactChangeService
         }, ct);
 
         // 1) Confirmation to the NEW contact (email link, or WhatsApp link for a phone).
-        var verifyUrl = _urls.BuildContactChangeVerifyUrl(tenantId, rawVerify);
+        var verifyUrl = await _urls.BuildContactChangeVerifyUrl(tenantId, rawVerify);
         var name = NameOf(user);
         if (type == ContactType.Email)
         {
@@ -92,12 +92,13 @@ public sealed class ContactChangeService : IContactChangeService
         }
 
         // 2) Alert the OLD contact (the account email) with a cancel link.
+        var cancelUrl = await _urls.BuildContactChangeCancelUrl(tenantId, rawCancel);
         _messages.Enqueue(new MessageSendRequest(tenantId, MessageTemplateKeys.ContactChangeAlert,
             MessageChannel.Email, user.Email, new Dictionary<string, string>
             {
                 ["user_name"] = name,
                 ["contact_type"] = type == ContactType.Email ? "email address" : "phone number",
-                ["action_url"] = _urls.BuildContactChangeCancelUrl(tenantId, rawCancel)
+                ["action_url"] = cancelUrl
             }));
 
         await _audit.LogAsync("user.contact_change_requested", Actor(userId, info), tenantId,

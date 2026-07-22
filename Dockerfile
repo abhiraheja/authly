@@ -6,9 +6,13 @@ WORKDIR /src
 
 # Node.js for the SAARVIX Tailwind build (MSBuild runs `npm ci` + `npm run build:css`
 # during publish, compiling wwwroot/css/saarvix.css so the image ships CSS offline).
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends nodejs npm \
-    && rm -rf /var/lib/apt/lists/*
+# Pulled from the official Node image instead of `apt-get install nodejs npm`, so a flaky/mid-sync
+# Ubuntu package mirror can never break the build (the recurring "File has unexpected size — Mirror
+# sync in progress?" apt failure). glibc-compatible: Debian-bookworm node runs fine on the SDK image.
+COPY --from=node:20-bookworm-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:20-bookworm-slim /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && node --version && npm --version
 
 # Copy solution + project files first for layer-cached restore
 COPY Authly.slnx ./

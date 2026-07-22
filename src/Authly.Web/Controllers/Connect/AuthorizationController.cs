@@ -149,18 +149,17 @@ public sealed class AuthorizationController : Controller
 
         // Machine-to-machine tokens also get tenant custom claims + pre-token hook claims (no user
         // metadata to map, but static claims and webhook claims still apply).
-        // company_id: an OPTIONAL caller-supplied token-request parameter (OpenIddict preserves unknown
-        // parameters). It lets a trusted first-party service mint a company-scoped token (the pre-token
-        // hook validates the client + emits company_id/role/permissions/products for that company). It is
-        // forwarded to the hook only — never trusted as a claim directly; a hook that ignores it (or an
-        // untrusted client) simply yields no company claims.
+        // `parameters` forwards the caller's NON-STANDARD token-request parameters to the pre-token hook
+        // as an opaque bag. Authly attaches no meaning to any of them — a hook decides what (if anything)
+        // a given key means (e.g. a multi-tenant app naming the account a machine token acts for). Values
+        // are never trusted as claims directly; a hook that ignores them yields no extra claims.
         var payload = new
         {
             sub = application.ClientId,
             client_id = application.ClientId,
             tenant_id = application.TenantId.ToString(),
             scopes = request.GetScopes().ToArray(),
-            company_id = (string?)request.GetParameter("company_id")
+            parameters = CustomTokenParameters(request)
         };
         var (blocked, reason, idClaimNames) = await ApplyCustomClaimsAsync(
             identity, application.TenantId, application.Id, userMetadataJson: null, appMetadataJson: null, payload, ct);
@@ -173,6 +172,35 @@ public sealed class AuthorizationController : Controller
         identity.SetDestinations(claim => DestinationsFor(claim, idClaimNames));
 
         return SignIn(principal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+    }
+
+    // Standard OAuth 2.0 / OIDC token-endpoint request parameters. These are protocol/credential fields
+    // Authly handles itself — they are NEVER forwarded to a pre-token hook (client_secret must not leak,
+    // and the rest carry no application meaning). Everything else a caller sends is treated as opaque.
+    private static readonly HashSet<string> ReservedTokenParameters = new(StringComparer.Ordinal)
+    {
+        Parameters.GrantType, Parameters.ClientId, Parameters.ClientSecret, Parameters.ClientAssertion,
+        Parameters.ClientAssertionType, Parameters.Code, Parameters.CodeVerifier, Parameters.RedirectUri,
+        Parameters.RefreshToken, Parameters.Scope, Parameters.Resource, Parameters.Audience,
+        Parameters.Username, Parameters.Password, Parameters.Assertion, Parameters.DeviceCode,
+    };
+
+    // Collects the caller's NON-STANDARD token-request parameters into an opaque bag forwarded to the
+    // pre-token hook. Authly assigns no meaning to any key — a hook interprets them (e.g. resolving the
+    // account a multi-tenant machine token acts for). Reserved protocol/credential parameters are excluded
+    // so no secret or protocol field ever reaches hook input.
+    private static Dictionary<string, string> CustomTokenParameters(OpenIddictRequest request)
+    {
+        var custom = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var parameter in request.GetParameters())
+        {
+            if (ReservedTokenParameters.Contains(parameter.Key))
+                continue;
+            var value = (string?)parameter.Value;
+            if (!string.IsNullOrEmpty(value))
+                custom[parameter.Key] = value;
+        }
+        return custom;
     }
 
     private async Task<IActionResult> ExchangeUserGrantAsync(OpenIddictRequest request, CancellationToken ct)

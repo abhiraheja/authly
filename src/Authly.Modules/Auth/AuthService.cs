@@ -264,6 +264,17 @@ public sealed class AuthService : IAuthService
         await _sessions.UpdateAsync(session, ct);
     }
 
+    public async Task TouchSessionAsync(Guid sessionId, CancellationToken ct = default)
+    {
+        var session = await _sessions.GetByIdAsync(sessionId, ct);
+        if (session is null || session.Revoked)
+            return; // never slide a revoked/expired-away row back to life
+        var now = DateTimeOffset.UtcNow;
+        session.LastActiveAt = now;
+        session.ExpiresAt = now.Add(SessionLifetime);
+        await _sessions.UpdateAsync(session, ct);
+    }
+
     // --- helpers ---
 
     private async Task<Session> CreateSessionAsync(User user, RequestInfo info, CancellationToken ct)

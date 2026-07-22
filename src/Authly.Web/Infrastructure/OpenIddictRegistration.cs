@@ -21,6 +21,17 @@ public static class OpenIddictRegistration
         var disableAccessTokenEncryption =
             configuration.GetValue<bool?>("Authly:Tokens:DisableAccessTokenEncryption") ?? isDevelopment;
 
+        // The access-token lifetime is the hard ceiling on how quickly a revoked session, a
+        // suspended/deleted user, or a role change becomes effective for a relying app: the token is a
+        // self-contained JWT verified offline against JWKS, so it cannot be revoked mid-flight — it must
+        // expire. Keep it short; the refresh path (AuthorizationController.ExchangeUserGrantAsync)
+        // re-checks the session + account + RBAC on every rotation, so a short access token bounds the
+        // window without forcing frequent full re-logins. Config-overridable (minutes); default 5.
+        var accessTokenLifetime = TimeSpan.FromMinutes(
+            configuration.GetValue<int?>("Authly:Tokens:AccessTokenLifetimeMinutes") ?? 5);
+        var refreshTokenLifetime = TimeSpan.FromDays(
+            configuration.GetValue<int?>("Authly:Tokens:RefreshTokenLifetimeDays") ?? 14);
+
         services.AddOpenIddict()
             .AddCore(options =>
             {
@@ -54,8 +65,8 @@ public static class OpenIddictRegistration
                 // Refresh-token rotation: a fresh refresh token is issued on each use and the old
                 // one is one-time. Reuse of a redeemed token is rejected and the associated
                 // authorization's tokens are revoked (theft detection — the "family" guarantee).
-                options.SetAccessTokenLifetime(TimeSpan.FromHours(1));
-                options.SetRefreshTokenLifetime(TimeSpan.FromDays(14));
+                options.SetAccessTokenLifetime(accessTokenLifetime);
+                options.SetRefreshTokenLifetime(refreshTokenLifetime);
 
                 var aspNetCore = options.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()

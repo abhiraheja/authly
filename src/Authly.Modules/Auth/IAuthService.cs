@@ -46,6 +46,11 @@ public interface IAuthService
     /// <summary>Returns the session if it is active (exists, not revoked, not expired); null otherwise.</summary>
     Task<Session?> GetActiveSessionAsync(Guid sessionId, CancellationToken ct = default);
 
+    /// <summary>Extends an active session's expiry + last-active time. Called on OAuth token refresh so
+    /// an active client keeps its login alive (mirrors refresh-token rotation). No-op if the session is
+    /// missing or already revoked — so it never resurrects a revoked session.</summary>
+    Task TouchSessionAsync(Guid sessionId, CancellationToken ct = default);
+
     /// <summary>Revokes a session (logout).</summary>
     Task RevokeSessionAsync(Guid sessionId, CancellationToken ct = default);
 }

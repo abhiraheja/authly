@@ -1,8 +1,10 @@
 using System.Collections.Immutable;
 using System.Security.Claims;
 using Microsoft.AspNetCore; // OpenIddictServerAspNetCoreHelpers.GetOpenIddictServerRequest
+using Authly.Core.Entities;
 using Authly.Core.Enums;
 using Authly.Core.Interfaces;
+using Authly.Modules.Auth;
 using Authly.Modules.Authorization;
 using Authly.Modules.Claims;
 using Authly.Web.Infrastructure;
@@ -28,15 +30,17 @@ public sealed class AuthorizationController : Controller
     private readonly IRbacService _rbac;
     private readonly ITokenClaimAssembler _claims;
     private readonly ITenantContext _tenant;
+    private readonly IAuthService _auth;
 
     public AuthorizationController(IApplicationRepository applications, IUserRepository users, IRbacService rbac,
-        ITokenClaimAssembler claims, ITenantContext tenant)
+        ITokenClaimAssembler claims, ITenantContext tenant, IAuthService auth)
     {
         _applications = applications;
         _users = users;
         _rbac = rbac;
         _claims = claims;
         _tenant = tenant;
+        _auth = auth;
     }
 
     // --- Authorization endpoint (Authorization Code + PKCE) ---
@@ -91,35 +95,13 @@ public sealed class AuthorizationController : Controller
             return Forbid(properties: ErrorProps(Errors.AccessDenied, "Account not found."),
                 authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
 
-        var identity = new ClaimsIdentity(
-            authenticationType: TokenValidationParametersScheme,
-            nameType: Claims.Name,
-            roleType: Claims.Role);
+        // Bind the issued tokens to this login session (the `sid` claim). Revoking that session —
+        // from the portal, or via the cascade when the user is suspended/deleted — then invalidates the
+        // tokens at the next refresh (see ExchangeUserGrantAsync). Absent for logins with no session row.
+        var sessionId = auth.Principal.FindFirstValue(UserClaims.SessionId);
 
-        identity.SetClaim(Claims.Subject, user.Id.ToString())
-            .SetClaim(Claims.Email, user.Email)
-            .SetClaim(Claims.EmailVerified, user.EmailVerified.ToString().ToLowerInvariant())
-            .SetClaim(Claims.Name, DisplayName(user.FirstName, user.LastName, user.Email))
-            // Standard OIDC profile claim; SetClaim no-ops on a null/empty avatar.
-            .SetClaim(Claims.Picture, user.AvatarUrl)
-            .SetClaim(TenantClaim, application.TenantId.ToString());
-
-        // RBAC: inject the user's effective roles + flattened permissions (§5.6).
-        var authorization = await _rbac.GetUserAuthorizationAsync(application.TenantId, user.Id, ct);
-        identity.SetClaims(Claims.Role, authorization.Roles.ToImmutableArray());
-        identity.SetClaims(PermissionsClaim, authorization.Permissions.ToImmutableArray());
-
-        // §5.6 steps 2–4: tenant custom claims (static + metadata) and pre-token webhook claims.
-        var payload = new
-        {
-            sub = user.Id.ToString(),
-            email = user.Email,
-            tenant_id = application.TenantId.ToString(),
-            client_id = application.ClientId,
-            scopes = request.GetScopes().ToArray()
-        };
-        var (blocked, reason, idClaimNames) = await ApplyCustomClaimsAsync(
-            identity, application.TenantId, application.Id, user.UserMetadata, user.AppMetadata, payload, ct);
+        var (identity, blocked, reason, idClaimNames) =
+            await BuildUserIdentityAsync(application, user, request.GetScopes(), sessionId, ct);
         if (blocked)
             return Forbid(properties: ErrorProps(Errors.AccessDenied, reason ?? "Token issuance was blocked by a pipeline hook."),
                 authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
@@ -145,7 +127,7 @@ public sealed class AuthorizationController : Controller
             return await ExchangeClientCredentialsAsync(request, ct);
 
         if (request.IsAuthorizationCodeGrantType() || request.IsRefreshTokenGrantType())
-            return await ExchangeUserGrantAsync(ct);
+            return await ExchangeUserGrantAsync(request, ct);
 
         throw new InvalidOperationException("The specified grant type is not supported.");
     }
@@ -167,12 +149,18 @@ public sealed class AuthorizationController : Controller
 
         // Machine-to-machine tokens also get tenant custom claims + pre-token hook claims (no user
         // metadata to map, but static claims and webhook claims still apply).
+        // company_id: an OPTIONAL caller-supplied token-request parameter (OpenIddict preserves unknown
+        // parameters). It lets a trusted first-party service mint a company-scoped token (the pre-token
+        // hook validates the client + emits company_id/role/permissions/products for that company). It is
+        // forwarded to the hook only — never trusted as a claim directly; a hook that ignores it (or an
+        // untrusted client) simply yields no company claims.
         var payload = new
         {
             sub = application.ClientId,
             client_id = application.ClientId,
             tenant_id = application.TenantId.ToString(),
-            scopes = request.GetScopes().ToArray()
+            scopes = request.GetScopes().ToArray(),
+            company_id = (string?)request.GetParameter("company_id")
         };
         var (blocked, reason, idClaimNames) = await ApplyCustomClaimsAsync(
             identity, application.TenantId, application.Id, userMetadataJson: null, appMetadataJson: null, payload, ct);
@@ -187,7 +175,7 @@ public sealed class AuthorizationController : Controller
         return SignIn(principal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
 
-    private async Task<IActionResult> ExchangeUserGrantAsync(CancellationToken ct)
+    private async Task<IActionResult> ExchangeUserGrantAsync(OpenIddictRequest request, CancellationToken ct)
     {
         // Principal restored from the authorization code / refresh token by OpenIddict.
         var result = await HttpContext.AuthenticateAsync(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
@@ -196,27 +184,75 @@ public sealed class AuthorizationController : Controller
 
         var tenant = principal.FindFirstValue(TenantClaim);
         var subject = principal.FindFirstValue(Claims.Subject);
+        var sessionGuid = Guid.TryParse(principal.FindFirstValue(SessionIdClaim), out var parsedSid)
+            ? parsedSid : (Guid?)null;
 
-        // Re-check the account each refresh: a suspended/deleted user must lose access immediately.
-        if (Guid.TryParse(tenant, out var tenantId) && Guid.TryParse(subject, out var userId))
+        // Without an identifiable account there's nothing to re-check (defensive — user grants always
+        // carry sub + tenant). Pass the stored principal through unchanged.
+        if (!Guid.TryParse(tenant, out var tenantId) || !Guid.TryParse(subject, out var userId))
+            return PassThrough(principal);
+
+        // A PKCE/refresh token exchange is a cookie-less form POST, so TenantResolutionMiddleware can't
+        // resolve the tenant (it reads host/header/query/cookie, never the form body). Set it from the
+        // token's own tenant claim so the RLS backstop (app.current_tenant) lets the lookups see the row.
+        _tenant.SetTenant(tenantId);
+
+        // 1. Account still active? A suspended/deleted user must lose access at the next refresh.
+        var user = await _users.GetByIdAsync(tenantId, userId, ct);
+        if (user is null || user.Status is UserStatus.Suspended or UserStatus.Deleted)
+            return Forbid(
+                properties: ErrorProps(Errors.InvalidGrant, "The account is no longer active."),
+                authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+
+        // 2. Session still alive? Enforced only when the token carries a session id — tokens minted
+        // before session binding fall back to the account check above. A revoked session (portal
+        // "sign out device", or the cascade on user suspend/delete) fails the refresh here.
+        if (sessionGuid is { } sid && await _auth.GetActiveSessionAsync(sid, ct) is null)
+            return Forbid(
+                properties: ErrorProps(Errors.InvalidGrant, "The session is no longer active."),
+                authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+
+        // 3. On refresh, re-derive authorization from current state so a role/permission/company change
+        // takes effect within the access-token lifetime. (The auth-code exchange already carries fresh
+        // claims straight from Authorize, so only the refresh grant needs the rebuild.)
+        if (request.IsRefreshTokenGrantType())
         {
-            // A PKCE token exchange is a cookie-less form POST, so TenantResolutionMiddleware can't
-            // resolve the tenant (it reads host/header/query/cookie, never the form body). Set it from
-            // the code's own tenant claim so the RLS backstop (app.current_tenant) lets the lookup see
-            // the row — otherwise GetByIdAsync returns null and the grant is wrongly rejected as inactive.
-            _tenant.SetTenant(tenantId);
-            var user = await _users.GetByIdAsync(tenantId, userId, ct);
-            if (user is null || user.Status is Core.Enums.UserStatus.Suspended or Core.Enums.UserStatus.Deleted)
+            var application = await _applications.GetByClientIdAsync(request.ClientId!, ct);
+            if (application is not null)
             {
-                return Forbid(
-                    properties: ErrorProps(Errors.InvalidGrant, "The account is no longer active."),
-                    authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+                var (identity, blocked, _, idClaimNames) = await BuildUserIdentityAsync(
+                    application, user, principal.GetScopes(), sessionGuid?.ToString(), ct);
+
+                // If the hook blocked — usually a transient hook outage under OnFailure=Block — don't
+                // log the user out on a refresh: fall back to the last-known-good stored claims. The
+                // hard gates (account status + session) above still apply; a role change simply waits
+                // for the next successful refresh.
+                if (!blocked)
+                {
+                    var refreshed = new ClaimsPrincipal(identity);
+                    refreshed.SetScopes(principal.GetScopes());
+                    identity.SetDestinations(claim => DestinationsFor(claim, idClaimNames));
+
+                    // Slide the session so an active client keeps its login alive (mirrors refresh-token
+                    // rotation). Revocation still wins — TouchSessionAsync no-ops on a revoked row.
+                    if (sessionGuid is { } touch) await _auth.TouchSessionAsync(touch, ct);
+                    return SignIn(refreshed, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+                }
             }
+
+            // App vanished, or the hook blocked: keep the session sliding and replay stored claims.
+            if (sessionGuid is { } touchFallback) await _auth.TouchSessionAsync(touchFallback, ct);
         }
 
+        return PassThrough(principal);
+    }
+
+    /// <summary>Re-signs the stored principal unchanged (auth-code exchange, or a refresh that falls
+    /// back to last-known-good claims), routing each claim to its token per the granted scopes.</summary>
+    private IActionResult PassThrough(ClaimsPrincipal principal)
+    {
         foreach (var identity in principal.Identities)
             identity.SetDestinations(GetDestinations);
-
         return SignIn(principal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
 
@@ -270,6 +306,9 @@ public sealed class AuthorizationController : Controller
 
     private const string TenantClaim = "tenant_id";
     private const string PermissionsClaim = "permissions";
+    // Standard OIDC session-id claim. Binds a token to its login session so session revocation can be
+    // enforced on refresh; also the claim RP-initiated / back-channel logout keys off.
+    private const string SessionIdClaim = "sid";
     private const string TokenValidationParametersScheme = OpenIddictServerAspNetCoreDefaults.AuthenticationScheme;
 
     private static AuthenticationProperties ErrorProps(string error, string description) => new(new Dictionary<string, string?>
@@ -288,7 +327,7 @@ public sealed class AuthorizationController : Controller
     private static readonly HashSet<string> ReservedClaimNames = new(StringComparer.Ordinal)
     {
         Claims.Subject, Claims.Issuer, Claims.Audience, Claims.ExpiresAt, Claims.IssuedAt, Claims.NotBefore,
-        Claims.Email, Claims.EmailVerified, Claims.Name, Claims.Role, TenantClaim, PermissionsClaim
+        Claims.Email, Claims.EmailVerified, Claims.Name, Claims.Role, TenantClaim, PermissionsClaim, SessionIdClaim
     };
 
     // The authorization claims a pre-token hook MAY override even though they're reserved: external
@@ -305,6 +344,50 @@ public sealed class AuthorizationController : Controller
     private static bool CanWriteCustomClaim(string name, IReadOnlySet<string>? hookClaimNames)
         => !ReservedClaimNames.Contains(name)
            || (hookClaimNames is { } h && h.Contains(name) && HookOverridableClaims.Contains(name));
+
+    /// <summary>
+    /// Builds the end-user token identity (§5.6): standard profile claims, the session-binding
+    /// <c>sid</c> claim, RBAC roles/permissions, and tenant custom + pre-token-hook claims. Shared by
+    /// the initial authorization and by refresh, so refresh re-derives roles/permissions/hook claims
+    /// from current state instead of replaying the frozen ones captured at login.
+    /// </summary>
+    private async Task<(ClaimsIdentity Identity, bool Blocked, string? Reason, HashSet<string> IdClaimNames)>
+        BuildUserIdentityAsync(Application application, User user, IEnumerable<string> scopes, string? sessionId, CancellationToken ct)
+    {
+        var identity = new ClaimsIdentity(
+            authenticationType: TokenValidationParametersScheme,
+            nameType: Claims.Name,
+            roleType: Claims.Role);
+
+        identity.SetClaim(Claims.Subject, user.Id.ToString())
+            .SetClaim(Claims.Email, user.Email)
+            .SetClaim(Claims.EmailVerified, user.EmailVerified.ToString().ToLowerInvariant())
+            .SetClaim(Claims.Name, DisplayName(user.FirstName, user.LastName, user.Email))
+            // Standard OIDC profile claim; SetClaim no-ops on a null/empty avatar.
+            .SetClaim(Claims.Picture, user.AvatarUrl)
+            .SetClaim(TenantClaim, application.TenantId.ToString())
+            // Session binding: SetClaim no-ops on a null/empty session id (logins with no session row).
+            .SetClaim(SessionIdClaim, sessionId);
+
+        // RBAC: inject the user's effective roles + flattened permissions (§5.6).
+        var authorization = await _rbac.GetUserAuthorizationAsync(application.TenantId, user.Id, ct);
+        identity.SetClaims(Claims.Role, authorization.Roles.ToImmutableArray());
+        identity.SetClaims(PermissionsClaim, authorization.Permissions.ToImmutableArray());
+
+        // §5.6 steps 2–4: tenant custom claims (static + metadata) and pre-token webhook claims.
+        var payload = new
+        {
+            sub = user.Id.ToString(),
+            email = user.Email,
+            tenant_id = application.TenantId.ToString(),
+            client_id = application.ClientId,
+            scopes = scopes.ToArray()
+        };
+        var (blocked, reason, idClaimNames) = await ApplyCustomClaimsAsync(
+            identity, application.TenantId, application.Id, user.UserMetadata, user.AppMetadata, payload, ct);
+
+        return (identity, blocked, reason, idClaimNames);
+    }
 
     /// <summary>
     /// Assembles tenant custom claims (§5.6 steps 2–4) and writes them onto the identity. Pre-token
@@ -375,6 +458,13 @@ public sealed class AuthorizationController : Controller
                 yield break;
 
             case TenantClaim:
+                yield return Destinations.AccessToken;
+                yield return Destinations.IdentityToken;
+                yield break;
+
+            // Session id: needed in both tokens — the access token so it survives the refresh round-trip
+            // (session-revocation enforcement reads it back), the id token per standard OIDC logout.
+            case SessionIdClaim:
                 yield return Destinations.AccessToken;
                 yield return Destinations.IdentityToken;
                 yield break;

@@ -32,8 +32,18 @@ public sealed class AuthorizationController : Controller
     private readonly ITenantContext _tenant;
     private readonly IAuthService _auth;
 
+    // The token claim under which the login session is bound (session-revocation enforcement reads it
+    // back on refresh). Defaults to the OIDC-standard `sid`; configurable so a deployment whose token
+    // contract already assigns a different meaning to `sid` (e.g. a legacy per-user id) can move the
+    // session binding off it without a fork. Writer + reader + reserved-set are all derived from this.
+    private readonly string _sessionIdClaim;
+    // Standard/reserved claims are owned by §5.6 step 1 and must not be clobbered by custom claims.
+    // Built per-instance because the session-id claim name is configurable (see _sessionIdClaim): when
+    // it is moved off `sid`, `sid` is no longer reserved and a pre-token hook may own it.
+    private readonly HashSet<string> _reservedClaimNames;
+
     public AuthorizationController(IApplicationRepository applications, IUserRepository users, IRbacService rbac,
-        ITokenClaimAssembler claims, ITenantContext tenant, IAuthService auth)
+        ITokenClaimAssembler claims, ITenantContext tenant, IAuthService auth, IConfiguration configuration)
     {
         _applications = applications;
         _users = users;
@@ -41,6 +51,14 @@ public sealed class AuthorizationController : Controller
         _claims = claims;
         _tenant = tenant;
         _auth = auth;
+
+        var configured = configuration["Authly:Tokens:SessionIdClaimName"];
+        _sessionIdClaim = string.IsNullOrWhiteSpace(configured) ? DefaultSessionIdClaim : configured.Trim();
+        _reservedClaimNames = new HashSet<string>(StringComparer.Ordinal)
+        {
+            Claims.Subject, Claims.Issuer, Claims.Audience, Claims.ExpiresAt, Claims.IssuedAt, Claims.NotBefore,
+            Claims.Email, Claims.EmailVerified, Claims.Name, Claims.Role, TenantClaim, PermissionsClaim, _sessionIdClaim
+        };
     }
 
     // --- Authorization endpoint (Authorization Code + PKCE) ---
@@ -212,7 +230,7 @@ public sealed class AuthorizationController : Controller
 
         var tenant = principal.FindFirstValue(TenantClaim);
         var subject = principal.FindFirstValue(Claims.Subject);
-        var sessionGuid = Guid.TryParse(principal.FindFirstValue(SessionIdClaim), out var parsedSid)
+        var sessionGuid = Guid.TryParse(principal.FindFirstValue(_sessionIdClaim), out var parsedSid)
             ? parsedSid : (Guid?)null;
 
         // Without an identifiable account there's nothing to re-check (defensive — user grants always
@@ -334,9 +352,10 @@ public sealed class AuthorizationController : Controller
 
     private const string TenantClaim = "tenant_id";
     private const string PermissionsClaim = "permissions";
-    // Standard OIDC session-id claim. Binds a token to its login session so session revocation can be
-    // enforced on refresh; also the claim RP-initiated / back-channel logout keys off.
-    private const string SessionIdClaim = "sid";
+    // Default OIDC session-id claim name. Binds a token to its login session so session revocation can
+    // be enforced on refresh; also the claim RP-initiated / back-channel logout keys off. Overridable
+    // per-deployment via Authly:Tokens:SessionIdClaimName — see _sessionIdClaim.
+    private const string DefaultSessionIdClaim = "sid";
     private const string TokenValidationParametersScheme = OpenIddictServerAspNetCoreDefaults.AuthenticationScheme;
 
     private static AuthenticationProperties ErrorProps(string error, string description) => new(new Dictionary<string, string?>
@@ -351,13 +370,6 @@ public sealed class AuthorizationController : Controller
         return string.IsNullOrEmpty(name) ? fallbackEmail : name;
     }
 
-    // Standard/reserved claims are owned by §5.6 step 1 and must not be clobbered by custom claims.
-    private static readonly HashSet<string> ReservedClaimNames = new(StringComparer.Ordinal)
-    {
-        Claims.Subject, Claims.Issuer, Claims.Audience, Claims.ExpiresAt, Claims.IssuedAt, Claims.NotBefore,
-        Claims.Email, Claims.EmailVerified, Claims.Name, Claims.Role, TenantClaim, PermissionsClaim, SessionIdClaim
-    };
-
     // The authorization claims a pre-token hook MAY override even though they're reserved: external
     // RBAC via hook (roles/permissions resolved by an upstream system) is a first-class, generic use
     // case. Identity/protocol claims (sub, email, name, tenant_id, …) stay hook-proof — a hook must
@@ -369,8 +381,8 @@ public sealed class AuthorizationController : Controller
 
     // A custom claim may be written when it isn't reserved at all; a reserved claim may be written
     // only when a pre-token hook produced it AND it's an authorization claim hooks are allowed to own.
-    private static bool CanWriteCustomClaim(string name, IReadOnlySet<string>? hookClaimNames)
-        => !ReservedClaimNames.Contains(name)
+    private bool CanWriteCustomClaim(string name, IReadOnlySet<string>? hookClaimNames)
+        => !_reservedClaimNames.Contains(name)
            || (hookClaimNames is { } h && h.Contains(name) && HookOverridableClaims.Contains(name));
 
     /// <summary>
@@ -395,7 +407,7 @@ public sealed class AuthorizationController : Controller
             .SetClaim(Claims.Picture, user.AvatarUrl)
             .SetClaim(TenantClaim, application.TenantId.ToString())
             // Session binding: SetClaim no-ops on a null/empty session id (logins with no session row).
-            .SetClaim(SessionIdClaim, sessionId);
+            .SetClaim(_sessionIdClaim, sessionId);
 
         // RBAC: inject the user's effective roles + flattened permissions (§5.6).
         var authorization = await _rbac.GetUserAuthorizationAsync(application.TenantId, user.Id, ct);
@@ -448,7 +460,7 @@ public sealed class AuthorizationController : Controller
         return (false, null, idClaimNames);
     }
 
-    private static IEnumerable<string> DestinationsFor(Claim claim, HashSet<string> idClaimNames)
+    private IEnumerable<string> DestinationsFor(Claim claim, HashSet<string> idClaimNames)
     {
         if (idClaimNames.Contains(claim.Type))
         {
@@ -461,8 +473,18 @@ public sealed class AuthorizationController : Controller
     }
 
     /// <summary>Routes each claim to the access token and/or identity token per the granted scopes.</summary>
-    private static IEnumerable<string> GetDestinations(Claim claim)
+    private IEnumerable<string> GetDestinations(Claim claim)
     {
+        // Session id: needed in both tokens — the access token so it survives the refresh round-trip
+        // (session-revocation enforcement reads it back), the id token per standard OIDC logout. Handled
+        // as an if (not a switch case) because the claim name is configurable (see _sessionIdClaim).
+        if (claim.Type == _sessionIdClaim)
+        {
+            yield return Destinations.AccessToken;
+            yield return Destinations.IdentityToken;
+            yield break;
+        }
+
         switch (claim.Type)
         {
             case Claims.Name:
@@ -486,13 +508,6 @@ public sealed class AuthorizationController : Controller
                 yield break;
 
             case TenantClaim:
-                yield return Destinations.AccessToken;
-                yield return Destinations.IdentityToken;
-                yield break;
-
-            // Session id: needed in both tokens — the access token so it survives the refresh round-trip
-            // (session-revocation enforcement reads it back), the id token per standard OIDC logout.
-            case SessionIdClaim:
                 yield return Destinations.AccessToken;
                 yield return Destinations.IdentityToken;
                 yield break;

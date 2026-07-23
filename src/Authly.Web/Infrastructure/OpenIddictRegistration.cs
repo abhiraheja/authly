@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using Authly.Infrastructure.Data;
 
 namespace Authly.Web.Infrastructure;
@@ -11,8 +13,10 @@ namespace Authly.Web.Infrastructure;
 public static class OpenIddictRegistration
 {
     public static IServiceCollection AddAuthlyOpenIddict(
-        this IServiceCollection services, bool isDevelopment, IConfiguration configuration)
+        this IServiceCollection services, IWebHostEnvironment environment, IConfiguration configuration)
     {
+        var isDevelopment = environment.IsDevelopment();
+
         // By default OpenIddict issues ENCRYPTED (JWE) access tokens, which third-party resource
         // servers can't read with only the JWKS signing key. Setting this flag makes the access
         // token a plain signed JWT (still RS256/JWKS-verifiable) so resource servers can read its
@@ -31,6 +35,14 @@ public static class OpenIddictRegistration
             configuration.GetValue<int?>("Authly:Tokens:AccessTokenLifetimeMinutes") ?? 5);
         var refreshTokenLifetime = TimeSpan.FromDays(
             configuration.GetValue<int?>("Authly:Tokens:RefreshTokenLifetimeDays") ?? 14);
+
+        // Resolve stable signing + encryption certificates. These MUST survive process restarts and be
+        // identical across replicas, otherwise the JWKS a resource server fetches won't contain the key
+        // (kid) that signed a still-valid token → "no JWKS key for kid" 401s. See ResolveCertificate.
+        var signingCertificate = ResolveCertificate(
+            environment, configuration, kind: "Signing", X509KeyUsageFlags.DigitalSignature);
+        var encryptionCertificate = ResolveCertificate(
+            environment, configuration, kind: "Encryption", X509KeyUsageFlags.KeyEncipherment);
 
         services.AddOpenIddict()
             .AddCore(options =>
@@ -68,6 +80,12 @@ public static class OpenIddictRegistration
                 options.SetAccessTokenLifetime(accessTokenLifetime);
                 options.SetRefreshTokenLifetime(refreshTokenLifetime);
 
+                // Persisted keys (see ResolveCertificate) instead of the per-instance, per-restart
+                // development certificates — those regenerate a new thumbprint (kid) on every restart
+                // and differ across replicas, which invalidates outstanding tokens against JWKS.
+                options.AddSigningCertificate(signingCertificate)
+                    .AddEncryptionCertificate(encryptionCertificate);
+
                 var aspNetCore = options.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()
                     .EnableTokenEndpointPassthrough()
@@ -76,17 +94,8 @@ public static class OpenIddictRegistration
 
                 if (isDevelopment)
                 {
-                    // Dev-only: ephemeral certs + allow HTTP. Production must use persisted
-                    // signing/encryption keys (managed/rotated by super admin) and HTTPS.
-                    options.AddDevelopmentEncryptionCertificate()
-                        .AddDevelopmentSigningCertificate();
+                    // Dev-only: allow plain HTTP so local runs work without TLS.
                     aspNetCore.DisableTransportSecurityRequirement();
-                }
-                else
-                {
-                    options.AddDevelopmentEncryptionCertificate()
-                        .AddDevelopmentSigningCertificate();
-                    // TODO(Phase 3 hardening): replace with persisted X.509 keys + rotation.
                 }
             })
             .AddValidation(options =>
@@ -96,5 +105,60 @@ public static class OpenIddictRegistration
             });
 
         return services;
+    }
+
+    /// <summary>
+    /// Resolves a stable X.509 certificate for OpenIddict signing/encryption.
+    /// <para>
+    /// Resolution order:
+    /// <list type="number">
+    /// <item>A managed certificate supplied via configuration
+    /// (<c>Authly:Keys:{kind}CertificatePath</c> + optional <c>...Password</c>) — production path.</item>
+    /// <item>Otherwise a self-signed certificate persisted as a PKCS#12 file under the key directory
+    /// (<c>Authly:Keys:Directory</c>, default <c>{ContentRoot}/keys</c>). Generated once and reused on
+    /// every start, so the thumbprint/kid stays constant across restarts.</item>
+    /// </list>
+    /// Mount the key directory on a persistent (and, for multi-replica deployments, shared) volume so the
+    /// keys survive redeploys and every instance signs with — and publishes — the same key.
+    /// </para>
+    /// </summary>
+    private static X509Certificate2 ResolveCertificate(
+        IWebHostEnvironment environment, IConfiguration configuration, string kind, X509KeyUsageFlags keyUsage)
+    {
+        // Container/prod: an operator-managed PFX takes precedence when provided.
+        var configuredPath = configuration[$"Authly:Keys:{kind}CertificatePath"];
+        if (!string.IsNullOrWhiteSpace(configuredPath))
+        {
+            var password = configuration[$"Authly:Keys:{kind}CertificatePassword"];
+            return X509CertificateLoader.LoadPkcs12FromFile(
+                configuredPath, password, X509KeyStorageFlags.EphemeralKeySet | X509KeyStorageFlags.Exportable);
+        }
+
+        // Otherwise persist an auto-generated cert to disk so it is reused on the next start.
+        var keyDirectory = configuration["Authly:Keys:Directory"];
+        if (string.IsNullOrWhiteSpace(keyDirectory))
+            keyDirectory = Path.Combine(environment.ContentRootPath, "keys");
+
+        Directory.CreateDirectory(keyDirectory);
+        var pfxPath = Path.Combine(keyDirectory, $"{kind.ToLowerInvariant()}.pfx");
+
+        if (File.Exists(pfxPath))
+        {
+            return X509CertificateLoader.LoadPkcs12FromFile(
+                pfxPath, password: null, X509KeyStorageFlags.EphemeralKeySet | X509KeyStorageFlags.Exportable);
+        }
+
+        using var rsa = RSA.Create(2048);
+        var request = new CertificateRequest(
+            $"CN=Authly {kind} Certificate", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        request.CertificateExtensions.Add(new X509KeyUsageExtension(keyUsage, critical: true));
+
+        using var generated = request.CreateSelfSigned(
+            DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(10));
+        var pfxBytes = generated.Export(X509ContentType.Pfx);
+        File.WriteAllBytes(pfxPath, pfxBytes);
+
+        return X509CertificateLoader.LoadPkcs12(
+            pfxBytes, password: null, X509KeyStorageFlags.EphemeralKeySet | X509KeyStorageFlags.Exportable);
     }
 }

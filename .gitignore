@@ -9,3 +9,7 @@
 # Node / Tailwind build
 node_modules/
 obj
+
+# Locally generated OIDC signing/encryption certs + Data Protection keyring (never commit)
+keys/
+*.pfx

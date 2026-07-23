@@ -49,6 +49,14 @@ services:
       # Saarvix overloads `sid` as the user's legacy Mongo ObjectId — move OIDC session binding
       # off it so it doesn't clobber the pre-token hook's user-id sid. Unset = "sid" (OIDC default).
       - Authly__Tokens__SessionIdClaimName=session_id
+      # OIDC signing/encryption certs + Data Protection keyring live here, on the `authlykeys`
+      # volume below, so they survive restarts/redeploys. If these keys are ephemeral, the JWKS
+      # `kid` changes on every restart and resource servers reject still-valid tokens with
+      # "no JWKS key for kid". For multiple replicas this volume must be shared across them
+      # (or supply a managed cert via Authly__Keys__SigningCertificatePath).
+      - Authly__Keys__Directory=/keys
+    volumes:
+      - authlykeys:/keys
     ports:
       - "${APP_PORT:-8080}:8080"
     depends_on:
@@ -141,5 +149,6 @@ services:
 
 volumes:
   pgdata:
+  authlykeys:
   tempo-data:
   grafana-data:

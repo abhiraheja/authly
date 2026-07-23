@@ -46,6 +46,9 @@ services:
       # Env fallback OTLP endpoint; the in-app Observability page can override at runtime.
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
       - Authly__Tokens__DisableAccessTokenEncryption=true
+      # Saarvix overloads `sid` as the user's legacy Mongo ObjectId — move OIDC session binding
+      # off it so it doesn't clobber the pre-token hook's user-id sid. Unset = "sid" (OIDC default).
+      - Authly__Tokens__SessionIdClaimName=session_id
     ports:
       - "${APP_PORT:-8080}:8080"
     depends_on:

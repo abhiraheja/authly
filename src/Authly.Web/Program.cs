@@ -1,6 +1,7 @@
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Authly.Core.Interfaces;
@@ -86,8 +87,19 @@ builder.Services.AddScoped<MessageDispatchJob>();
 builder.Services.AddScoped<Authly.Core.Events.IWebhookQueue, Authly.Web.Infrastructure.Webhooks.HangfireWebhookQueue>();
 builder.Services.AddScoped<Authly.Web.Infrastructure.Webhooks.WebhookDispatchJob>();
 
-// OAuth 2.0 / OIDC server (OpenIddict) — endpoints, flows, dev signing keys.
-builder.Services.AddAuthlyOpenIddict(builder.Environment.IsDevelopment(), builder.Configuration);
+// Data Protection keyring — persisted alongside the OpenIddict keys so it survives restarts and is
+// shared across replicas. Without this the keyring is per-instance and regenerated on restart, which
+// breaks auth cookies, antiforgery tokens and any IDataProtector-backed state after a redeploy.
+var keyDirectory = builder.Configuration["Authly:Keys:Directory"];
+if (string.IsNullOrWhiteSpace(keyDirectory))
+    keyDirectory = Path.Combine(builder.Environment.ContentRootPath, "keys");
+Directory.CreateDirectory(keyDirectory);
+builder.Services.AddDataProtection()
+    .SetApplicationName("Authly")
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(keyDirectory, "dataprotection")));
+
+// OAuth 2.0 / OIDC server (OpenIddict) — endpoints, flows, persisted signing/encryption keys.
+builder.Services.AddAuthlyOpenIddict(builder.Environment, builder.Configuration);
 builder.Services.AddScoped<IOAuthClientStore, OpenIddictClientStore>();
 
 // Isolated cookie schemes for tenant end-users and tenant administrators (console operators).

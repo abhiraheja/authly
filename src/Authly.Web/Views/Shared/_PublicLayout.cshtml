@@ -10,6 +10,9 @@
     <title>@ViewData["Title"] · Authly</title>
     <meta name="description" content="@(ViewData["Description"] ?? "Authly — open-source, self-hostable identity infrastructure: OAuth2/OIDC, passkeys, MFA, RBAC, multi-tenant, webhooks. Self-host with Docker.")" />
     <script>try { if (localStorage.getItem("authly-theme") === "dark") document.documentElement.classList.add("dark"); } catch (e) { }</script>
+    <link rel="icon" href="~/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="~/favicon.ico" sizes="48x48" />
+    <link rel="apple-touch-icon" href="~/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
     <link rel="stylesheet" href="~/css/saarvix.css" asp-append-version="true" />
@@ -18,7 +21,7 @@
     <header class="h-16 flex items-center border-b border-border glass sticky top-0 z-30">
         <nav class="mx-auto max-w-7xl w-full px-4 sm:px-6 flex items-center gap-6">
             <a class="flex items-center gap-2.5 font-display font-bold" asp-area="" asp-controller="Home" asp-action="Index">
-                <span class="grid place-items-center size-8 rounded-lg bg-primary text-primary-foreground"><i data-lucide="shield-check" class="size-4"></i></span>
+                @await Html.PartialAsync("_BrandMark", "size-8 text-primary")
                 Authly
             </a>
 
@@ -49,7 +52,7 @@
             <div class="grid gap-8 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
                 <div>
                     <a class="flex items-center gap-2.5 font-display font-bold" asp-area="" asp-controller="Home" asp-action="Index">
-                        <span class="grid place-items-center size-8 rounded-lg bg-primary text-primary-foreground"><i data-lucide="shield-check" class="size-4"></i></span>
+                        @await Html.PartialAsync("_BrandMark", "size-8 text-primary")
                         Authly
                     </a>
                     <p class="mt-3 text-sm text-muted-foreground max-w-xs">@Authly.Web.SiteInfo.Tagline</p>

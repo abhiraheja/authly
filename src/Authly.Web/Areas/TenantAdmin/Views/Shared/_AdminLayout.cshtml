@@ -14,6 +14,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] · Authly Admin</title>
     <script>try { if (localStorage.getItem("authly-theme") === "dark") document.documentElement.classList.add("dark"); } catch (e) { }</script>
+    <link rel="icon" href="~/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="~/favicon.ico" sizes="48x48" />
+    <link rel="apple-touch-icon" href="~/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
     <link rel="stylesheet" href="~/css/saarvix.css" asp-append-version="true" />
@@ -26,9 +29,7 @@
                   bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col scroll-thin overflow-y-auto">
         <a class="flex items-center gap-2.5 px-5 h-16 shrink-0 font-display text-[15px] font-bold text-foreground"
            asp-area="TenantAdmin" asp-controller="Applications" asp-action="Index">
-            <span class="grid place-items-center size-8 rounded-lg bg-primary text-primary-foreground">
-                <i data-lucide="shield-check" class="size-4"></i>
-            </span>
+            @await Html.PartialAsync("_BrandMark", "size-8 text-primary")
             <span>Authly</span>
         </a>
 

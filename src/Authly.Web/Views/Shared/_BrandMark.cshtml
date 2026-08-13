@@ -1,0 +1,11 @@
+@*
+    The Authly shield mark. Inherits its colour from the surrounding text
+    (`currentColor`), and the keyhole is punched out with the even-odd fill rule
+    so it picks up whatever sits behind the mark.
+    Usage: @await Html.PartialAsync("_BrandMark", "size-8 text-primary")
+*@
+@model string
+<svg viewBox="26 12 204 232" fill="currentColor" fill-rule="evenodd" aria-hidden="true" focusable="false"
+     class="@(string.IsNullOrEmpty(Model) ? "size-8" : Model)" xmlns="http://www.w3.org/2000/svg">
+    <path d="M128 16 226 52v78c0 57-41 92-98 110C71 222 30 187 30 130V52Z M148 115.3A24 24 0 1 0 108 115.3L102 168h52Z" />
+</svg>

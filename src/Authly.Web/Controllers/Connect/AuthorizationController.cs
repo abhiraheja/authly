@@ -156,6 +156,14 @@ public sealed class AuthorizationController : Controller
         var application = await _applications.GetByClientIdAsync(request.ClientId!, ct)
             ?? throw new InvalidOperationException("The client application cannot be found.");
 
+        // A client-credentials exchange is a cookie-less form POST, so TenantResolutionMiddleware can't
+        // resolve the tenant (it reads host/header/query/cookie, never the form body). Set it from the
+        // application's own tenant so the RLS backstop (app.current_tenant) lets tenant-scoped lookups see
+        // their rows — notably the pre-token pipeline hook (pipeline_hooks is FORCE-RLS). Without this the
+        // hook row is invisible on this connection, the stage is skipped, and the token is issued unenriched
+        // (no company_id / permissions / products) — mirrors the ExchangeUserGrantAsync SetTenant below.
+        _tenant.SetTenant(application.TenantId);
+
         var identity = new ClaimsIdentity(
             authenticationType: TokenValidationParametersScheme,
             nameType: Claims.Name,
